@@ -1,0 +1,142 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav [mode]="'side'" [opened]="true" 
+    [ngClass]="{ 'close': !isSidebarOpened }" 
+    id="sidebar"
+    [fixedInViewport]="true" 
+    [autoFocus]="false">
+    
+    <ul>
+      <li class="header-navbar">
+        <!-- Logo khi menu mở -->
+        <div class="logo-open" *ngIf="isSidebarOpened">
+          <img [src]="logoPath" alt="MK Vision" class="logo-image">
+        </div>
+        
+        <!-- Logo khi menu đóng (clickable) -->
+        <div class="logo-closed" *ngIf="!isSidebarOpened" (click)="toggleSidebar()">
+          <img [src]="logoPath" alt="MK Vision" class="logo-image-small">
+        </div>
+        
+        <!-- Button toggle chỉ hiện khi menu mở -->
+        <button (click)="toggleSidebar()" 
+                id="toggle-btn" 
+                [class.rotate]="!isSidebarOpened"
+                *ngIf="isSidebarOpened">
+          <mat-icon>keyboard_double_arrow_left</mat-icon>
+        </button>
+      </li>
+      
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <mat-icon>dashboard</mat-icon>
+          <span>Trang chủ</span>
+        </a>
+      </li>
+      
+      <li>
+        <button (click)="toggleSubMenu($event)" 
+                (mouseenter)="isSidebarOpened ? null : onMenuHover($event, true)"
+                (mouseleave)="isSidebarOpened ? null : onMenuHover($event, false)"
+                class="dropdown-btn" 
+                [class.rotate]="cameraSubMenuOpen"
+                [class.active]="isCameraRouteActive()">
+          <mat-icon>videocam</mat-icon>
+          <span>Camera</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <ul class="sub-menu" [class.show]="cameraSubMenuOpen"
+            (mouseenter)="isSidebarOpened ? null : onSubmenuHover($event, true)"
+            (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
+          <div>
+            <li>
+              <a routerLink="/camera/list" routerLinkActive="active" (click)="closeCameraMenu()">
+                Danh sách Camera
+              </a>
+            </li>
+            <li>
+              <a routerLink="/camera/setting" routerLinkActive="active" (click)="closeCameraMenu()">
+                Cài đặt Camera
+              </a>
+            </li>
+          </div>
+        </ul>
+      </li>
+      
+      <li>
+        <button (click)="toggleSubMenu($event)" 
+                (mouseenter)="isSidebarOpened ? null : onMenuHover($event, true)"
+                (mouseleave)="isSidebarOpened ? null : onMenuHover($event, false)"
+                class="dropdown-btn" 
+                [class.rotate]="eventSubMenuOpen"
+                [class.active]="isEventRouteActive()">
+          <mat-icon>event_note</mat-icon>
+          <span>Quản lý sự kiện</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <ul class="sub-menu" [class.show]="eventSubMenuOpen"
+            (mouseenter)="isSidebarOpened ? null : onSubmenuHover($event, true)"
+            (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
+          <div>
+            <li>
+              <a routerLink="/event/info" routerLinkActive="active" (click)="closeEventMenu()">
+                Thông tin Sự kiện
+              </a>
+            </li>
+            <li>
+              <a routerLink="/event/photo-gallery" routerLinkActive="active" (click)="closeEventMenu()">
+                Thư viện ảnh
+              </a>
+            </li>
+          </div>
+        </ul>
+      </li>
+      
+      <li>
+        <button (click)="toggleSubMenu($event)" 
+                (mouseenter)="isSidebarOpened ? null : onMenuHover($event, true)"
+                (mouseleave)="isSidebarOpened ? null : onMenuHover($event, false)"
+                class="dropdown-btn" 
+                [class.rotate]="statsSubMenuOpen"
+                [class.active]="isStatsRouteActive()">
+          <mat-icon>analytics</mat-icon>
+          <span>Thống kê sự kiện</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <ul class="sub-menu" [class.show]="statsSubMenuOpen"
+            (mouseenter)="isSidebarOpened ? null : onSubmenuHover($event, true)"
+            (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
+          <div>
+            <li>
+              <a routerLink="/thong-ke/doi-tuong-nhan-dien" routerLinkActive="active" (click)="closeStatsMenu()">
+                Đối tượng nhận diện
+              </a>
+            </li>
+            <li>
+              <a routerLink="/thong-ke/luu-luong-ra-vao" routerLinkActive="active" (click)="closeStatsMenu()">
+                Lưu lượng ra vào
+              </a>
+            </li>
+            <li>
+              <a routerLink="/thong-ke/luu-luong-giao-thong" routerLinkActive="active" (click)="closeStatsMenu()">
+                Lưu lượng giao thông
+              </a>
+            </li>
+            <li>
+              <a routerLink="/thong-ke/vi-pham-giao-thong" routerLinkActive="active" (click)="closeStatsMenu()">
+                Vi phạm giao thông
+              </a>
+            </li>
+          </div>
+        </ul>
+      </li>
+    </ul>
+    
+    <div class="user-section">
+      <app-user *ngIf="isSidebarOpened"></app-user>
+      <app-usermini *ngIf="!isSidebarOpened"></app-usermini>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+  </mat-sidenav-content>
+</mat-sidenav-container>

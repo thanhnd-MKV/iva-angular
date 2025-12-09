@@ -1,0 +1,6 @@
+{
+  "command": "npm run start",
+  "serverUrl": "iva-demo.mkvision.com/",
+  "authenticateProxy": false,
+  "commitMode": "commits"
+}

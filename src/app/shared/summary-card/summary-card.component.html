@@ -1,0 +1,19 @@
+<div class="summary-card" [class]="class">
+  <p class="title">{{ title }}</p>
+  <div class="value-container">
+    <h2 class="value">{{ value | numberFormat }}</h2>
+    <span class="percentage" [ngClass]="{
+      'positive': percentageChange > 0,
+      'negative': percentageChange < 0,
+      'disabled': percentageChange === 0
+    }">
+      <mat-icon class="trend-icon" *ngIf="percentageChange !== 0">
+        {{ percentageChange > 0 ? 'add' : 'remove' }}
+      </mat-icon>
+      {{ percentageChange === 0 ? '+0' : percentageChange }}
+        <mat-icon class="trend-icon-trend">
+        {{ isPositive ? 'trending_up' : 'trending_down' }}
+      </mat-icon>
+    </span>
+  </div>
+</div>

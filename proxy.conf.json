@@ -1,0 +1,37 @@
+{
+  "/api/admin/organization/tree": {
+    "target": "https://sso-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/upload": {
+    "target": "https://iva-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api": {
+    "target": "https://iva-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/sso": {
+    "target": "https://iva-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/rest": {
+    "target": "https://14.225.36.54:7001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/webrtc-tracker": {
+    "target": "https://14.225.36.54:7001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/admin/permissions/sync": {
+    "target": "https://sso-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

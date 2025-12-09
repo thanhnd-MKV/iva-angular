@@ -1,0 +1,393 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.event-detail-container {
+  /* padding: 24px; */
+  border-radius: 8px;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+  background-color: #ffffff;
+  width: 100%;
+  max-height: calc(100vh - 225px);
+  /* overflow-y: scroll; */
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Update Section Styles */
+.update-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-event-btn {
+  background-color: #007bff;
+  color: white !important;
+  font-weight: 400;
+  padding: 8px 20px;
+  border-radius: 4px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.update-event-btn:hover:not([disabled]) {
+  background-color: #0056b3;
+}
+
+.update-event-btn:disabled {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.button-spinner {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Removed old notification styles - now using toast notifications */
+
+/* Image Gallery Section */
+.image-gallery-section {
+  margin-bottom: 16px;
+}
+
+.image-gallery {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.image-item {
+  position: relative;
+  width: 80px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  background-color: #f5f5f5;
+}
+
+.image-item:hover {
+  border-color: #2196F3;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+.image-item.loading .thumbnail-image {
+  opacity: 0.3;
+}
+
+.more-images-indicator {
+  position: relative;
+  width: 80px;
+  height: 60px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e0e0e0, #f5f5f5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.more-images-indicator:hover {
+  border-color: #2196F3;
+  background: linear-gradient(135deg, #2196F3, #21CBF3);
+  color: white;
+  transform: scale(1.05);
+}
+
+.more-count {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.more-images-indicator mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Map Section Styling */
+.map-section {
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 8px;
+  margin-bottom: 10px;
+}
+
+.update-event-btn {
+  color: #444 !important;
+  background-color: #eaeaea !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: auto !important;
+  border-radius: 8px !important;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 2px 0px
+}
+
+.update-event-btn:hover {
+  transform: translateY(-1px) !important;
+  opacity: 0.8 !important;
+}
+
+.update-event-btn:active {
+  transform: translateY(0) !important;
+}
+
+.update-event-btn mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.title {
+  font-weight: 600;
+  color: #494949;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #f5f5f5;
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.section-title mat-icon {
+  color: #4285f4;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+.image-item:hover .image-overlay {
+  opacity: 1;
+}
+
+.zoom-icon {
+  color: white;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-weight: 500;
+  color: #666;
+  flex: 0 0 120px;
+}
+
+.value {
+  flex: 1;
+  text-align: right;
+  color: #333;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-active {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.status-pending {
+  background-color: #FFE9E8;
+  color: #E3190A;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.status-default {
+  background-color: #f5f5f5;
+  color: #666;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+/* No Content State */
+.no-content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  height: calc(100vh - 320px);
+  color: #666;
+}
+
+.no-content-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  color: #ccc;
+}
+
+.no-content-container p {
+  margin: 8px 0;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.no-content-container span {
+  font-size: 14px;
+  color: #999;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .value {
+    text-align: left;
+  }
+}
+
+/* Thêm CSS cho fullscreen image viewer */
+.image-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-container {
+  /* width: 90vw; */
+  /* height: 90vh; */
+  max-width: 1200px;
+  max-height: 800px;
+  background: black;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Override ImageViewer styles cho fullscreen */
+.image-viewer-overlay .image-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.image-viewer-overlay .image-container img {
+  max-width: 80vw !important;
+  max-height: 70vh !important;
+}

@@ -1,0 +1,22 @@
+<div class="custom-checkbox" 
+     [class.disabled]="disabled" 
+     [class.checked]="checked"
+     (click)="toggleCheckbox()">
+  
+  <div class="checkbox-box">
+    <div class="checkbox-ripple"></div>
+    <div class="checkbox-inner" [class.checked]="checked">
+      <svg class="checkmark" viewBox="0 0 24 24">
+        <path class="checkmark-path" 
+              fill="none" 
+              stroke="currentColor" 
+              stroke-width="3" 
+              d="M4 12l5 5L20 6"/>
+      </svg>
+    </div>
+  </div>
+  
+  <span class="checkbox-label" *ngIf="label">{{ label }}</span>
+  
+  <span class="checkbox-icon" *ngIf="icon">{{ icon }}</span>
+</div>

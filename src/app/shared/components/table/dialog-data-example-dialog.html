@@ -1,0 +1,7 @@
+<h2 mat-dialog-title>Source Detail</h2>
+<mat-dialog-content class="preview-dialog-content">
+  <ng-container [ngSwitch]="data.type">
+    <img class="img-detail" *ngSwitchCase="'image'" [src]="data.src" alt="Preview Image" />
+    <video class="video-detail" *ngSwitchCase="'video'" [src]="data.src" controls autoplay></video>
+  </ng-container>
+</mat-dialog-content>

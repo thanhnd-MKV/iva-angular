@@ -1,0 +1,105 @@
+<div class="image-upload-container">
+  <!-- Upload Area -->
+  <div 
+    class="upload-area"
+    [class.dragging]="isDragging"
+    [class.has-files]="uploadedImages.length > 0"
+    [class.uploading]="isUploading"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    (click)="triggerFileInput()"
+  >
+    <input 
+      type="file" 
+      id="imageFileInput"
+      accept="image/jpeg,image/jpg,image/png,image/webp"
+      [multiple]="allowMultiple"
+      (change)="onFileSelected($event)"
+      style="display: none;"
+    />
+
+    <!-- No file uploaded state -->
+    <div class="upload-placeholder" *ngIf="uploadedImages.length === 0 && previewUrls.length === 0 && !isUploading">
+      <div class="upload-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <p class="upload-text">
+        <span class="highlight">Nhấp để chọn</span> hoặc kéo thả ảnh vào đây
+      </p>
+      <p class="upload-hint">JPG, PNG, WEBP (tối đa 5MB {{ allowMultiple ? '/ ảnh' : '' }})</p>
+      <p class="upload-hint" *ngIf="allowMultiple">✨ Có thể chọn nhiều ảnh cùng lúc</p>
+    </div>
+
+    <!-- Previews (before upload) -->
+    <div class="previews-grid" *ngIf="previewUrls.length > 0 && !isUploading">
+      <div class="preview-item" *ngFor="let preview of previewUrls">
+        <img [src]="preview.url" alt="Preview" class="preview-image" />
+        <button class="remove-preview-btn" (click)="removePreview(preview.file); $event.stopPropagation()" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div class="file-name-overlay">{{ preview.file.name }}</div>
+      </div>
+    </div>
+
+    <!-- Uploading state -->
+    <div class="uploading-state" *ngIf="isUploading">
+      <mat-spinner diameter="50" color="primary"></mat-spinner>
+      <p class="uploading-text">Đang tải lên {{ selectedFiles.length }} ảnh...</p>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+      </div>
+      <p class="progress-text">{{ uploadProgress }}%</p>
+    </div>
+
+    <!-- Uploaded images grid -->
+    <div class="uploaded-images-grid" *ngIf="uploadedImages.length > 0 && !isUploading" (click)="$event.stopPropagation()">
+      <div class="uploaded-item" *ngFor="let image of uploadedImages">
+        <!-- Using local preview, will use image.imageUrl from storage after API integration -->
+        <img [src]="getImagePreviewUrl(image)" [alt]="image.fileName" class="uploaded-image" />
+        <button class="remove-uploaded-btn" (click)="removeUploadedImage(image.id); $event.stopPropagation()" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div class="image-info-overlay">
+          <p class="image-name">{{ image.fileName }}</p>
+          <p class="image-size">{{ formatFileSize(image.fileSize) }}</p>
+        </div>
+      </div>
+      
+      <!-- Add more button -->
+      <div class="add-more-item" *ngIf="allowMultiple" (click)="triggerFileInput(); $event.stopPropagation()">
+        <div class="add-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </div>
+        <p class="add-text">Thêm ảnh</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error message -->
+  <div class="error-message" *ngIf="errorMessage">
+    <mat-icon class="error-icon">error</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="upload-summary" *ngIf="uploadedImages.length > 0">
+    <p class="summary-text">
+      <mat-icon class="summary-icon">check_circle</mat-icon>
+      Đã tải lên {{ uploadedImages.length }} ảnh
+    </p>
+  </div>
+</div>

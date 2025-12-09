@@ -1,0 +1,37 @@
+.preview-dialog-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.preview-dialog-content img,
+.preview-dialog-content video {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.img-detail {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  max-width: 100%;
+  max-height: 100%;
+  width: calc(100% - 32px);
+  height: auto;
+}
+.video-detail {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  max-width: 100%;
+  max-height: 100%;
+  width: calc(100% - 32px);
+  height: auto;
+}

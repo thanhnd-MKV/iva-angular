@@ -1,0 +1,8 @@
+<div class="app-container">
+    <app-navbar id="navbar" class="navbar" *ngIf="isLoggedIn"></app-navbar>
+
+    <div class="main-content">
+         <app-header *ngIf="isLoggedIn"></app-header>
+        <router-outlet></router-outlet>
+    </div>
+</div>

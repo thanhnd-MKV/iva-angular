@@ -1,0 +1,24 @@
+<div class="page-header">
+  <div class="breadcrumb">
+    <span class="breadcrumb-parent" 
+          *ngIf="parentTitle" 
+          [class.clickable]="isEventDetailPage"
+          (click)="isEventDetailPage ? navigateToParent() : null">
+      {{ parentTitle }}
+    </span>
+    <mat-icon *ngIf="parentTitle" class="breadcrumb-separator">chevron_right</mat-icon>
+    <span class="breadcrumb-current">{{ pageTitle }}</span>
+    
+    <!-- Event ID for detail page -->
+    <ng-container *ngIf="isEventDetailPage && eventId">
+      <mat-icon class="breadcrumb-separator">chevron_right</mat-icon>
+      <span class="event-id">{{ eventId }}</span>
+    </ng-container>
+  </div>
+
+  <div class="datetime-box">
+    <span class="time">{{ currentTime }}</span>
+    <span class="separator">|</span>
+    <span class="date">{{ currentDate }}</span>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+<!-- Search -->
+
+<app-filter-search-bar
+  [items]="menuItems"
+  (apiTriggered)="handleTagApi($event)"
+></app-filter-search-bar>
+
+<!-- Table -->
+
+<app-base-table 
+  [title]="'Danh sách camera'" 
+  [data]="tableData" 
+  [columnsToDisplay]="columnsToDisplay"
+  [columnDefs]="columnDefs" 
+  [actions]="['edit', 'delete', 'info', 'create']" 
+  [hasError]="hasError"
+  [errorMessage]="errorMessage"
+  (edit)="handleChangeClick($event)"
+  (delete)="handleDeleteClick($event)" 
+  (view)="handleViewClick($event)"
+  (create)="handleCreateClick($event)"
+  (columnClick)="onColumnClick($event)"
+  (refresh)="onRefreshData()"
+  (clearFilterData)="onClearFilterData()">
+</app-base-table>
+
+<!-- Pagination -->
+
+<app-custom-paginator
+  [totalItems]="totalItems"
+  [pageSize]="pageSize"
+  [currentPage]="pageNumber"
+  (pageChange)="onPageChange($event)">
+</app-custom-paginator>

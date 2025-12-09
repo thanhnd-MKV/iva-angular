@@ -1,0 +1,325 @@
+<div class="event-detail-page">
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Đang tải chi tiết sự kiện...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-container" *ngIf="error && !loading">
+    <mat-icon>error_outline</mat-icon>
+    <h3>{{ errorMessage }}</h3>
+    <div class="error-actions">
+      <button mat-raised-button color="primary" (click)="retry()">Thử lại</button>
+      <button mat-button (click)="goToList()">Về danh sách</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content" *ngIf="!loading && !error && eventDetail">
+    <!-- Content Panels Container -->
+    <div class="panels-container">
+      <!-- Left Panel -->
+      <div class="left-panel">
+      <!-- Info Card - Dynamic based on event type -->
+      <div class="info-card">
+        <div class="card-header">
+          <span class="card-title">{{ getEventCategoryTitle() }}</span>
+        </div>
+        <div class="card-body">
+          <!-- Person Recognition Event (Nhận diện người) -->
+          <ng-container *ngIf="isPersonEvent()">
+            <!-- Reference Images Section -->
+            <div class="reference-images" *ngIf="getReferenceImages().length > 0">
+              <span class="section-label">Hình ảnh gốc</span>
+              <div class="ref-image-list">
+                <div class="ref-image-item" *ngFor="let img of getReferenceImages(); let i = index"
+                     [class.active]="i === 0">
+                  <img [src]="img" alt="Reference image">
+                  <span class="ref-label" *ngIf="i === getReferenceImages().length - 1">Ảnh sự kiện trong database</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Họ tên</span>
+              <span class="value">{{ eventDetail.personName || eventDetail.name || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Giới tính</span>
+              <span class="value">{{ getGenderDisplay(eventDetail.gender) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Tuổi</span>
+              <span class="value">{{ eventDetail.age || eventDetail.ageRange || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Trang phục</span>
+              <span class="value">
+                <span class="color-dot" [style.background]="getClothingColor(eventDetail.clothingColor)"></span>
+                {{ eventDetail.clothing || eventDetail.clothingDescription || 'N/A' }}
+              </span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Thời gian</span>
+              <span class="value">{{ formatDateTime(eventDetail.startTime || eventDetail.eventTime) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Vị trí</span>
+              <a class="value link" [href]="getLocationLink()" target="_blank">
+                {{ eventDetail.location || 'N/A' }}
+              </a>
+            </div>
+          </ng-container>
+          
+          <!-- Traffic Event (Giao thông) -->
+          <ng-container *ngIf="isTrafficEvent()">
+            <div class="info-row">
+              <span class="label">Biển số</span>
+              <span class="value">
+                <span class="license-plate" [ngClass]="getPlateTypeClass(selectedPlateType)">
+                  {{ eventDetail.plateNumber || eventDetail.licensePlate || 'N/A' }}
+                </span>
+              </span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Loại biển số</span>
+              <span class="value">
+                <span class="plate-indicator" [ngClass]="getPlateTypeClass(selectedPlateType)"></span>
+                <select class="plate-select" [(ngModel)]="selectedPlateType">
+                  <option value="yellow">Vàng</option>
+                  <option value="white">Trắng</option>
+                  <option value="blue">Xanh</option>
+                </select>
+              </span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Mẫu mã xe</span>
+              <span class="value">{{ eventDetail.vehicleModel || eventDetail.vehicleType || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Màu xe</span>
+              <span class="value">
+                <span class="color-dot" [style.background]="getColorCode(eventDetail.vehicleColor)"></span>
+                {{ getVehicleColor(eventDetail.vehicleColor) }}
+              </span>
+            </div>
+            
+            <div class="info-row" *ngIf="eventDetail.speed">
+              <span class="label">Tốc độ</span>
+              <span class="value">{{ eventDetail.speed }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Loại vi phạm</span>
+              <span class="value violation-text">{{ eventDetail.eventType || eventDetail.violationType || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Thời gian</span>
+              <span class="value">{{ formatDateTime(eventDetail.startTime || eventDetail.eventTime) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Vị trí</span>
+              <a class="value link" [href]="getLocationLink()" target="_blank">
+                {{ eventDetail.location || 'N/A' }}
+              </a>
+            </div>
+          </ng-container>
+
+          <!-- Security Event (An ninh trật tự) -->
+          <ng-container *ngIf="isSecurityEvent()">
+            <div class="info-row">
+              <span class="label">Loại sự kiện</span>
+              <span class="value violation-text">{{ eventDetail.eventType || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Mô tả</span>
+              <span class="value">{{ eventDetail.description || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Mức độ</span>
+              <span class="value" [ngClass]="getSeverityClass(eventDetail.severity)">
+                {{ eventDetail.severity || 'Trung bình' }}
+              </span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Thời gian</span>
+              <span class="value">{{ formatDateTime(eventDetail.startTime || eventDetail.eventTime) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Vị trí</span>
+              <a class="value link" [href]="getLocationLink()" target="_blank">
+                {{ eventDetail.location || 'N/A' }}
+              </a>
+            </div>
+          </ng-container>
+          
+          <!-- Generic/Default Event -->
+          <ng-container *ngIf="!isPersonEvent() && !isTrafficEvent() && !isSecurityEvent()">
+            <div class="info-row">
+              <span class="label">Loại sự kiện</span>
+              <span class="value">{{ eventDetail.eventType || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Camera</span>
+              <span class="value">{{ eventDetail.cameraName || eventDetail.cameraSn || 'N/A' }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Thời gian</span>
+              <span class="value">{{ formatDateTime(eventDetail.startTime || eventDetail.eventTime) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Vị trí</span>
+              <a class="value link" [href]="getLocationLink()" target="_blank">
+                {{ eventDetail.location || 'N/A' }}
+              </a>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Trạng thái</span>
+              <span class="value" [ngClass]="getStatusClass(eventDetail.status)">
+                {{ getStatusDisplay(eventDetail.status) }}
+              </span>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+      
+      <!-- Map Card - Always show map -->
+      <div class="map-card">
+        <app-google-map 
+          [latitude]="mapLatitude"
+          [longitude]="mapLongitude"
+          [height]="'100%'"
+          [zoom]="16"
+          [markerTitle]="eventDetail?.location || 'Vị trí sự kiện'">
+        </app-google-map>
+        <div class="map-overlay" *ngIf="!hasEventCoordinates">
+          <span class="no-location-badge">Không có tọa độ GPS</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <!-- Media Display -->
+      <div class="media-display">
+        <!-- Video View - Show when clipPath exists -->
+        <ng-container *ngIf="hasVideo()">
+          <div class="video-wrapper" *ngIf="selectedMediaType === 'video'">
+            <video #videoPlayer 
+                   [src]="eventDetail.clipPath" 
+                   class="video-player"
+                   (loadedmetadata)="onVideoLoaded()"
+                   (timeupdate)="onVideoTimeUpdate()"
+                   (ended)="onVideoEnded()">
+            </video>
+            <div class="video-overlay-btn" *ngIf="!isPlaying" (click)="togglePlay()">
+              <mat-icon>play_arrow</mat-icon>
+            </div>
+          </div>
+          <div class="video-controls" *ngIf="selectedMediaType === 'video'">
+            <button class="ctrl-btn" (click)="skipBackward()"><mat-icon>replay_10</mat-icon></button>
+            <button class="ctrl-btn play" (click)="togglePlay()">
+              <mat-icon>{{ isPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
+            </button>
+            <button class="ctrl-btn" (click)="skipForward()"><mat-icon>forward_10</mat-icon></button>
+            <button class="speed-btn" (click)="changePlaybackSpeed()">{{ playbackSpeed }}x</button>
+            <div class="video-progress">
+              <input type="range" min="0" max="100" [value]="videoProgress" 
+                     (input)="onProgressChange($event)" class="progress-slider">
+              <span class="time-display">{{ formatVideoTime(currentTime) }} / {{ formatVideoTime(duration) }}</span>
+            </div>
+          </div>
+          
+          <!-- Show image when in image mode but video is available -->
+          <div class="image-wrapper" *ngIf="selectedMediaType === 'image'">
+            <img [src]="selectedImage || getMainImage()" alt="Event image" class="main-image" (click)="openImageViewer()">
+            <button class="fullscreen-btn" (click)="openImageViewer()">
+              <mat-icon>fullscreen</mat-icon>
+            </button>
+          </div>
+        </ng-container>
+        
+        <!-- Image View Only - Show when NO clipPath -->
+        <ng-container *ngIf="!hasVideo()">
+          <div class="image-wrapper">
+            <img [src]="selectedImage || getMainImage()" alt="Event image" class="main-image" (click)="openImageViewer()">
+            <button class="fullscreen-btn" (click)="openImageViewer()">
+              <mat-icon>fullscreen</mat-icon>
+            </button>
+          </div>
+        </ng-container>
+      </div>
+      
+      <!-- Thumbnails Section -->
+      <div class="thumbnails-section">
+        <div class="thumb-group" *ngIf="getEventImages().length > 0">
+          <span class="thumb-title">{{ isPersonEvent() ? 'Đối tượng' : 'Hình ảnh vi phạm' }} ({{ getEventImages().length }})</span>
+          <div class="thumb-list">
+            <div class="thumb-item" 
+                 *ngFor="let img of getEventImages(); let i = index"
+                 [class.active]="selectedImageIndex === i && selectedMediaType === 'image'"
+                 (click)="selectImage(img, i)">
+              <img [src]="img" alt="Thumbnail">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Video thumbnail - only show when clipPath exists -->
+        <div class="thumb-group" *ngIf="hasVideo()">
+          <span class="thumb-title">Video</span>
+          <div class="thumb-list">
+            <div class="thumb-item video" 
+                 [class.active]="selectedMediaType === 'video'"
+                 (click)="selectVideo()">
+              <img [src]="getVideoThumbnail()" alt="Video thumbnail">
+              <mat-icon class="play-icon">play_circle_filled</mat-icon>
+            </div>
+          </div>
+        </div>
+        
+        <div class="thumb-actions" *ngIf="getEventImages().length > 4 || hasVideo()">
+          <button class="nav-arrow" (click)="scrollThumbnails('left')" [disabled]="thumbnailScrollIndex === 0">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button class="nav-arrow" (click)="scrollThumbnails('right')">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+          <button class="download-all-btn" (click)="downloadAllMedia()">
+            <mat-icon>download</mat-icon>
+            <span>Tải toàn bộ</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    </div> <!-- End panels-container -->
+  </div> <!-- End main-content -->
+</div>
+
+<!-- Image Viewer Modal -->
+<div class="image-viewer-modal" *ngIf="showImageViewer" (click)="closeImageViewer()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <app-image-viewer 
+      [event]="getViewerEvent()" 
+      (close)="closeImageViewer()">
+    </app-image-viewer>
+  </div>
+</div>

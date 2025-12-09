@@ -1,0 +1,157 @@
+<mat-card class="event-detail-container">
+  <ng-container *ngIf="eventDetail; else noContent">
+    <mat-card-header>
+      <div class="header-content">
+        <div class="title">Sự kiện</div>
+        <div class="update-section">
+          <button class="update-event-btn" 
+                  *ngIf="eventDetail.status !== 'Đã xử lý'"
+                  [disabled]="isUpdating"
+                  matTooltip="Cập nhật sự kiện"
+                  (click)="updateEvent()">
+            <mat-spinner *ngIf="isUpdating" diameter="16" class="button-spinner"></mat-spinner>
+            <span *ngIf="!isUpdating">Cập nhật</span>
+            <span *ngIf="isUpdating">Đang cập nhật...</span>
+          </button>
+          
+          <div *ngIf="eventDetail.status === 'Đã xử lý'" 
+               class="status-badge-header"
+               [ngClass]="getStatusClass(eventDetail.status)">
+            {{ eventDetail.status }}
+          </div>
+        </div>
+      </div>
+    </mat-card-header>
+    <mat-card-content class="event-detail-content">
+      <!-- Image gallery section -->
+      <div class="image-gallery-section" *ngIf="getEventImages().length > 0">
+        <div class="image-gallery">
+          <div class="image-item" 
+               *ngFor="let image of getEventImages(); let i = index"
+               (click)="openImageViewer(getEventImages(), i)"
+               [class.loading]="isImageLoading">
+            
+            <img [src]="image" 
+                 [alt]="'Event image ' + (i + 1)"
+                 class="thumbnail-image"
+                 (load)="onImageLoad()"
+                 title="Click để xem ảnh lớn">
+            
+            <!-- Loading spinner cho từng ảnh -->
+            <div class="loading-spinner" *ngIf="isImageLoading">
+              <mat-spinner diameter="20"></mat-spinner>
+            </div>
+            
+            <!-- Overlay với zoom icon -->
+            <div class="image-overlay">
+              <mat-icon class="zoom-icon">zoom_in</mat-icon>
+            </div>
+          </div>
+          
+          <!-- Show more indicator nếu có nhiều hơn 3 ảnh -->
+          <div class="more-images-indicator" 
+               *ngIf="getEventImages().length > 3"
+               (click)="openImageViewer(getEventImages(), 3)">
+            <span class="more-count">+{{ getEventImages().length - 3 }}</span>
+            <mat-icon>more_horiz</mat-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Map Section -->
+      <div class="map-section" *ngIf="hasValidCoordinates()">
+        <div class="section-title">
+          <mat-icon>location_on</mat-icon>
+          <span>Vị trí:</span>
+          <span> {{eventDetail.location}} </span>
+        </div>
+        <app-google-map 
+          [latitude]="parseFloat(eventDetail.latitude)"
+          [longitude]="parseFloat(eventDetail.longitude)"
+          [height]="'200px'"
+          [zoom]="16">
+        </app-google-map>
+      </div>
+      
+      <!-- Event details -->
+      <div class="detail-item">
+        <span class="label">ID</span>
+        <span class="value">{{ eventDetail.id || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Event ID</span>
+        <span class="value">{{ eventDetail.eventId || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Camera</span>
+        <span class="value">{{ eventDetail.cameraName || eventDetail.cameraSn || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Camera SN</span>
+        <span class="value">{{ eventDetail.cameraSn || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Camera ID</span>
+        <span class="value">{{ eventDetail.cameraId || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Thời gian</span>
+        <span class="value">{{ eventDetail.startTime || eventDetail.eventTime || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Loại sự kiện</span>
+        <span class="value">{{ eventDetail.eventType || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Phân loại</span>
+        <span class="value">{{ eventDetail.eventCategory || 'No data' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Trạng thái</span>
+        <div [ngClass]="getStatusClass(eventDetail.status)">
+          {{ eventDetail.status === true || eventDetail.status === 'processed' ? 'Đã xử lý' : eventDetail.status === false || eventDetail.status === 'pending' ? 'Chưa xử lý' : 'No data' }}
+        </div>
+      </div>
+      
+      <!-- Conditional fields - only show if have data -->
+      <div class="detail-item" *ngIf="eventDetail.licensePlate && eventDetail.licensePlate !== 'No data'">
+        <span class="label">Biển số</span>
+        <span class="value">{{ eventDetail.licensePlate }}</span>
+      </div>
+      <div class="detail-item" *ngIf="eventDetail.speed && eventDetail.speed !== 'No data'">
+        <span class="label">Tốc độ</span>
+        <span class="value">{{ eventDetail.speed }}</span>
+      </div>
+      <div class="detail-item" *ngIf="eventDetail.eventCategory && eventDetail.eventCategory !== 'No data'">
+        <span class="label">Danh mục</span>
+        <span class="value">{{ eventDetail.eventCategory }}</span>
+      </div>
+      <div class="detail-item" *ngIf="eventDetail.duration && eventDetail.duration !== 'No data'">
+        <span class="label">Thời lượng</span>
+        <span class="value">{{ eventDetail.duration }}</span>
+      </div>
+      <div class="detail-item" *ngIf="(eventDetail.latitude && eventDetail.latitude !== 'No data') || (eventDetail.longitude && eventDetail.longitude !== 'No data')">
+        <span class="label">Tọa độ</span>
+        <span class="value">{{ eventDetail.latitude || 'N/A' }}, {{ eventDetail.longitude || 'N/A' }}</span>
+      </div>
+    </mat-card-content>
+  </ng-container>
+
+  <ng-template #noContent>
+    <div class="no-content-container">
+      <mat-icon class="no-content-icon">inbox</mat-icon>
+      <p>No Content</p>
+      <span>Chọn một event từ danh sách để xem chi tiết.</span>
+    </div>
+  </ng-template>
+</mat-card>
+
+<!-- Sử dụng ImageViewer cũ với overlay fullscreen -->
+<div class="image-viewer-overlay" *ngIf="showImageViewer" (click)="closeImageViewer()">
+  <div class="image-viewer-container" (click)="$event.stopPropagation()">
+    <app-image-viewer 
+      [event]="eventDetail" 
+      (close)="closeImageViewer()">
+    </app-image-viewer>
+  </div>
+</div>

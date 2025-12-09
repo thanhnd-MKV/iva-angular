@@ -1,0 +1,36 @@
+<div [matMenuTriggerFor]="menu">
+    <div class="header-container">
+        <img [src]="avatarUrl" alt="Avatar" class="user-avatar" />
+    </div>
+
+    <mat-menu #menu="matMenu" class="modern-user-menu" yPosition="below" xPosition="after">
+        <!-- Compact User Info Header -->
+        <div class="custom-menu-header" mat-menu-item [disabled]="true">
+            <img [src]="avatarUrl" alt="Avatar" class="menu-avatar" />
+            <div class="user-details">
+                <div class="menu-username">{{ username }}</div>
+                <div class="menu-email">{{ userEmail }}</div>
+            </div>
+        </div>
+        
+        <mat-divider></mat-divider>
+        
+        <!-- Menu Items -->
+        <button mat-menu-item class="menu-action-item" (click)="viewProfile()">
+            <mat-icon class="menu-icon">person_outline</mat-icon>
+            <span>Thông tin cá nhân</span>
+        </button>
+        
+        <button mat-menu-item class="menu-action-item" (click)="changePassword()">
+            <mat-icon class="menu-icon">lock_outline</mat-icon>
+            <span>Đổi mật khẩu</span>
+        </button>
+        
+        <mat-divider></mat-divider>
+        
+        <button mat-menu-item class="menu-action-item logout-item" (click)="logout()">
+            <mat-icon class="menu-icon">logout</mat-icon>
+            <span>Đăng xuất</span>
+        </button>
+    </mat-menu>
+</div>

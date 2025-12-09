@@ -1,0 +1,20 @@
+<div class="custom-pagination">
+  <button (click)="first()" [disabled]="currentPage === 0">«</button>
+  <button (click)="prev()" [disabled]="currentPage === 0">‹</button>
+
+  <ng-container *ngFor="let page of pages">
+    <button
+      *ngIf="page !== '...'; else ellipsis"
+      [class.active]="page === currentPage"
+      (click)="goToPage(page)">
+      {{ page + 1 }}
+    </button>
+
+    <ng-template #ellipsis>
+      <button disabled>...</button>
+    </ng-template>
+  </ng-container>
+
+  <button (click)="next()" [disabled]="currentPage === totalPages - 1">›</button>
+  <button (click)="last()" [disabled]="currentPage === totalPages - 1">»</button>
+</div>

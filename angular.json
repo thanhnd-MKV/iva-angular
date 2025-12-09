@@ -1,0 +1,114 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "iva": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/iva",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              },
+              "src/assets"
+            ],
+            "styles": [
+               "node_modules/flatpickr/dist/flatpickr.min.css",
+              "@angular/material/prebuilt-themes/azure-blue.css",
+              "src/styles.css"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2MB",
+                  "maximumError": "5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "50kb",
+                  "maximumError": "100kb"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "proxyConfig": "proxy-local.conf.json"
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "iva:build:production"
+            },
+            "development": {
+              "buildTarget": "iva:build:development",
+              "proxyConfig": "proxy.conf.json"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "tsconfig.spec.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
+            "styles": [
+               "node_modules/flatpickr/dist/flatpickr.min.css",
+              "@angular/material/prebuilt-themes/azure-blue.css",
+              "src/styles.css"
+            ],
+            "scripts": []
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": "d8fd09ac-3754-4cdc-9a4f-51ec887ea8c7"
+  }
+}

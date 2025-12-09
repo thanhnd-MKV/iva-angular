@@ -1,0 +1,22 @@
+<div class="not-found-container">
+  <div class="content-wrapper">
+    <!-- Error Code -->
+    <div class="error-code">404</div>
+
+    <!-- Title & Description -->
+    <h1 class="title">Không Tìm Thấy Trang</h1>
+    <p class="description">
+      Trang bạn đang tìm kiếm không tồn tại hoặc không có quyền truy cập. Vui lòng kiểm tra lại URL hoặc quay về trang chủ.
+    </p>
+
+    <!-- Actions -->
+    <div class="actions">
+      <a [routerLink]="['/dashboard']" class="btn-primary">
+        Về Trang Chủ
+      </a>
+      <button class="btn-secondary" onclick="history.back()">
+        Quay Lại
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,21 @@
+<div class="modal-overlay" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <button class="close-button" (click)="closeModal()">×</button>
+
+    <div class="main-image-view">
+      <button class="nav-arrow left" (click)="prevImage()" [disabled]="currentImageIndex === 0">‹</button>
+      <img [src]="event.images[currentImageIndex]" alt="Enlarged view">
+      <button class="nav-arrow right" (click)="nextImage()" [disabled]="currentImageIndex === event.images.length - 1">›</button>
+    </div>
+
+    <div class="thumbnail-album">
+      <div class="thumbnails">
+        <img *ngFor="let img of event.images; let i = index"
+             [src]="img"
+             [class.active]="i === currentImageIndex"
+             (click)="selectImage(i)">
+      </div>
+      <button class="download-album-btn">Tải xuống Album</button>
+    </div>
+  </div>
+</div>

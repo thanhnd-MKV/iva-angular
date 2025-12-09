@@ -1,0 +1,240 @@
+
+
+/* Header luôn hiển thị - avatar + username + email */
+.user-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 20px;
+    padding: 8px 14px;
+    background-color: #568cd3;
+    transition: background-color 0.2s ease, border-radius 0.2s ease;
+    cursor: pointer;
+    position: relative;
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .username {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-email {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 400;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Notification Bell Button */
+.notification-bell {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.notification-bell:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+}
+
+.notification-bell:hover .bell-icon {
+    animation: ring 0.5s ease-in-out;
+}
+
+.bell-icon {
+    width: 20px;
+    height: 20px;
+    color: #ffffff;
+}
+
+@keyframes ring {
+    0%, 100% { transform: rotate(0deg); }
+    10%, 30% { transform: rotate(-10deg); }
+    20%, 40% { transform: rotate(10deg); }
+    50% { transform: rotate(-5deg); }
+    60% { transform: rotate(5deg); }
+    70% { transform: rotate(0deg); }
+}
+
+.notification-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    color: #1a1f3a;
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    25% {
+        transform: scale(1.1) rotate(-3deg);
+    }
+    50% {
+        transform: scale(1.05) rotate(0deg);
+        opacity: 0.95;
+    }
+    75% {
+        transform: scale(1.1) rotate(3deg);
+    }
+}
+
+.user-header:hover {
+    background-color: #4a7bc0;
+}
+
+/* Khi menu mở, header có border-radius ở trên, bỏ ở dưới */
+.user-menu-wrapper:has(.menu-items-container) .user-header {
+    border-radius: 20px 20px 0 0;
+}
+
+/* Menu Items Container - expand/collapse */
+.menu-items-container {
+    background: #ffffff;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Menu Items trong dropdown */
+.menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+    transition: background-color 0.2s ease;
+    text-align: left;
+    position: relative;
+}
+
+.menu-item:hover {
+    background-color: rgba(25, 65, 133, 0.08);
+}
+
+.menu-icon {
+    width: 18px;
+    height: 18px;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.menu-item:hover .menu-icon {
+    color: #194185;
+}
+
+/* Development Badge - icon 🚧 */
+.dev-badge {
+    margin-left: auto;
+    font-size: 16px;
+    animation: shake 2s ease-in-out infinite;
+    transform-origin: center center;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: rotate(-3deg);
+    }
+    20%, 40%, 60%, 80% {
+        transform: rotate(3deg);
+    }
+}
+
+/* Under Development Item Styling */
+.menu-item.under-development {
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 193, 7, 0.05) 100%);
+}
+
+.menu-item.under-development:hover {
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 193, 7, 0.12) 100%);
+}
+
+.menu-item.under-development:hover .dev-badge {
+    animation: shake-fast 0.5s ease-in-out infinite;
+}
+
+@keyframes shake-fast {
+    0%, 100% {
+        transform: rotate(0deg) scale(1);
+    }
+    25% {
+        transform: rotate(-5deg) scale(1.1);
+    }
+    75% {
+        transform: rotate(5deg) scale(1.1);
+    }
+}
+
+.menu-divider {
+    height: 1px;
+    background-color: rgba(0, 0, 0, 0.08);
+    margin: 0;
+}
+
+.logout-item {
+    color: #d32f2f !important;
+}
+
+.logout-item .menu-icon {
+    color: #d32f2f !important;
+}
+
+.logout-item:hover {
+    background-color: rgba(211, 47, 47, 0.08) !important;
+}
+
+.logout-item:hover .menu-icon {
+    color: #b71c1c !important;
+}

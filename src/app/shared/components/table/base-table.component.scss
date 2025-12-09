@@ -1,0 +1,1177 @@
+.table-holder {
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px;
+    overflow-x: auto;
+}
+
+.title-holder {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.list-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.filter-input {
+    width: 250px;
+    margin: 5px 0;
+}
+
+.btn-icon {
+    height: 17px;
+    width: 17px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px;
+}
+
+.sort-icon {
+    height: 17px;
+    width: 17px;
+    color: #495057;
+}
+
+::ng-deep .mat-sort-header-arrow {
+    display: none !important;
+    opacity: 0;
+}
+
+.green-svg {
+    fill: #6dd400;
+}
+
+.gray-svg {
+    fill: #b2b4b6;
+}
+
+.actions-column {
+    width: 100px;
+}
+
+.battery-success {
+    color: #4caf50;
+}
+
+.battery-warning {
+    color: #ff9800;
+}
+
+.battery-danger {
+    color: #f44336;
+}
+
+.mat-elevation-z8 {
+    border-radius: 5px;
+}
+
+table {
+    border-radius: 5px;
+}
+
+.table-wrapper {
+    background-color: white;
+    padding: 0 !important;
+    border-radius: 8px;
+    margin: 20px 45px;
+    overflow: auto;
+}
+
+/* Signal Strength Color Classes */
+.text-success {
+    color: #4caf50;
+}
+
+.text-warning {
+    color: #ff9800;
+}
+
+.text-danger {
+    color: #f44336;
+}
+
+/* Battery Color Classes */
+.battery-success {
+    color: #4caf50;
+}
+
+.battery-warning {
+    color: #ffc107;
+}
+
+.battery-danger {
+    color: #f44336;
+}
+
+/* Scroll support */
+.table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+/* Responsive for small screens */
+@media screen and (max-width: 768px) {
+
+    .mat-header-cell,
+    .mat-cell {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .cell-image img,
+    .cell-video video {
+        max-width: 80px;
+        max-height: 50px;
+    }
+
+    .table-wrapper {
+        padding: 10px;
+        margin: 10px;
+    }
+
+    .mat-header-cell span,
+    .mat-cell span {
+        word-break: break-word;
+        white-space: normal;
+    }
+}
+
+.status-badge {
+    padding: 2px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+// ID with Category cell styling
+.id-category-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    
+    .id-number {
+        font-size: 11px;
+        font-weight: 500;
+        color: #1f2937;
+        line-height: 1.2;
+        display: flex;
+        justify-content: center;
+        width: 98px;
+        margin-top: 2px;
+    }
+    
+    .category-label {
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 3px;
+        display: inline-block;
+        width: fit-content;
+        line-height: 1.2;
+    }
+    
+    .category-person {
+        background-color: #fef3c7;
+        color: #92400e;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .category-vehicle {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .category-default {
+        background-color: #f3f4f6;
+        color: #6b7280;
+    }
+}
+
+// Attributes cell styling (centered, bullet separated)
+.attributes-cell {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.4;
+    padding: 4px 8px;
+    
+    // Empty state
+    &:empty::after {
+        content: '';
+        display: inline-block;
+    }
+}
+
+.status-active {
+    background-color: #e6f9ec;
+    color: #2e7d32;
+}
+
+.status-inactive {
+    background-color: #fdecea;
+    color: #c62828;
+}
+
+.email-cell {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a73e8;
+    font-weight: 500;
+}
+
+.email-cell:hover {
+    text-decoration: underline;
+}
+
+.email-icon {
+    font-size: 16px;
+    color: #1a73e8;
+}
+
+.table-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+
+    .table-scroll-area {
+        overflow-x: auto;
+        width: 100%;
+        padding-bottom: 8px;
+
+        &::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: #bbb;
+            border-radius: 4px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    }
+
+    .mat-table {
+        min-width: 100%;
+        table-layout: fixed;
+        border-spacing: 0;
+        width: max-content;
+        border: none !important;
+    }
+
+    .action-column {
+        min-width: 80px;
+        text-align: center;
+    }
+}
+
+::ng-deep .mat-icon-button {
+    width: 32px;
+    height: 32px;
+}
+
+::ng-deep .mat-icon-button:hover {
+    background-color: #f0f0f0;
+}
+
+.mat-icon-button {
+    color: #666;
+
+    &:hover {
+        color: primary;
+    }
+}
+
+.text-muted {
+    color: #f44336;
+    font-size: 14px;
+}
+
+.clickable-text {
+    cursor: pointer;
+    text-decoration: underline;
+    color: #007bff;
+
+    &:hover {
+        text-decoration: underline;
+        color: #0056b3;
+    }
+}
+
+.table-link {
+    text-decoration: none;
+    color: #007bff;
+    cursor: pointer;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.image-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    height: 34px !important;
+}
+
+.image-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.event-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+    cursor: pointer;
+    display: block;
+
+    &:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border-color: #2196f3;
+    }
+
+    &.image-loading {
+        opacity: 0;
+    }
+    
+    &.image-loaded {
+        opacity: 1;
+    }
+    
+    &.image-error {
+        display: none;
+    }
+}
+
+// ======================== ACTION COLUMN STYLING ========================
+.mat-column-action {
+    text-align: center !important;
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+}
+
+.action-header {
+    text-align: center !important;
+    font-weight: 400 !important;
+    font-size: 11px !important;
+    padding: 0px 4px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+}
+
+.action-cell {
+    text-align: center !important;
+    padding: 0px 4px !important;
+    height: 34px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.detail-button {
+    font-size: 12px;
+    padding: 0;
+    height: 16px !important;
+    line-height: 16px !important;
+    border-radius: 8px;
+    font-weight: 500;
+    border: none;
+    text-decoration: underline;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    color: #444;
+    cursor: pointer;
+    margin: 0 !important;
+    vertical-align: middle !important;
+    min-width: 50px;
+}
+
+.detail-button:hover {
+    background-color: transparent;
+    text-decoration: underline;
+    color: #0056b3;
+}
+
+// ======================== STATUS STYLING ========================
+.status-processed,
+.status-active {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    min-width: 70px;
+    line-height: 1.2 !important;
+}
+
+.status-pending {
+    background-color: #FFE9E8;
+    color: #E3190A;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    min-width: 70px;
+    line-height: 1.2 !important;
+}
+
+.status-default,
+.status-unknown {
+    background-color: #f5f5f5;
+    color: #666;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    min-width: 70px;
+    line-height: 1.2 !important;
+}
+
+// ======================== MAIN TABLE STYLING ========================
+::ng-deep .mat-mdc-header-cell,
+::ng-deep .mat-header-cell {
+    background-color: #EAEAEA !important;
+    color: #333333 !important;
+    font-weight: 600 !important;
+    height: 34px !important;
+    max-height: 34px !important;
+    min-height: 34px !important;
+    font-size: 13px !important;
+    padding: 0px 8px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid #C9CACB !important;
+    line-height: 34px !important;
+    vertical-align: middle !important;
+}
+
+::ng-deep .mat-mdc-header-row,
+::ng-deep .mat-header-row {
+    background-color: #EAEAEA !important;
+    height: 34px !important;
+    max-height: 34px !important;
+    min-height: 34px !important;
+}
+
+::ng-deep .mat-mdc-row,
+::ng-deep .mat-row {
+    border-bottom: 1px solid #C9CACB !important;
+    background-color: white !important;
+    height: 34px !important;
+    max-height: 34px !important;
+    min-height: 34px !important;
+}
+
+::ng-deep .mat-mdc-row:hover,
+::ng-deep .mat-row:hover {
+    background-color: #f9f9f9 !important;
+}
+
+::ng-deep .mat-mdc-cell,
+::ng-deep .mat-cell {
+    border-bottom: 1px solid #C9CACB !important;
+    padding: 0px 8px !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+    height: 34px !important;
+    max-height: 34px !important;
+    min-height: 34px !important;
+    line-height: 34px !important;
+    box-sizing: border-box !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    vertical-align: middle !important;
+    overflow: hidden !important;
+}
+
+// Override đặc biệt cho action column
+::ng-deep .mat-column-action {
+    text-align: center !important;
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+
+    .mat-mdc-header-cell,
+    .mat-header-cell {
+        text-align: center !important;
+        padding: 0px 4px !important;
+    }
+
+    .mat-mdc-cell,
+    .mat-cell {
+        text-align: center !important;
+        padding: 0px 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+
+// Override cho image cell
+::ng-deep .mat-mdc-cell .image-cell,
+::ng-deep .mat-cell .image-cell {
+    height: 34px !important;
+    line-height: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+// Override cho status badges
+::ng-deep .mat-mdc-cell .status-badge,
+::ng-deep .mat-cell .status-badge {
+    line-height: 1.2 !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+}
+
+// Last row không có border bottom
+::ng-deep .mat-mdc-row:last-child,
+::ng-deep .mat-row:last-child {
+    border-bottom: none !important;
+}
+
+::ng-deep .mat-mdc-row:last-child .mat-mdc-cell,
+::ng-deep .mat-row:last-child .mat-cell {
+    border-bottom: none !important;
+}
+
+// Table structure
+::ng-deep .mat-mdc-table,
+::ng-deep .mat-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    width: 100% !important;
+    background-color: white !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+// Table Loading Overlay
+.table-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 8px;
+    transition: opacity 0.3s ease;
+    
+    &.show {
+        opacity: 1;
+        pointer-events: all;
+    }
+    
+    &.hide {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+.table-loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    
+    .spinner-icon {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #275EFE;
+        border-radius: 50%;
+        animation: tableSpinner 1s linear infinite;
+    }
+    
+    .spinner-text {
+        font-size: 13px;
+        font-weight: 500;
+        color: #666;
+        letter-spacing: 0.3px;
+    }
+}
+
+@keyframes tableSpinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+// Table scroll area positioning
+.table-scroll-area {
+    position: relative;
+}
+
+// Override table wrapper
+.table-wrapper {
+    background-color: white;
+    padding: 0 !important;
+    border-radius: 8px;
+    margin: 20px 45px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px -2px rgba(10, 13, 18, 0.10), 0 2px 4px -2px rgba(10, 13, 18, 0.06) !important;
+}
+
+// ======================== SIMPLE CHECKBOX STYLING ========================
+// Đơn giản hóa - chỉ thu nhỏ và đổi màu
+::ng-deep .mat-mdc-checkbox {
+    transform: scale(0.8) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 32px !important;
+}
+
+// Đổi màu primary khi checked
+::ng-deep .mat-mdc-checkbox.mat-mdc-checkbox-checked .mdc-checkbox__background {
+    background-color: #275EFE !important;
+    border-color: #275EFE !important;
+}
+
+// Đổi màu border khi hover
+::ng-deep .mat-mdc-checkbox:not(.mat-mdc-checkbox-checked):hover .mdc-checkbox__background {
+    border-color: #275EFE !important;
+}
+
+// Focus outline
+::ng-deep .mat-mdc-checkbox.mat-mdc-checkbox-focused .mdc-checkbox__background {
+    border-color: #275EFE !important;
+}
+
+// Animation transition
+::ng-deep .mat-mdc-checkbox .mdc-checkbox__background {
+    transition: background-color 0.2s ease, border-color 0.2s ease !important;
+}
+
+// Checkmark color
+::ng-deep .mat-mdc-checkbox .mdc-checkbox__checkmark-path {
+    stroke: white !important;
+    stroke-width: 2.5px !important;
+}
+
+// Remove ripple để tránh jumping
+::ng-deep .mat-mdc-checkbox .mdc-checkbox__ripple {
+    display: none !important;
+}
+
+// Căn chỉnh trong table cell
+::ng-deep .mat-mdc-cell .mat-mdc-checkbox,
+::ng-deep .mat-cell .mat-mdc-checkbox,
+::ng-deep .mat-mdc-header-cell .mat-mdc-checkbox,
+::ng-deep .mat-header-cell .mat-mdc-checkbox {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+// ======================== SELECT COLUMN WIDTH ========================
+// Thu nhỏ cột select để tiết kiệm diện tích
+::ng-deep .mat-column-select {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+}
+
+// Header cell cho cột select
+::ng-deep .mat-column-select .mat-mdc-header-cell,
+::ng-deep .mat-column-select .mat-header-cell {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+}
+
+// Body cell cho cột select
+::ng-deep .mat-column-select .mat-mdc-cell,
+::ng-deep .mat-column-select .mat-cell {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Empty State Styles - Simple & Clean */
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 300px);
+    padding: 40px 20px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.empty-state-content {
+    text-align: center;
+    max-width: 580px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Simple Icon */
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    color: #94a3b8;
+    background: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 8px;
+}
+
+/* Content */
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.empty-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.empty-description {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Error State Styles */
+.error-state {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.error-icon {
+    width: 90px;
+    height: 90px;
+    background: #fff5f5;
+    border: 2px solid #fed7d7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.15);
+    margin-bottom: 8px;
+    
+    svg {
+        animation: pulse 2s infinite;
+    }
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.error-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #dc2626;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.error-description {
+    font-size: 15px;
+    color: #7f1d1d;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 400px;
+}
+
+.no-data-state {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Simple Buttons */
+.empty-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.refresh-btn, .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    outline: none;
+    
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    &:active {
+        transform: translateY(0);
+    }
+    
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        
+        svg {
+            animation: spin 1s linear infinite;
+        }
+    }
+}
+
+.refresh-btn {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    
+    &:hover:not(:disabled) {
+        background: #2563eb;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    &.error-refresh-btn {
+        background: #dc2626;
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+        
+        &:hover:not(:disabled) {
+            background: #b91c1c;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+        }
+    }
+}
+
+.clear-btn {
+    background: #6b7280;
+    color: white;
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+    
+    &:hover:not(:disabled) {
+        background: #4b5563;
+        box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .empty-state {
+        min-height: 280px;
+        padding: 30px 15px;
+        margin: 15px 0;
+    }
+    
+    .empty-icon {
+        width: 60px;
+        height: 60px;
+        
+        svg {
+            width: 36px;
+            height: 36px;
+        }
+    }
+    
+    .empty-title {
+        font-size: 18px;
+    }
+    
+    .empty-description {
+        font-size: 13px;
+    }
+    
+    .empty-actions {
+        flex-direction: column;
+        width: 100%;
+        
+        .refresh-btn, .clear-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 16px;
+        }
+    }
+}
+
+/* DateTime Container Styles - Professional 2-part design */
+::ng-deep .datetime-container {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    font-size: 12px;
+    font-weight: 500;
+    max-width: 140px;
+    height: 24px;
+    position: relative;
+    top: -1px;
+    
+    .time-part {
+        background: #E8F0FE;
+        color: #1A73E8;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        min-width: 50px;
+        text-align: center;
+        border-radius: 6px 0 0 6px;
+    }
+    
+    .date-part {
+        background: #F1F3F4;
+        color: #5F6368;
+        font-weight: 500;
+        border-radius: 0 6px 6px 0;
+        border-left: 1px solid #DADCE0;
+        min-width: 75px;
+        text-align: center;
+    }
+    
+    &.date-only {
+        .date-part {
+            background: #E8F0FE;
+            color: #1A73E8;
+            border-radius: 6px;
+            border-left: none;
+            min-width: 85px;
+            padding: 2px 4px;
+        }
+    }
+}
+
+/* Hover effects */
+::ng-deep .mat-cell:hover .datetime-container {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    
+    .time-part {
+        background: #D2E3FC;
+        color: #1557B0;
+    }
+    
+    .date-part {
+        background: #E8EAED;
+        color: #3C4043;
+    }
+    
+    &.date-only .date-part {
+        background: #D2E3FC;
+        color: #1557B0;
+    }
+}
+
+/* =============== IMAGE LOADING STATES =============== */
+
+/* Loading skeleton with exact same size as event-thumbnail */
+.image-loading-skeleton {
+    width: 100%;
+    height: 100%;
+    background: #f0f0f0;
+    animation: shimmer 0.8s infinite;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    cursor: pointer;
+    display: block;
+}
+
+
+
+/* Error placeholder with exact same size */
+.image-error-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #6c757d;
+    
+    &:hover {
+        border-color: #adb5bd;
+        background: #f1f3f4;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    svg {
+        width: 12px;
+        height: 12px;
+        margin-bottom: 2px;
+        opacity: 0.7;
+    }
+
+    span {
+        font-size: 8px;
+        font-weight: 500;
+        line-height: 1;
+    }
+}
+
+
+
+/* Animations */
+@keyframes shimmer {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0.6;
+    }
+}
+
+
+
+/* Responsive */
+@media (max-width: 768px) {
+    ::ng-deep .datetime-container {
+        font-size: 11px;
+        max-width: 120px;
+        
+        .time-part {
+            padding: 2px 3px;
+            min-width: 45px;
+        }
+        
+        .date-part {
+            padding: 2px 3px;
+            min-width: 65px;
+        }
+        
+        &.date-only .date-part {
+            min-width: 75px;
+            padding: 2px 3px;
+        }
+    }
+    
+    .image-container {
+        width: 50px !important;
+        height: 24px !important;
+    }
+    
+
+    
+    .image-error-placeholder {
+        svg {
+            width: 10px;
+            height: 10px;
+        }
+        
+        span {
+            font-size: 7px;
+        }
+    }
+}

@@ -1,0 +1,161 @@
+<div class="filter-bar">
+  <div class="filter-left">
+    <div class="search-box">
+      <mat-icon class="search-icon">search</mat-icon>
+      <input type="text" placeholder="Tìm kiếm" class="search-input" [(ngModel)]="searchText" (keyup.enter)="onSearch()">
+    </div>
+
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn time-btn" [class.active]="showTimeDropdown" (click)="toggleTimeDropdown()">
+        <mat-icon class="btn-icon">calendar_today</mat-icon>
+        <span>{{ getTimeRangeLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+      
+      <div class="dropdown-menu time-dropdown" *ngIf="showTimeDropdown">
+        <div class="dropdown-item" *ngFor="let option of timeOptions" 
+             [class.selected]="selectedTimeRange === option.value"
+             (click)="selectTimeRange(option.value)">
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+    
+    <app-date-range-picker 
+      *ngIf="selectedTimeRange === 'custom'"
+      (dateRangeSelected)="onDateRangeSelected($event)"
+      (dateRangeCleared)="onDateRangeCleared()">
+    </app-date-range-picker>
+
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn camera-btn" [class.active]="showCameraDropdown || selectedCamera !== ''" (click)="toggleCameraDropdown()">
+        <mat-icon class="btn-icon">videocam</mat-icon>
+        <span>{{ getCameraLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+      
+      <div class="dropdown-menu camera-dropdown" *ngIf="showCameraDropdown">
+        <div class="dropdown-item" *ngFor="let option of cameraOptions"
+             [class.selected]="selectedCamera === option.value"
+             (click)="selectCamera(option.value)">
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+
+    <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
+      <mat-icon class="btn-icon">close</mat-icon>
+      <span>Xóa bộ lọc</span>
+    </button>
+  </div>
+  
+  <div class="filter-right">
+    <button class="export-btn" (click)="exportReport()">
+      <mat-icon class="btn-icon">download</mat-icon>
+      <span>Xuất báo cáo</span>
+    </button>
+  </div>
+</div>
+
+<div class="statistics-container">
+  <!-- Summary Cards Section -->
+
+
+  <!-- Top Section: Bar Chart + Donut Chart -->
+  <div class="top-section">
+    <!-- Bar Chart -->
+
+         <div>
+        <div class="summary-cards-section">
+    <div class="summary-card" [ngClass]="'summary-card-' + card.color" *ngFor="let card of summaryCards">
+      <div class="summary-header">
+        <span class="summary-title">{{ card.title }}</span>
+      </div>
+      <div class="summary-body">
+        <span class="summary-value">{{ card.value }}</span>
+        <span class="summary-change" [class.positive]="card.isPositive" [class.negative]="!card.isPositive">
+          <mat-icon class="change-icon">{{ card.isPositive ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+          {{ card.change }}%
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="chart-card donut-chart-card">
+    <h3 class="chart-title">Thống kê lượt xuất hiện độ tuổi</h3>
+    <div class="donut-wrapper" [class.loading]="isDonutChartLoading">
+      <div *ngIf="isDonutChartLoading" class="loading-overlay">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+      <div class="donut-content">
+        <div class="donut-chart">
+          <canvas baseChart 
+            [data]="donutChartData" 
+            [options]="donutChartOptions" 
+            type="doughnut">
+          </canvas>
+          <div class="donut-center">
+            <div class="total-label">Tổng</div>
+            <div class="total-value">{{ formattedTotalCount }}</div>
+          </div>
+        </div>
+        <div class="donut-legend">
+          <div class="legend-item" 
+               *ngFor="let item of donutChartData.labels; let i = index"
+               [class.hidden]="isAgeGroupHidden(item)"
+               (click)="toggleAgeGroup(item)">
+            <div class="legend-color" [style.background-color]="getBackgroundColor(i)"></div>
+            <span class="legend-label">{{ item }}</span>
+            <span class="legend-value">{{ getAgeGroupCount(item) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+     </div>
+
+    <div class="chart-card bar-chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Thống kê nhận chủng học</h3>
+        <div class="chart-legend-inline">
+          <div class="legend-item-inline" 
+               *ngFor="let dataset of barChartData.datasets; let i = index"
+               [class.legend-hidden]="isDatasetHidden(i)"
+               (click)="toggleDataset(i)">
+            <span class="legend-dot" [style.background-color]="dataset.backgroundColor"></span>
+            <span class="legend-text">{{ dataset.label }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrapper" [class.loading]="isBarChartLoading" [style.height]="barChartHeight">
+        <div *ngIf="isBarChartLoading" class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+        <canvas baseChart 
+          [data]="barChartData" 
+          [options]="barChartOptions" 
+          type="bar">
+        </canvas>
+      </div>
+    </div>
+
+    <!-- Donut Chart with Legend -->
+
+  </div>
+
+  <!-- Bottom Section: Line Chart -->
+  <div class="bottom-section">
+    <div class="chart-card line-chart-card">
+      <h3 class="chart-title">Lượt xuất hiện của các đối tượng</h3>
+      <div class="chart-wrapper" [class.loading]="isLineChartLoading" [style.height]="lineChartHeight">
+        <div *ngIf="isLineChartLoading" class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+        <canvas baseChart 
+          [data]="lineChartData" 
+          [options]="lineChartOptions" 
+          type="line">
+        </canvas>
+      </div>
+    </div>
+  </div>
+</div>

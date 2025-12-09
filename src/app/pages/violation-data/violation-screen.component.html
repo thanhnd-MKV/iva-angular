@@ -1,0 +1,111 @@
+<div class="content-area">
+  <div class="event-table">
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox"></th>
+          <th>Image</th>
+          <th>Event ID</th>
+          <th>Time</th>
+          <th>Location</th>
+          <th>Camera</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let event of events" [class.selected]="event === selectedEvent">
+          <td><input type="checkbox"></td>
+          <td><img [src]="event.imageUrl" alt="Event Image" class="thumbnail"></td>
+          <td>{{ event.eventId }}</td>
+          <td>{{ event.timestamp }}</td>
+          <td>{{ event.location }}</td>
+          <td>{{ event.cameraName }}</td>
+          <td>
+            <span [ngClass]="{
+              'status-pending': event.status === 'pending',
+              'status-done': event.status === 'processed'
+            }">
+              {{ event.status === 'pending' ? 'Pending' : 'Processed' }}
+            </span>
+          </td>
+          <td><button class="btn-details" (click)="viewDetails(event)">Details</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="details-pane">
+    <h4>Event Details</h4>
+    <div class="no-content" *ngIf="!selectedEvent">
+      <img src="https://i.imgur.com/J3RlqT6.png" alt="No Content">
+      <p>No Content</p>
+    </div>
+    <div class="event-details" *ngIf="selectedEvent">
+      <div class="detail-item">
+        <span class="label">Event ID:</span>
+        <span class="value">{{selectedEvent.eventId}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Time:</span>
+        <span class="value">{{selectedEvent.timestamp}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Location:</span>
+        <span class="value">{{selectedEvent.location}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Camera:</span>
+        <span class="value">{{selectedEvent.cameraName}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Event Type:</span>
+        <span class="value">{{selectedEvent.eventType}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">License Plate:</span>
+        <span class="value">{{selectedEvent.licensePlate}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Speed:</span>
+        <span class="value">{{selectedEvent.speed}}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Status:</span>
+        <span class="value" [ngClass]="{
+          'status-pending': selectedEvent.status === 'pending',
+          'status-done': selectedEvent.status === 'processed'
+        }">
+          {{selectedEvent.status === 'pending' ? 'Pending' : 'Processed'}}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+<app-image-viewer
+  *ngIf="selectedEvent"
+  [event]="selectedEvent"
+  (close)="closeImageViewer()">
+</app-image-viewer>
+
+<style>
+.detail-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-item .label {
+  font-weight: 500;
+  margin-right: 10px;
+  min-width: 100px;
+  display: inline-block;
+}
+
+.detail-item .value {
+  color: #666;
+}
+
+.event-details {
+  padding: 15px;
+}
+</style>

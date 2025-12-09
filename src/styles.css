@@ -1,0 +1,238 @@
+/* Clean up - chỉ giữ CSS cần thiết, xóa hết image-viewer CSS cũ */
+/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+/* Material Icons font */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+:root {
+  --font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+* {
+  font-family: 'Be Vietnam Pro' !important;
+}
+
+html, body {
+  font-family: 'Be Vietnam Pro' !important;
+}
+
+
+.mat-mdc-header-cell td {
+    max-height: 50px !important;
+}
+
+/* Remove empty rule */
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* Error and Warning Snackbar Styles */
+.error-snackbar {
+    background-color: #f44336 !important;
+    color: white !important;
+}
+
+.warning-snackbar {
+    background-color: #ff9800 !important;
+    color: white !important;
+}
+
+.error-snackbar .mat-mdc-snack-bar-action,
+.warning-snackbar .mat-mdc-snack-bar-action {
+    color: white !important;
+}
+
+app-event-search-bar .dropdown-menu {
+    z-index: 10000 !important;
+    position: absolute !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Ensure parent containers don't clip dropdowns */
+app-event-search-bar {
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+.main-content {
+    position: relative;
+}
+
+.mat-expansion-panel-body {
+    padding: 0 6px 6px !important;
+}
+
+header {
+    font-size: 26px !important;
+}
+
+.small-input {
+    font-size: 13px;
+
+    input {
+        padding: 4px 8px;
+    }
+
+    .mat-form-field-wrapper {
+        padding-bottom: 0px;
+    }
+
+    .mat-form-field-infix {
+        padding: 0 8px;
+    }
+}
+
+.mat-small {
+    font-size: 12px;
+    width: 180px;
+
+    .mat-form-field-wrapper {
+        padding-bottom: 0px;
+    }
+
+    .mat-form-field-infix {
+        padding: 0 8px;
+        height: 12px;
+    }
+
+    input.mat-input-element {
+        padding: 4px 0;
+        height: 12px;
+        line-height: 12px;
+    }
+
+    label.mat-form-field-label {
+        font-size: 12px;
+    }
+}
+
+.compact-form mat-form-field {
+    font-size: 12px;
+    width: 120px;
+}
+
+.compact-form .mat-form-field-infix {
+    height: 32px;
+    padding: 0 8px;
+}
+
+.compact-form .mat-input-element {
+    height: 24px;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
+/* Global mobile responsive */
+@media (max-width: 768px) {
+    .mat-form-field {
+        width: 100% !important;
+        font-size: 14px !important;
+    }
+
+    .mat-button, .mat-raised-button, .mat-fab, .mat-mini-fab {
+        min-width: auto !important;
+        padding: 0 8px !important;
+    }
+
+    table {
+        font-size: 12px !important;
+    }
+
+    .mat-table {
+        font-size: 12px !important;
+    }
+}
+
+/* Rules for sizing the icon */
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mat-icon {
+  font-family: 'Material Icons' !important;
+}
+
+/* Rules for different icon sizes */
+.material-icons.md-18 { font-size: 18px; }
+.material-icons.md-24 { font-size: 24px; }
+.material-icons.md-36 { font-size: 36px; }
+.material-icons.md-48 { font-size: 48px; }
+
+/* Custom Image Viewer Overlay - Simple and effective */
+.custom-image-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======================== TABLE STYLING ======================== */
+/* Header background màu #EAEAEA */
+.mat-mdc-header-cell,
+.mat-header-cell {
+    background-color: #EAEAEA !important;
+    color: #333333 !important;
+}
+
+.mat-mdc-header-row,
+.mat-header-row {
+    background-color: #EAEAEA !important;
+}
+
+/* Row border màu #C9CACB dày 1px */
+.mat-mdc-row,
+.mat-row {
+    border-bottom: 1px solid #C9CACB !important;
+}
+
+.mat-mdc-cell,
+.mat-cell {
+    border-bottom: 1px solid #C9CACB !important;
+}
+
+/* Last row không có border */
+.mat-mdc-row:last-child,
+.mat-row:last-child {
+    border-bottom: none !important;
+}
+
+.mat-mdc-row:last-child .mat-mdc-cell,
+.mat-row:last-child .mat-cell {
+    border-bottom: none !important;
+}
+
+/* Table container */
+.mat-table,
+.mat-mdc-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+/* ======================== END TABLE STYLING ======================== */

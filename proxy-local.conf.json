@@ -1,0 +1,38 @@
+
+{
+  "/api/admin/organization/tree": {
+    "target": "http://10.30.100.135:2678",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/upload": {
+    "target": "http://10.30.100.135:3290",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api": {
+    "target": "http://10.30.100.135:3290",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/sso": {
+    "target": "http://10.30.100.135:3290",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/rest": {
+    "target": "https://14.225.36.54:7001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/webrtc-tracker": {
+    "target": "https://14.225.36.54:7001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/admin/permissions/sync": {
+    "target": "http://10.30.100.135:2678",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

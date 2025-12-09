@@ -1,0 +1,55 @@
+.app-container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
+
+.navbar {
+    min-height: 50px;
+    max-width: 250px;
+    width: auto;
+}
+
+.navbar {
+    width: 250px;
+}
+
+.collapsed {
+    width: 60px !important;
+}
+
+.isNavbarOpen {
+    max-height: 50px !important;
+}
+
+.open {
+    max-height: 50px !important;
+}
+
+.app-container app-navbar {
+    flex: 0 0 auto;
+}
+
+.main-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 16px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .navbar {
+        max-width: 100%;
+        width: 100%;
+        order: 2;
+    }
+
+    .main-content {
+        order: 1;
+        padding: 8px;
+    }
+}

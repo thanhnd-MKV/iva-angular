@@ -1,0 +1,374 @@
+<div class="camera-config-container">
+  <!-- Left Sidebar Navigation -->
+  <aside class="config-sidebar">
+    <div class="sidebar-header">
+      <h2>Cài đặt tính năng</h2>
+      <span class="date-time">14:24 | 24/5/2025</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Cấu hình chung -->
+      <div class="nav-section">
+        <button 
+          class="nav-item" 
+          [class.active]="activeSection === 'chon-camera'"
+          (click)="setActiveSection('chon-camera')">
+          <span>Cấu hình chung</span>
+        </button>
+        <div class="nav-subitems">
+          <button 
+            class="nav-subitem" 
+            [class.active]="activeSection === 'chon-camera'"
+            (click)="setActiveSection('chon-camera')">
+            Chọn Camera
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Giao thông -->
+      <div class="nav-section">
+        <button class="nav-item">
+          <span>Giao thông</span>
+        </button>
+        <div class="nav-subitems">
+          <button 
+            class="nav-subitem"
+            [class.active]="activeSection === 'nhan-dien-bien-so'"
+            (click)="setActiveSection('nhan-dien-bien-so')">
+            Nhận diện biển số
+          </button>
+          <button 
+            class="nav-subitem"
+            [class.active]="activeSection === 'phan-loai-phuong-tien'"
+            (click)="setActiveSection('phan-loai-phuong-tien')">
+            Phân loại phương tiện
+          </button>
+          <button 
+            class="nav-subitem"
+            [class.active]="activeSection === 'phat-hien-vi-pham'"
+            (click)="setActiveSection('phat-hien-vi-pham')">
+            Phát hiện vi phạm giao thông
+          </button>
+          <button 
+            class="nav-subitem"
+            [class.active]="activeSection === 'dem-luong-phuong-tien'"
+            (click)="setActiveSection('dem-luong-phuong-tien')">
+            Đếm lưu lượng phương tiện
+          </button>
+        </div>
+      </div>
+
+      <!-- Đối tượng người -->
+      <div class="nav-section">
+        <button class="nav-item">
+          <span>Đối tượng người</span>
+        </button>
+      </div>
+
+      <!-- An ninh trật tự -->
+      <div class="nav-section">
+        <button class="nav-item">
+          <span>An ninh trật tự</span>
+        </button>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="config-content">
+    
+    <!-- Chọn Camera Section -->
+    <section *ngIf="activeSection === 'chon-camera'" class="config-section">
+      <div class="section-header">
+        <h3>Chọn Camera</h3>
+        <div class="header-actions">
+          <button class="btn btn-primary" (click)="saveCameraSelection()">Lưu</button>
+          <button class="btn btn-outline" (click)="sendConfigToCamera()">Gửi cấu hình xuống Camera</button>
+          <button class="btn btn-outline" (click)="cancelConfiguration()">Hủy</button>
+        </div>
+      </div>
+
+      <div class="camera-selection-panel">
+        <div class="panel-header">
+          <h4>Cấp nhật cấu hình Camera</h4>
+          <div class="search-box">
+            <mat-icon>search</mat-icon>
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm" 
+              [(ngModel)]="searchCameraText">
+          </div>
+        </div>
+
+        <div class="camera-list">
+          <div class="camera-list-header">
+            <span>Danh sách camera ({{ selectedCamerasCount }}/{{ cameras.length }})</span>
+          </div>
+          
+          <div *ngIf="isLoadingCameras" class="loading-state">
+            <p>Đang tải danh sách camera...</p>
+          </div>
+
+          <div *ngIf="!isLoadingCameras && cameras.length === 0" class="empty-state">
+            <p>Không có camera nào</p>
+          </div>
+
+          <div *ngIf="!isLoadingCameras && cameras.length > 0" class="camera-items">
+            <div *ngFor="let camera of filteredCameras" 
+                 class="camera-item"
+                 [class.selected]="camera.checked"
+                 (click)="selectCamera(camera)">
+              <mat-checkbox 
+                [(ngModel)]="camera.checked" 
+                (click)="$event.stopPropagation()"
+                (ngModelChange)="onCameraCheckChange(camera)">
+                {{ camera.name }}
+              </mat-checkbox>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Common Settings (Shared across all config sections) -->
+    <section *ngIf="activeSection !== 'chon-camera'" class="config-section">
+      <div class="section-header-simple">
+        <div class="header-left">
+          <span class="breadcrumb" (click)="deselectCamera()" style="cursor: pointer;">Chọn Camera</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="breadcrumb active">{{ selectedCamera?.name || 'Camera' }}</span>
+          <button class="btn-close" (click)="deselectCamera()">×</button>
+        </div>
+      </div>
+
+      <!-- Scroll container for all config sections -->
+      <div class="config-scroll-container">
+        
+        <!-- Thời gian lưu trữ dữ liệu AI -->
+        <div class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">schedule</mat-icon>
+            <h3>Thời gian lưu trữ dữ liệu AI</h3>
+          </div>
+          <div class="card-content">
+            <div class="retention-slider">
+              <mat-slider 
+                min="7" 
+                max="90" 
+                step="1"
+                [(ngModel)]="dataRetentionDays"
+                discrete
+                [displayWith]="formatLabel">
+                <input matSliderThumb>
+              </mat-slider>
+              <div class="slider-value">
+                <input type="number" [(ngModel)]="dataRetentionDays" min="7" max="90">
+                <span>Ngày</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Thiết lập cảnh báo -->
+        <div class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">notifications</mat-icon>
+            <h3>Thiết lập cảnh báo</h3>
+          </div>
+          <div class="card-content">
+            <div class="alert-options">
+              <app-custom-checkbox 
+                label="Gửi thông báo qua phần mềm"
+                [(checked)]="alertSettings.softwareAlert">
+              </app-custom-checkbox>
+              <app-custom-checkbox 
+                label="Gửi SMS"
+                [(checked)]="alertSettings.smsAlert">
+              </app-custom-checkbox>
+              <app-custom-checkbox 
+                label="Gửi Email"
+                [(checked)]="alertSettings.emailAlert">
+              </app-custom-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nhận diện biển số Section -->
+        <div *ngIf="activeSection === 'nhan-dien-bien-so'" class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">badge</mat-icon>
+            <h3>Nhận diện biển số</h3>
+          </div>
+          <div class="card-content">
+            <!-- Message when no camera selected -->
+            <div class="no-camera-message" *ngIf="!selectedCamera">
+              <mat-icon>info_outline</mat-icon>
+              <p>Vui lòng chọn camera từ phần "Chọn Camera" để cấu hình nhận diện biển số</p>
+              <button class="btn btn-primary" (click)="setActiveSection('chon-camera')">
+                Chọn Camera
+              </button>
+            </div>
+
+            <!-- Content when camera is selected -->
+            <div *ngIf="selectedCamera">
+              <div class="preview-label">Thiết lập vùng giám sát</div>
+              
+              <div class="preview-layout">
+              <!-- Left Side: Camera Preview -->
+              <div class="camera-preview-container">
+                <div class="camera-preview">
+                  <!-- Loading State -->
+                  <div class="image-loading-overlay" *ngIf="isLoadingCameraImage">
+                    <div class="loading-spinner">
+                      <div class="spinner-ring"></div>
+                      <div class="spinner-ring"></div>
+                      <div class="spinner-ring"></div>
+                    </div>
+                    <p class="loading-text">Đang tải ảnh từ camera...</p>
+                  </div>
+
+                  <!-- Camera Image -->
+                  <img 
+                    *ngIf="!isLoadingCameraImage && cameraImageUrl" 
+                    [src]="cameraImageUrl" 
+                    alt="Camera Preview"
+                    class="camera-image"
+                    [class.fade-in]="!isLoadingCameraImage">
+                  
+                  <!-- Placeholder when no image -->
+                  <div class="image-placeholder" *ngIf="!isLoadingCameraImage && !cameraImageUrl">
+                    <mat-icon>videocam_off</mat-icon>
+                    <p>Chưa có ảnh từ camera</p>
+                  </div>
+                  
+                  <!-- Detection zones overlay (only show when image is loaded) -->
+                  <div class="detection-overlay" *ngIf="!isLoadingCameraImage && cameraImageUrl">
+                    <div class="zone zone-forward"></div>
+                    <div class="zone zone-backward"></div>
+                  </div>
+
+                  <!-- Legend box (bottom-right) -->
+                  <div class="zone-labels" *ngIf="!isLoadingCameraImage && cameraImageUrl">
+                    <div class="legend-item">
+                      <span class="legend-color forward"></span>
+                      <span>Chiều đi</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-color backward"></span>
+                      <span>Chiều về</span>
+                    </div>
+                    <button class="legend-close-btn">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+
+                  <!-- Preview action buttons -->
+                  <div class="preview-actions-overlay" *ngIf="!isLoadingCameraImage">
+                    <button class="icon-btn-overlay" title="Tải lại ảnh" (click)="reloadCameraImage()">
+                      <mat-icon>refresh</mat-icon>
+                      Tải lại
+                    </button>
+                    <button class="icon-btn-overlay" title="Điều chỉnh">
+                      <mat-icon>edit</mat-icon>
+                      Điều chỉnh
+                    </button>
+                    <button class="icon-btn-overlay" title="Preview">
+                      <mat-icon>visibility</mat-icon>
+                      Preview
+                    </button>
+                    <button class="icon-btn-overlay" title="Kết quả">
+                      <mat-icon>layers</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Side: Controls -->
+              <div class="right-controls">
+                <!-- Direction Control Box -->
+                <div class="direction-control-box">
+                  <div class="control-box-header">
+                    <mat-icon>explore</mat-icon>
+                    <span>Hướng di chuyển</span>
+                  </div>
+                  <div class="control-box-content">
+                    <app-custom-checkbox 
+                      label="Chiều đi"
+                      [(checked)]="detectionZones.directions.forward">
+                    </app-custom-checkbox>
+                    <app-custom-checkbox 
+                      label="Chiều về"
+                      [(checked)]="detectionZones.directions.backward">
+                    </app-custom-checkbox>
+                  </div>
+                </div>
+
+                <!-- Vehicle Type Section -->
+                <div class="direction-control-box">
+                  <div class="control-box-header">
+                    <mat-icon class="legend-icon" style="width: 30px;">directions_car</mat-icon>
+                    <span>Nhận diện biển số theo phương tiện</span>
+                  </div>
+                  
+                  <div class="vehicle-type-checkboxes">
+                    <app-custom-checkbox 
+                      *ngFor="let vehicle of vehicleTypes.slice(0, 4)"
+                      [label]="vehicle.name"
+                      [icon]="vehicle.icon"
+                      [disabled]="!!vehicle.disabled"
+                      [(checked)]="vehicle.enabled">
+                    </app-custom-checkbox>
+                    <app-custom-checkbox 
+                      *ngFor="let vehicle of vehicleTypes.slice(4)"
+                      [label]="vehicle.name"
+                      [icon]="vehicle.icon"
+                      [disabled]="!!vehicle.disabled"
+                      [(checked)]="vehicle.enabled">
+                    </app-custom-checkbox>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phân loại phương tiện Section -->
+        <div *ngIf="activeSection === 'phan-loai-phuong-tien'" class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">category</mat-icon>
+            <h3>Phân loại phương tiện</h3>
+          </div>
+          <div class="card-content">
+            <p>Nội dung cấu hình phân loại phương tiện...</p>
+          </div>
+        </div>
+
+        <!-- Phát hiện vi phạm giao thông Section -->
+        <div *ngIf="activeSection === 'phat-hien-vi-pham'" class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">traffic</mat-icon>
+            <h3>Phát hiện vi phạm giao thông</h3>
+          </div>
+          <div class="card-content">
+            <p>Nội dung cấu hình phát hiện vi phạm...</p>
+          </div>
+        </div>
+
+        <!-- Đếm lưu lượng Section -->
+        <div *ngIf="activeSection === 'dem-luu-luong'" class="config-card">
+          <div class="card-header">
+            <mat-icon class="header-icon">analytics</mat-icon>
+            <h3>Đếm lưu lượng</h3>
+          </div>
+          <div class="card-content">
+            <p>Nội dung cấu hình đếm lưu lượng...</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>

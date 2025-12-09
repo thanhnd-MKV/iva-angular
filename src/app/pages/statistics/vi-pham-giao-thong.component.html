@@ -1,0 +1,203 @@
+<div class="filter-bar">
+    <div class="filter-left">
+        <div class="search-box">
+            <mat-icon class="search-icon">search</mat-icon>
+            <input type="text" placeholder="Tìm kiếm" class="search-input" [(ngModel)]="searchText"
+                (keyup.enter)="onSearch()">
+        </div>
+
+        <div class="filter-btn-wrapper">
+            <button class="filter-btn time-btn" [class.active]="showTimeDropdown" (click)="toggleTimeDropdown()">
+                <mat-icon class="btn-icon">calendar_today</mat-icon>
+                <span>{{ getTimeRangeLabel() }}</span>
+                <mat-icon class="dropdown-icon">expand_more</mat-icon>
+            </button>
+
+            <div class="dropdown-menu time-dropdown" *ngIf="showTimeDropdown">
+                <div class="dropdown-item" *ngFor="let option of timeOptions"
+                    [class.selected]="selectedTimeRange === option.value" (click)="selectTimeRange(option.value)">
+                    {{ option.label }}
+                </div>
+            </div>
+        </div>
+
+        <app-date-range-picker *ngIf="selectedTimeRange === 'custom'" (dateRangeSelected)="onDateRangeSelected($event)"
+            (dateRangeCleared)="onDateRangeCleared()">
+        </app-date-range-picker>
+
+        <div class="filter-btn-wrapper">
+            <button class="filter-btn camera-btn" [class.active]="showCameraDropdown || selectedCamera !== ''"
+                (click)="toggleCameraDropdown()">
+                <mat-icon class="btn-icon">videocam</mat-icon>
+                <span>{{ getCameraLabel() }}</span>
+                <mat-icon class="dropdown-icon">expand_more</mat-icon>
+            </button>
+
+            <div class="dropdown-menu camera-dropdown" *ngIf="showCameraDropdown">
+                <div class="dropdown-item" *ngFor="let option of cameraOptions"
+                    [class.selected]="selectedCamera === option.value" (click)="selectCamera(option.value)">
+                    {{ option.label }}
+                </div>
+            </div>
+        </div>
+
+        <button class="filter-btn clear-btn" (click)="clearFilters()"
+            *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
+            <mat-icon class="btn-icon">close</mat-icon>
+            <span>Xóa bộ lọc</span>
+        </button>
+    </div>
+
+    <div class="filter-right">
+        <button class="export-btn" (click)="exportReport()">
+            <mat-icon class="btn-icon">download</mat-icon>
+            <span>Xuất báo cáo</span>
+        </button>
+    </div>
+</div>
+
+<div class="statistics-container">
+    <!-- Main Layout: Map (Left) and Right Panel -->
+    <div class="main-layout">
+        <!-- Map Section (Left - 40%) -->
+        <div class="map-section">
+            <div class="map-card">
+                <h3 class="chart-title">Bản đồ vi phạm giao thông</h3>
+                <div class="map-wrapper">
+                    <app-traffic-flow-map [cameraLocations]="cameraLocations"></app-traffic-flow-map>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel (60%) -->
+        <div class="right-panel">
+            <!-- Summary Cards Section (Top Right) -->
+            <div class="summary-cards">
+                <div class="summary-card" [class.summary-card-blue]="card.color === 'blue'"
+                    [class.summary-card-green]="card.color === 'green'"
+                    [class.summary-card-purple]="card.color === 'purple'" *ngFor="let card of summaryCards">
+                    <div class="summary-header">
+                        <span class="summary-title">{{ card.title }}</span>
+                    </div>
+                    <div style="display: flex;justify-content: space-between;">
+                        <div class="summary-body">
+                            <span class="summary-value">{{ card.value }}</span>
+                            <span class="summary-change" [class.positive]="card.isPositive"
+                                [class.negative]="!card.isPositive" *ngIf="card.change > 0">
+                                <mat-icon class="change-icon">{{ card.isPositive ? 'arrow_upward' : 'arrow_downward'
+                                    }}</mat-icon>
+                                {{ card.change }}%
+                            </span>
+                        </div>
+                        <div class="summary-subtitle" *ngIf="card.subtitle">
+                            <span>{{ card.subtitle }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section (Bottom Right) -->
+            <div class="charts-row">
+                <!-- Donut Chart (Left) -->
+                <div class="donut-chart-section">
+                    <div class="chart-card donut-chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Loại vi phạm</h3>
+                        </div>
+                        <div class="donut-content">
+                            <div class="donut-chart-wrapper">
+                                <canvas baseChart [data]="donutChartData" [options]="donutChartOptions" type="doughnut">
+                                </canvas>
+                                <div class="donut-center">
+                                    <span class="total-label">Tổng</span>
+                                    <span class="total-value">212</span>
+                                </div>
+                            </div>
+                            <div class="donut-legend">
+                                <div class="legend-item" *ngFor="let label of donutChartData.labels; let i = index">
+                                    <span class="legend-dot" [style.background-color]="getDonutColor(i)"></span>
+                                    <span class="legend-text">{{ label }}</span>
+                                    <span class="legend-value">{{ donutChartData.datasets[0].data[i] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bar Chart -->
+            </div>
+            <div class="bar-chart-section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Số lượng loại vi phạm theo khu vực</h3>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #EF4444;"></span>
+                                <span class="legend-text">Vượt đèn đỏ</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #8B5CF6;"></span>
+                                <span class="legend-text">Đi sai làn</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #10B981;"></span>
+                                <span class="legend-text">Không đội mũ bảo hiểm</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #F59E0B;"></span>
+                                <span class="legend-text">Dùng điện thoại khi lái</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #06B6D4;"></span>
+                                <span class="legend-text">Vi phạm khác</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" [class.loading]="isBarChartLoading">
+                        <div *ngIf="isBarChartLoading" class="loading-overlay">
+                            <mat-spinner diameter="40"></mat-spinner>
+                        </div>
+                        <canvas baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- </div>
+            <div class="chart-section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Số lượng loại vi phạm theo khu vực</h3>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #EF4444;"></span>
+                                <span class="legend-text">Vượt đèn đỏ</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #8B5CF6;"></span>
+                                <span class="legend-text">Đi sai làn</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #10B981;"></span>
+                                <span class="legend-text">Không đội mũ bảo hiểm</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #F59E0B;"></span>
+                                <span class="legend-text">Dùng điện thoại khi lái</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background-color: #06B6D4;"></span>
+                                <span class="legend-text">Vi phạm khác</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" [class.loading]="isBarChartLoading">
+                        <div *ngIf="isBarChartLoading" class="loading-overlay">
+                            <mat-spinner diameter="40"></mat-spinner>
+                        </div>
+                        <canvas baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+        </div> -->
+        </div>

@@ -1,0 +1,45 @@
+.app-container {
+    display: flex;
+    flex-direction: row;
+    /* Or row if you want navbar horizontally */
+    height: 100vh;
+    transform: scale(0.8);
+    transform-origin: top left;
+}
+
+
+
+.navbar  {
+    min-height: 50px;
+    max-width: 250px;
+    width: auto;
+
+}
+
+.navbar {
+    width: 250px;
+}
+
+.collapsed {
+    width: 60px !important;
+}
+
+.isNavbarOpen {
+    max-height: 50px !important;
+}
+
+.open {
+    max-height: 50px !important;
+}
+
+.app-container app-navbar {
+    /* If you want to make navbar fixed or styled as side navbar, apply styles here */
+    flex: 0 0 auto;
+    /* Navbar size */
+}
+
+.main-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 16px;
+}

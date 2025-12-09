@@ -1,0 +1,341 @@
+/* Page title */
+/* ---------------------------------------------------------- */
+.title-holder {
+  border-bottom: 2px solid #f2f2f2;
+  margin-bottom: 10px;
+}
+.table-holder {
+  background-color: white;
+  padding: 15px;
+  padding-top: 5px;
+  border-radius: 5px;
+  margin-left: 45px;
+  margin-right: 45px;
+}
+.list-title {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: normal;
+  letter-spacing: 0.5px;
+  margin: 5px;
+}
+/* ---------------------------------------------------------- */
+
+
+/* Table styles */
+/* ---------------------------------------------------------- */
+.mat-table {
+  width: 100%;
+}
+
+.float-right {
+  float: right;
+}
+/* ---------------------------------------------------------- */
+
+/* Header styles */
+/* ---------------------------------------------------------- */
+.mat-header-cell {
+  background-color: #393939;
+  color: white;
+}
+.mat-header-cell:not(:first-child) {
+  padding-left: 0;
+}
+
+/* Style just the text in the header */
+.mat-header-cell span {
+  font-weight: 600;
+  font-stretch: normal;
+  line-height: normal;
+  letter-spacing: 0.5px;
+}
+/* Round the top table corners */
+.mat-header-cell:first-child {
+  border-top-left-radius: 5px;
+}
+.mat-header-cell:last-child {
+  border-top-right-radius: 5px;
+}
+
+.mat-header-row {
+  height: 3em;
+}
+
+.btn-icon {
+  height: 17px;
+  width: 17px;
+  background-color: #393939;
+  border: none;
+}
+
+.sort-icon {
+  height: 17px;
+  width: 17px;
+  color: white;
+}
+
+::ng-deep .mat-sort-header-arrow {
+  position: relative;
+  left: -1.5rem;
+  display: none!important;
+  opacity: 0;
+}
+
+.header {
+  padding: 5px;
+}
+
+/* ---------------------------------------------------------- */
+
+
+/* Column styles */
+/* ---------------------------------------------------------- */
+.type-column {
+  width: 15%;
+  padding-right: 3rem;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.name-column {
+  width: 30%;
+  padding-right: 3rem;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.amount-column {
+  width: 15%;
+  padding-right: 3rem;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.status-column {
+  width: 15%;
+  padding-right: 3rem;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.date-column {
+  width: 20%;
+  padding-right: 3rem;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.state-column {
+  width: 5%;
+}
+/* ---------------------------------------------------------- */
+
+/* Row styles */
+/* ---------------------------------------------------------- */
+.mat-row:nth-child(2n) {
+  background-color: #f2f2f2;
+}
+/* ---------------------------------------------------------- */
+
+/* Cell styles */
+/* ---------------------------------------------------------- */
+.state-cell {
+  text-align: right;
+}
+.mat-cell {
+  border: none;
+}
+
+.green-svg {
+  fill: #6dd400;
+}
+.gray-svg {
+  fill: #b2b4b6;
+}
+/* ---------------------------------------------------------- */
+
+
+/* base-table-theme.component.scss */
+
+.table-wrapper {
+  background-color: white;
+  padding: 15px;
+  border-radius: 5px;
+  margin: 20px 45px;
+}
+
+h3 {
+  font-size: 20px;
+  font-weight: bold;
+  border-bottom: 2px solid #f2f2f2;
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+}
+
+.mat-table {
+  width: 100%;
+}
+
+.mat-mdc-row {
+  border-bottom: 1px solid #f44336;
+}
+
+.mat-header-cell {
+  background-color: #393939;
+  color: white;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 10px;
+}
+
+.mat-header-cell:first-child {
+  border-top-left-radius: 5px;
+}
+
+.mat-header-cell:last-child {
+  border-top-right-radius: 5px;
+}
+
+.mat-row:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.mat-cell {
+  padding: 10px;
+  border: none;
+}
+
+/* Signal Strength Color Classes */
+.text-success {
+  color: #4caf50;
+}
+
+.text-warning {
+  color: #ff9800;
+}
+
+.text-danger {
+  color: #f44336;
+}
+
+/* Battery Color Classes */
+.battery-success {
+  color: #4caf50;
+}
+
+.battery-warning {
+  color: #ffc107;
+}
+
+.battery-danger {
+  color: #f44336;
+}
+
+/* Optional: Hover effects */
+.mat-row:hover {
+  background-color: #e0e0e0;
+  cursor: pointer;
+}
+
+// ======================== STICKY ACTION COLUMN WITH SHADOW ========================
+// Override old mat-column-action styling
+.mat-column-action {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 10 !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
+    width: 100px !important;
+    text-align: right !important;
+    
+    // Box shadow chỉ ở bên trái để tạo hiệu ứng depth
+    box-shadow: -2px 0 8px -2px rgba(10, 13, 18, 0.15) !important;
+    
+    // Header styling
+    &.mat-header-cell,
+    &.mat-mdc-header-cell,
+    &.custom-header-cell {
+        background-color: #EAEAEA !important;
+        position: sticky !important;
+        right: 0 !important;
+        z-index: 11 !important;
+        text-align: right !important;
+        box-shadow: -2px 0 8px -2px rgba(10, 13, 18, 0.15) !important;
+        border-left: 1px solid #C9CACB !important;
+    }
+    
+    // Cell styling
+    &.mat-cell,
+    &.mat-mdc-cell,
+    &.custom-body-cell {
+        position: sticky !important;
+        right: 0 !important;
+        z-index: 10 !important;
+        text-align: right !important;
+        box-shadow: -2px 0 8px -2px rgba(10, 13, 18, 0.15) !important;
+        border-left: 1px solid #C9CACB !important;
+    }
+    
+    // Hover effect
+    .mat-row:hover &.mat-cell,
+    .mat-mdc-row:hover &.mat-mdc-cell,
+    .mat-row:hover &.custom-body-cell {
+        background-color: #f9f9f9 !important;
+        box-shadow: -2px 0 12px -2px rgba(10, 13, 18, 0.2) !important;
+    }
+}
+
+// Action header specific styling
+.action-header {
+    text-align: right !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+    height: 40px !important;
+    line-height: 18px !important;
+    background-color: #EAEAEA !important;
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 11 !important;
+    box-shadow: -2px 0 8px -2px rgba(10, 13, 18, 0.15) !important;
+    border-left: 1px solid #C9CACB !important;
+}
+
+// Action cell specific styling
+.action-cell {
+    text-align: right !important;
+    padding: 0px !important;
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 10 !important;
+    box-shadow: -2px 0 8px -2px rgba(10, 13, 18, 0.15) !important;
+    border-left: 1px solid #C9CACB !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
+}
+
+// Detail button styling to align right
+
+
+
+// ======================== TABLE LAYOUT ADJUSTMENTS FOR STICKY COLUMN ========================
+.table-container .mat-table {
+    table-layout: auto !important; // Allow flexible column widths
+    width: fit-content !important; // Changed from max-content
+    overflow: visible !important; // Allow shadow to show
+}
+
+// Ensure other columns can scroll while action stays fixed
+::ng-deep .mat-mdc-cell:not(.mat-column-action),
+::ng-deep .mat-cell:not(.mat-column-action),
+::ng-deep .mat-mdc-header-cell:not(.mat-column-action),
+::ng-deep .mat-header-cell:not(.mat-column-action),
+.custom-header-cell:not(.mat-column-action),
+.custom-body-cell:not(.mat-column-action) {
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
+
+// Hover effects for non-action columns
+::ng-deep .mat-mdc-row:hover .custom-body-cell:not(.mat-column-action),
+::ng-deep .mat-row:hover .custom-body-cell:not(.mat-column-action) {
+    background-color: #f9f9f9 !important;
+}

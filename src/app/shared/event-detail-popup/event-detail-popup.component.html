@@ -1,0 +1,131 @@
+<div class="event-detail-sidebar" [class.show]="isVisible" *ngIf="eventDetail" (click)="$event.stopPropagation()">
+  <!-- Header - Fixed -->
+  <div class="sidebar-header">
+    <h3 class="sidebar-title">Chi tiết sự kiện</h3>
+    <button class="search-btn">
+      <mat-icon>search</mat-icon>
+      <span>Tra cứu hình ảnh</span>
+    </button>
+  </div>
+
+  <!-- Scrollable Content -->
+  <div class="sidebar-content">
+
+    <!-- Images Section -->
+    <div class="section">
+      <h4 class="section-title">Hình ảnh</h4>
+      <div class="image-gallery-main">
+        <div class="image-item" *ngFor="let image of getEventImages().slice(0, 2); let i = index" 
+             (click)="openImageViewer(getEventImages(), i)">
+          <img [src]="image" [alt]="'Hình ảnh ' + (i + 1)" />
+          <div class="image-label">{{ getMainImageLabel(i) }}</div>
+          <div class="image-overlay">
+            <mat-icon>zoom_in</mat-icon>
+          </div>
+        </div>
+        <!-- Fake images if less than 2 -->
+        <div class="image-item" *ngFor="let fakeImg of getFakeImages(2 - getEventImages().length); let i = index"
+             (click)="openImageViewer(getEventImages(), 0)">
+          <img [src]="getEventImages()[0] || 'assets/images/default-image.png'" [alt]="'Hình ảnh fake ' + (i + 1)" />
+          <div class="image-label">{{ getMainImageLabel(i + getEventImages().length) }}</div>
+          <div class="image-overlay">
+            <mat-icon>zoom_in</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicle Images Section -->
+    <div class="section">
+      <h4 class="section-title">Hình ảnh sự kiện</h4>
+      <div class="image-gallery-grid">
+        <div class="image-item-small" *ngFor="let image of getEventImages().slice(0, 4); let i = index"
+             (click)="openImageViewer(getEventImages(), i)">
+          <img [src]="image" [alt]="'Sự kiện ' + (i + 1)" />
+          <div class="image-label-small">{{ getEventImageLabel(i) }}</div>
+          <div class="image-overlay">
+            <mat-icon>zoom_in</mat-icon>
+          </div>
+        </div>
+        <!-- Fake images if less than 4 -->
+        <div class="image-item-small" *ngFor="let fakeImg of getFakeImages(4 - getEventImages().length); let i = index"
+             (click)="openImageViewer(getEventImages(), 0)">
+          <img [src]="getEventImages()[0] || 'assets/images/default-image.png'" [alt]="'Sự kiện fake ' + (i + 1)" />
+          <div class="image-label-small">{{ getEventImageLabel(getEventImages().length + i) }}</div>
+          <div class="image-overlay">
+            <mat-icon>zoom_in</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Section -->
+    <div class="section details-section">
+      <div class="detail-item">
+        <span class="detail-label">Event ID</span>
+        <span class="detail-value">{{ eventDetail.id || 'N/A' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Loại sự kiện</span>
+        <span class="detail-value">{{ eventDetail.eventType || 'N/A' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Phân loại</span>
+        <span class="detail-value">{{ eventDetail.eventCategory || 'N/A' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Trạng thái</span>
+        <span class="detail-value status-badge" [class.processed]="eventDetail.status === true || eventDetail.status === 'processed'" 
+              [class.pending]="eventDetail.status === false || eventDetail.status === 'pending'">
+          {{ eventDetail.status === true || eventDetail.status === 'processed' ? 'Đã xử lý' : 'Chưa xử lý' }}
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Thời gian</span>
+        <span class="detail-value">{{ eventDetail.startTime || eventDetail.eventTime || 'N/A' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Camera</span>
+        <span class="detail-value">{{ eventDetail.cameraName || eventDetail.cameraSn || 'N/A' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Vị trí</span>
+        <span class="detail-value link">{{ eventDetail.location || 'N/A' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer - Fixed -->
+  <div class="sidebar-footer">
+    <!-- Map Section -->
+    <div class="footer-map" *ngIf="hasValidCoordinates()">
+      <app-google-map 
+        [latitude]="parseFloat(eventDetail.latitude)"
+        [longitude]="parseFloat(eventDetail.longitude)"
+        [height]="'180px'"
+        [zoom]="15">
+      </app-google-map>
+    </div>
+    
+    <div class="footer-actions">
+      <button class="btn-outline" (click)="downloadEvent()">
+        <mat-icon>download</mat-icon>
+        <span>Tải xuống</span>
+      </button>
+      <button class="btn-primary" (click)="viewDetails()">
+        <span>Xem chi tiết</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Viewer Overlay -->
+<div class="image-viewer-overlay" *ngIf="showImageViewer" (click)="closeImageViewer()">
+  <div class="image-viewer-container" (click)="$event.stopPropagation()">
+    <app-image-viewer 
+      *ngIf="eventDetail"
+      [event]="eventDetail"
+      (close)="closeImageViewer()">
+    </app-image-viewer>
+  </div>
+</div>

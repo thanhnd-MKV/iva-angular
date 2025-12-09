@@ -1,0 +1,13 @@
+<app-base-table
+  [title]="'Camera List'"
+  [data]="tableData"
+  [columnsToDisplay]="columnsToDisplay"
+  [columnDefs]="columnDefs"
+  [actions]="['edit', 'delete', 'info', 'create']"
+  (edit)="handleChangeClick($event)"
+  (delete)="handleDeleteClick($event)"
+  (view)="handleViewClick($event)"
+  (create)="handleCreateClick($event)"
+  (refresh)="onRefreshData()"
+  >
+</app-base-table>

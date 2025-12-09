@@ -1,0 +1,158 @@
+/* Các biến màu vẫn giữ nguyên */
+:host {
+  --primary-color: #3b82f6;
+  --bg-color: #f4f7fa;
+  --text-color: #333;
+  --border-color: #e5e7eb;
+  --status-pending: #ef4444;
+  --status-done: #22c55e;
+  
+  /* Component này sẽ chiếm toàn bộ không gian được cấp */
+  display: block;
+  padding: 24px;
+  background-color: var(--bg-color);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Đã loại bỏ các style cho .container, .sidebar, .main-content */
+.status-pending {
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.status-done {
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.header .actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #6b7280;
+}
+
+.header .actions input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.content-area {
+  display: flex;
+  gap: 24px;
+  height: calc(100% - 72px); /* Chiều cao còn lại sau khi trừ header */
+}
+
+.event-table {
+  flex: 3;
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+}
+
+.event-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.event-table th, .event-table td {
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.event-table th {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.event-table .thumbnail {
+  width: 80px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.event-table .status-pending {
+  color: var(--status-pending);
+}
+
+.event-table .status-done {
+  color: var(--status-done);
+}
+
+.event-table .btn-details {
+  color: var(--primary-color);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.event-table tr.selected {
+  background-color: #eff6ff;
+}
+
+.details-pane {
+  flex: 1;
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+}
+
+.details-pane .no-content {
+  text-align: center;
+  padding-top: 100px;
+  color: #9ca3af;
+}
+
+.details-pane .no-content img {
+  width: 100px;
+  opacity: 0.5;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  gap: 8px;
+  align-items: center;
+}
+
+.pagination span {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pagination span.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
