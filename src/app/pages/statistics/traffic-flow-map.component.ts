@@ -288,6 +288,70 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       
       this.convertCameraLocationsToMarkers();
       this.updateMarkersForZoomLevel();
+      
+      // Auto-zoom to cameras if data changed and we have valid locations
+      if (this.cameraLocations && this.cameraLocations.length > 0) {
+        setTimeout(() => {
+          this.autoZoomToCameras();
+        }, 500);
+      }
+    }
+  }
+
+  private autoZoomToCameras(): void {
+    if (!this.mapElement || !this.mapElement.googleMap || this.cameraLocations.length === 0) {
+      return;
+    }
+
+    console.log('🎯 Auto-zooming to cameras:', this.cameraLocations.length);
+
+    // If only 1 camera, zoom directly to it
+    if (this.cameraLocations.length === 1) {
+      const camera = this.cameraLocations[0];
+      const position = { lat: camera.lat, lng: camera.lng };
+      
+      console.log('🎯 Single camera detected, zooming to:', position);
+      
+      // Smooth pan and zoom to single camera location
+      this.mapElement.googleMap.panTo(position);
+      setTimeout(() => {
+        if (this.mapElement && this.mapElement.googleMap) {
+          this.mapElement.googleMap.setZoom(15); // Street level zoom
+          setTimeout(() => {
+            if (this.mapElement && this.mapElement.googleMap) {
+              this.mapElement.googleMap.setCenter(position);
+            }
+          }, 300);
+        }
+      }, 500);
+      
+    } else if (this.cameraLocations.length > 1) {
+      // Multiple cameras - fit bounds to show all
+      const bounds = new google.maps.LatLngBounds();
+      
+      this.cameraLocations.forEach(location => {
+        bounds.extend({ lat: location.lat, lng: location.lng });
+      });
+      
+      console.log('🎯 Multiple cameras detected, fitting bounds');
+      
+      // Fit bounds with padding
+      this.mapElement.googleMap.fitBounds(bounds, {
+        top: 50,
+        right: 50,
+        bottom: 50,
+        left: 50
+      });
+      
+      // Limit max zoom to avoid too close view
+      setTimeout(() => {
+        if (this.mapElement && this.mapElement.googleMap) {
+          const currentZoom = this.mapElement.googleMap.getZoom();
+          if (currentZoom && currentZoom > 16) {
+            this.mapElement.googleMap.setZoom(16);
+          }
+        }
+      }, 500);
     }
   }
 
@@ -502,9 +566,10 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       return;
     }
     
-    // Zoom < 10: Show area groups (Duy Tân, Phú Quốc)
-    // Zoom >= 10: Show individual cameras (camera 28, 66, 98)
-    if (this.zoom < 10) {
+    // Improved zoom logic:
+    // Zoom < 7: Show area groups (for overview)
+    // Zoom >= 7: Show individual cameras (for detail view)
+    if (this.zoom < 7) {
       this.visibleMarkers = this.cameraLevelData; // Area groups
       console.log('🗺️ Showing area groups:', this.visibleMarkers.length);
     } else {
@@ -608,21 +673,44 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       }
     }, 0);
     
-    // Just center the map on marker position without changing zoom
+    // Auto-zoom and center to camera GPS when clicking marker
     if (this.mapElement && this.mapElement.googleMap) {
-      this.mapElement.googleMap.panTo(marker.position);
+      // If clicking on an area group marker (zoom < 7), zoom in to show individual cameras
+      if (this.zoom < 7) {
+        console.log('🎯 Zooming from area group to individual cameras');
+        this.animateToPosition(marker.position, 12); // Zoom to level 12 to see individual cameras
+      } else if (this.zoom < 15) {
+        // If already showing individual cameras, zoom in closer to street level
+        console.log('🎯 Zooming to street level for camera:', marker.cameraCode);
+        this.animateToPosition(marker.position, 16); // Zoom to street level
+      } else {
+        // Already at street level, just center the map
+        console.log('🎯 Centering map to camera:', marker.cameraCode);
+        this.mapElement.googleMap.panTo(marker.position);
+      }
     }
   }
 
   private animateToPosition(position: google.maps.LatLngLiteral, zoom: number) {
     if (this.mapElement && this.mapElement.googleMap) {
+      console.log('🗺️ Animating to position:', position, 'zoom:', zoom);
+      
+      // Smooth pan to position first
       this.mapElement.googleMap.panTo(position);
       
+      // After panning completes, smoothly zoom
       setTimeout(() => {
         if (this.mapElement && this.mapElement.googleMap) {
           this.mapElement.googleMap.setZoom(zoom);
+          
+          // Re-center after zoom to ensure accuracy
+          setTimeout(() => {
+            if (this.mapElement && this.mapElement.googleMap) {
+              this.mapElement.googleMap.setCenter(position);
+            }
+          }, 300);
         }
-      }, 300);
+      }, 400);
     }
   }
   

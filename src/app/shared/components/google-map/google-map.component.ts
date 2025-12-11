@@ -627,6 +627,30 @@ export class GoogleMapComponent implements OnInit, AfterViewInit, OnChanges {
                 lng: this.longitude
             });
             this.updateMapCenter();
+            
+            // Force update map center nếu map đã được khởi tạo
+            if (this.map && this.map.googleMap) {
+                const newCenter = { lat: this.latitude, lng: this.longitude };
+                this.map.googleMap.setCenter(newCenter);
+                
+                // Force resize và re-center sau khi cập nhật tọa độ
+                setTimeout(() => {
+                    if (this.map && this.map.googleMap) {
+                        google.maps.event.trigger(this.map.googleMap, 'resize');
+                        this.map.googleMap.setCenter(newCenter);
+                        // Re-apply zoom để đảm bảo zoom level đúng
+                        this.map.googleMap.setZoom(this.zoom);
+                    }
+                }, 100);
+            }
+        }
+        
+        // Cập nhật zoom khi zoom input thay đổi
+        if (changes['zoom'] && !changes['zoom'].firstChange) {
+            console.log('Zoom changed to:', this.zoom);
+            if (this.map && this.map.googleMap) {
+                this.map.googleMap.setZoom(this.zoom);
+            }
         }
     }
 
@@ -724,5 +748,19 @@ export class GoogleMapComponent implements OnInit, AfterViewInit, OnChanges {
                 }, 100);
             }
         }, 100);
+    }
+
+    // Method to set zoom level programmatically
+    setZoom(zoomLevel: number) {
+        if (this.map && this.map.googleMap) {
+            this.map.googleMap.setZoom(zoomLevel);
+        }
+    }
+
+    // Method to set center programmatically
+    setCenter(lat: number, lng: number) {
+        if (this.map && this.map.googleMap) {
+            this.map.googleMap.setCenter({ lat, lng });
+        }
     }
 }

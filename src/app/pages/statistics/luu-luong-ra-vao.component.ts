@@ -10,7 +10,7 @@ import { TrafficFlowMapComponent } from './traffic-flow-map.component';
 import { HttpClient } from '@angular/common/http';
 import { SidebarService } from '../../shared/services/sidebar.service';
 import { CameraService } from '../camera/camera.service';
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
 
 @Component({
   selector: 'app-luu-luong-ra-vao',
@@ -28,9 +28,11 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./luu-luong-ra-vao.component.scss']
 })
 export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
-  @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
+  @ViewChild('lineChart') lineChart?: BaseChartDirective;
+  @ViewChild('barChart') barChart?: BaseChartDirective;
   
   private sidebarSubscription?: Subscription;
+  private autoRefreshSubscription?: Subscription;
   isSidebarOpened = true;
   
   // Filter state
@@ -65,10 +67,14 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     { label: 'Tất cả Camera', value: '' }
   ];
   
-  // Loading states
+  // Loading states - chỉ hiển thị khi user thực hiện action
   isLineChartLoading = false;
   isBarChartLoading = false;
+  private isUserAction = false; // Flag để phân biệt user action vs auto-refresh
   
+  // Chart animation - tắt animation khi auto-refresh để mượt hơn
+  private shouldAnimate = true;
+
   // Map data
   mapCenter = { lat: 15.6, lng: 107.0 }; // Centered between Hanoi and Phu Quoc
   mapZoom = 5.2; // Optimal zoom to see both markers
@@ -188,7 +194,9 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     // Load camera options from API
     this.loadCameraOptions();
     
-    // Initialize data (will load real camera locations from API)
+    // Initialize data with loading indicator (first load)
+    this.isUserAction = true;
+    this.shouldAnimate = true;
     this.loadChartData();
     
     // Subscribe to sidebar state changes
@@ -200,21 +208,33 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
         this.resizeCharts();
       }, 300);
     });
+    
+    // Setup auto-refresh mỗi 2 giây (background refresh - không hiển thị loading)
+    this.autoRefreshSubscription = interval(2000).subscribe(() => {
+      console.log('🔄 Auto-refreshing data (background)...');
+      this.isUserAction = false; // Không hiển thị loading spinner
+      this.shouldAnimate = false; // Không animate khi auto-refresh
+      this.loadChartData();
+    });
   }
   
-
-  
   ngOnDestroy(): void {
-    // Cleanup subscription
+    // Cleanup subscriptions
     if (this.sidebarSubscription) {
       this.sidebarSubscription.unsubscribe();
+    }
+    if (this.autoRefreshSubscription) {
+      this.autoRefreshSubscription.unsubscribe();
     }
   }
   
   private resizeCharts(): void {
-    // Trigger chart.js resize
-    if (this.chart) {
-      this.chart.chart?.resize();
+    // Trigger chart.js resize for both charts
+    if (this.lineChart) {
+      this.lineChart.chart?.resize();
+    }
+    if (this.barChart) {
+      this.barChart.chart?.resize();
     }
   }
   
@@ -242,6 +262,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     
     if (value !== 'custom') {
       this.customDateRange = { start: null, end: null };
+      this.isUserAction = true; // User action - hiển thị loading
+      this.shouldAnimate = true; // Animate khi user action
       this.applyFilters();
     }
   }
@@ -249,17 +271,23 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   selectCamera(value: string): void {
     this.selectedCamera = value;
     this.showCameraDropdown = false;
+    this.isUserAction = true; // User action - hiển thị loading
+    this.shouldAnimate = true; // Animate khi user action
     this.applyFilters();
   }
   
   onDateRangeSelected(range: { startDate: Date; endDate: Date }): void {
     this.customDateRange = { start: range.startDate, end: range.endDate };
+    this.isUserAction = true; // User action - hiển thị loading
+    this.shouldAnimate = true; // Animate khi user action
     this.applyFilters();
   }
   
   onDateRangeCleared(): void {
     this.customDateRange = { start: null, end: null };
     this.selectedTimeRange = 'today';
+    this.isUserAction = true; // User action - hiển thị loading
+    this.shouldAnimate = true; // Animate khi user action
     this.applyFilters();
   }
   
@@ -268,6 +296,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     this.selectedTimeRange = '';
     this.selectedCamera = '';
     this.customDateRange = { start: null, end: null };
+    this.isUserAction = true; // User action - hiển thị loading
+    this.shouldAnimate = true; // Animate khi user action
     this.applyFilters();
   }
 
@@ -289,6 +319,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   }
   
   onSearch(): void {
+    this.isUserAction = true; // User action - hiển thị loading
+    this.shouldAnimate = true; // Animate khi user action
     this.applyFilters();
   }
   
@@ -300,14 +332,17 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
       customDateRange: this.customDateRange
     });
     
-    // TODO: Call API with filters
     this.loadChartData();
   }
   
   loadChartData(): void {
-    console.log('=== loadChartData called ===');
-    this.isLineChartLoading = true;
-    this.isBarChartLoading = true;
+    console.log('=== loadChartData called ===', { isUserAction: this.isUserAction });
+    
+    // Chỉ hiển thị loading spinner khi là user action
+    if (this.isUserAction) {
+      this.isLineChartLoading = true;
+      this.isBarChartLoading = true;
+    }
     
     // Calculate date range based on selected time range
     const { fromUtc, toUtc } = this.getDateRange();
@@ -348,7 +383,6 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     const isSingleDay = daysDiff <= 1;
     
     // Call API for line chart data
-    // Use by-hour-of-day for single day, by-day for multiple days
     const lineChartApiUrl = isSingleDay 
       ? '/api/admin/events/line-cross/by-hour-of-day'
       : '/api/admin/events/line-cross/by-day';
@@ -361,11 +395,17 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
           console.log('✅ Line chart API response:', response);
           this.isSingleDayView = isSingleDay;
           this.updateLineChartData(response, isSingleDay);
-          this.isLineChartLoading = false;
+          
+          // Chỉ tắt loading khi là user action
+          if (this.isUserAction) {
+            this.isLineChartLoading = false;
+          }
         },
         error: (error) => {
           console.error('❌ Error fetching line chart data:', error);
-          this.isLineChartLoading = false;
+          if (this.isUserAction) {
+            this.isLineChartLoading = false;
+          }
         }
       });
     
@@ -378,11 +418,17 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
         next: (response) => {
           console.log('✅ Bar chart API response:', response);
           this.updateBarChartData(response);
-          this.isBarChartLoading = false;
+          
+          // Chỉ tắt loading khi là user action
+          if (this.isUserAction) {
+            this.isBarChartLoading = false;
+          }
         },
         error: (error) => {
           console.error('❌ Error fetching bar chart data:', error);
-          this.isBarChartLoading = false;
+          if (this.isUserAction) {
+            this.isBarChartLoading = false;
+          }
         }
       });
   }
@@ -492,7 +538,7 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   }
   
   private updateStatsData(data: any): void {
-    console.log('Updating stats data:', data);
+    console.log('🗺️ [LuuLuongRaVao] Updating stats data:', data);
     
     // Handle both array and object wrapper formats
     const statsData = data.data || data;
@@ -533,114 +579,100 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
       ];
     }
     
-    // Update map locations from cameraInfo array
-    if (statsData.cameraInfo && Array.isArray(statsData.cameraInfo)) {
-      console.log('🗺️ Processing cameraInfo data:', statsData.cameraInfo);
+    // Get cameraInfo array directly from statsData
+    const cameraInfoArray = statsData.cameraInfo || [];
+    
+    if (cameraInfoArray && Array.isArray(cameraInfoArray) && cameraInfoArray.length > 0) {
+      console.log('🗺️ [LuuLuongRaVao] Processing camera data:', cameraInfoArray);
       
-      // Define area coordinates first
-      const AREA_COORDINATES: { [key: string]: { lat: number, lng: number } } = {
-        'Duy Tân': { lat: 21.030194980619505, lng: 105.78293616746109 },  // Hà Nội
-        'Phú Quốc': { lat: 10.162959876433863, lng: 103.99798100890551 }  // Phú Quốc
-      };
+      // Group cameras by location based on GPS coordinates
+      const locationGroups: { [key: string]: any[] } = {};
       
-      // Group cameras by area
-      const areaGroups: { [key: string]: { cameras: any[], lat: number, lng: number } } = {};
-      
-      statsData.cameraInfo.forEach((item: any) => {
-        const lat = typeof item.latitude === 'number' ? item.latitude : parseFloat(item.latitude);
-        const lng = typeof item.longitude === 'number' ? item.longitude : parseFloat(item.longitude);
+      cameraInfoArray.forEach((camera: any) => {
+        const lat = typeof camera.latitude === 'number' ? camera.latitude : parseFloat(camera.latitude);
+        const lng = typeof camera.longitude === 'number' ? camera.longitude : parseFloat(camera.longitude);
         
-        // ACVN248240000028 - Duy Tân (Hà Nội)
-        if (item.cameraSn === 'ACVN248240000028') {
-          if (!areaGroups['Duy Tân']) {
-            areaGroups['Duy Tân'] = { 
-              cameras: [], 
-              lat: AREA_COORDINATES['Duy Tân'].lat, 
-              lng: AREA_COORDINATES['Duy Tân'].lng 
-            };
-          }
-          areaGroups['Duy Tân'].cameras.push(item);
+        // Skip invalid coordinates
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+          console.warn('🗺️ Skipping camera with invalid coordinates:', camera);
+          return;
         }
-        // ACVN248240000066 and ACVN248240000098 - Phú Quốc area group
-        else if (item.cameraSn === 'ACVN248240000066' || item.cameraSn === 'ACVN248240000098') {
-          if (!areaGroups['Phú Quốc']) {
-            areaGroups['Phú Quốc'] = { 
-              cameras: [], 
-              lat: AREA_COORDINATES['Phú Quốc'].lat, 
-              lng: AREA_COORDINATES['Phú Quốc'].lng 
-            };
-          }
-          areaGroups['Phú Quốc'].cameras.push(item);
+        
+        // Group by region based on coordinates
+        let locationName = 'Unknown';
+        
+        if (lat > 20 && lat < 22 && lng > 105 && lng < 106) {
+          // Hanoi area
+          locationName = 'Hà Nội';
+        } else if (lat > 10 && lat < 11 && lng > 103 && lng < 105) {
+          // Phu Quoc area (multiple cameras here)
+          locationName = 'Phú Quốc';
+        } else {
+          // Other location - use camera SN as location
+          locationName = `Camera ${camera.cameraSn}`;
         }
-        // Future cameras will be added here
-        else {
-          // Default: each camera as separate location
-          areaGroups[item.cameraSn] = { cameras: [item], lat: lat, lng: lng };
+        
+        if (!locationGroups[locationName]) {
+          locationGroups[locationName] = [];
         }
+        
+        locationGroups[locationName].push({
+          cameraSn: camera.cameraSn,
+          lat: lat,
+          lng: lng,
+          total: camera.total || 0,
+          totalIn: camera.totalIn || 0,
+          totalOut: camera.totalOut || 0
+        });
       });
       
-      console.log('🗺️ Grouped cameras by area:', areaGroups);
+      console.log('🗺️ [LuuLuongRaVao] Grouped cameras by location:', locationGroups);
       
-      // Convert groups to map locations
-      this.cameraLocations = Object.entries(areaGroups).map(([areaName, groupData]) => {
-        const cameras = groupData.cameras;
+      // Convert groups to map locations format
+      this.cameraLocations = Object.entries(locationGroups).map(([locationName, cameras]) => {
+        // Calculate average position for the group marker
+        const avgLat = cameras.reduce((sum, cam) => sum + cam.lat, 0) / cameras.length;
+        const avgLng = cameras.reduce((sum, cam) => sum + cam.lng, 0) / cameras.length;
         
         // Sum totals for the group
-        const totalCount = cameras.reduce((sum, cam) => sum + (cam.total || 0), 0);
-        const totalIn = cameras.reduce((sum, cam) => sum + (cam.totalIn || 0), 0);
-        const totalOut = cameras.reduce((sum, cam) => sum + (cam.totalOut || 0), 0);
+        const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
+        const totalIn = cameras.reduce((sum, cam) => sum + cam.totalIn, 0);
+        const totalOut = cameras.reduce((sum, cam) => sum + cam.totalOut, 0);
         
-        console.log(`🗺️ Area "${areaName}":`, {
+        console.log(`🗺️ [LuuLuongRaVao] Location "${locationName}":`, {
           cameras: cameras.map(c => c.cameraSn),
-          coordinates: { lat: groupData.lat, lng: groupData.lng },
-          total: totalCount,
-          totalIn: totalIn,
-          totalOut: totalOut
+          avgPosition: { lat: avgLat, lng: avgLng },
+          totals: { total: totalCount, in: totalIn, out: totalOut },
+          individualCameras: cameras.length
         });
         
         return {
-          lat: groupData.lat,
-          lng: groupData.lng,
-          name: areaName,
+          lat: avgLat,
+          lng: avgLng,
+          name: locationName,
           count: totalCount,
-          cameraCode: areaName,
+          cameraCode: locationName,
           totalIn: totalIn,
           totalOut: totalOut,
-          cameras: cameras.map(c => c.cameraSn), // Keep track of cameras in this group
-          individualCameras: cameras.map(c => ({ // Store individual camera data for high zoom
-            cameraSn: c.cameraSn,
-            lat: typeof c.latitude === 'number' ? c.latitude : parseFloat(c.latitude),
-            lng: typeof c.longitude === 'number' ? c.longitude : parseFloat(c.longitude),
-            total: c.total || 0,
-            totalIn: c.totalIn || 0,
-            totalOut: c.totalOut || 0
-          }))
+          cameras: cameras.map(c => c.cameraSn),
+          individualCameras: cameras // Store individual camera data for high zoom
         };
-      }).filter((location: any) => {
-        // Filter out invalid coordinates
-        const isValid = !isNaN(location.lat) && !isNaN(location.lng) && 
-                       location.lat !== 0 && location.lng !== 0;
-        if (!isValid) {
-          console.warn('🗺️ Filtered out invalid location:', location);
-        }
-        return isValid;
       });
       
-      console.log('🗺️ Final camera locations:', this.cameraLocations);
+      console.log('🗺️ [LuuLuongRaVao] Final camera locations for map:', this.cameraLocations);
+      console.log('🗺️ [LuuLuongRaVao] Camera count:', this.cameraLocations.length);
       
-      // Force Angular change detection for map update
+      // Force change detection to update map
       this.cameraLocations = [...this.cameraLocations];
       this.cdr.detectChanges();
       
-      // Keep country view initially, don't auto-zoom to camera locations
-      console.log('🗺️ Keeping country view center:', this.mapCenter);
     } else {
-      console.log('🗺️ No cameraInfo data from API, setting empty array');
+      console.warn('🗺️ [LuuLuongRaVao] No camera data found in API response');
       this.cameraLocations = [];
     }
     
-    console.log('Updated summary cards:', this.summaryCards);
-    console.log('Updated camera locations:', this.cameraLocations);
+    console.log('✅ Updated summary cards:', this.summaryCards);
+    console.log('✅ Updated camera locations:', this.cameraLocations.length, 'locations');
   }
   
   private applyLineChartFilter(isSingleDay: boolean = false): void {
@@ -743,18 +775,27 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
       }
     }
     
-    // Update line chart
-    this.lineChartData = {
-      labels: labels,
-      datasets: datasets
-    };
-    
-    // Force change detection
-    this.cdr.detectChanges();
+    // Update chart data mà không re-render toàn bộ
+    if (this.lineChartData.labels && this.lineChartData.datasets && this.lineChart?.chart) {
+      // Chỉ cập nhật dữ liệu, không tạo object mới
+      this.lineChartData.labels = labels;
+      this.lineChartData.datasets = datasets;
+      
+      // Sử dụng chart.update() để cập nhật mượt mà
+      this.lineChart.chart.update(this.shouldAnimate ? 'default' : 'none');
+    } else {
+      // Lần đầu tiên khởi tạo chart
+      this.lineChartData = {
+        labels: labels,
+        datasets: datasets
+      };
+      this.cdr.detectChanges();
+    }
   }
   
   setLineChartFilter(filter: 'all' | 'in' | 'out'): void {
     this.lineChartFilter = filter;
+    this.shouldAnimate = true; // User action - có animation
     this.applyLineChartFilter(this.isSingleDayView);
   }
   
@@ -813,23 +854,27 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
       });
     }
     
-    // Update bar chart
-    this.barChartData = {
-      labels: locations,
-      datasets: datasets
-    };
-    
-    // Trigger chart update
-    if (this.chart) {
-      this.chart.update();
+    // Update chart data mà không re-render toàn bộ
+    if (this.barChartData.labels && this.barChartData.datasets && this.barChart?.chart) {
+      // Chỉ cập nhật dữ liệu, không tạo object mới
+      this.barChartData.labels = locations;
+      this.barChartData.datasets = datasets;
+      
+      // Sử dụng chart.update() để cập nhật mượt mà
+      this.barChart.chart.update(this.shouldAnimate ? 'default' : 'none');
+    } else {
+      // Lần đầu tiên khởi tạo chart
+      this.barChartData = {
+        labels: locations,
+        datasets: datasets
+      };
+      this.cdr.detectChanges();
     }
-    
-    // Force change detection
-    this.cdr.detectChanges();
   }
   
   setBarChartFilter(filter: 'all' | 'in' | 'out'): void {
     this.barChartFilter = filter;
+    this.shouldAnimate = true; // User action - có animation
     this.applyBarChartFilter();
   }
   

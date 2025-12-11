@@ -122,7 +122,8 @@
           <div *ngIf="isLineChartLoading" class="loading-overlay">
             <mat-spinner diameter="40"></mat-spinner>
           </div>
-          <canvas baseChart 
+          <canvas #lineChart
+            baseChart 
             [data]="lineChartData" 
             [options]="lineChartOptions" 
             type="line">
@@ -164,7 +165,8 @@
           <div *ngIf="isBarChartLoading" class="loading-overlay">
             <mat-spinner diameter="40"></mat-spinner>
           </div>
-          <canvas baseChart 
+          <canvas #barChart
+            baseChart 
             [data]="barChartData" 
             [options]="barChartOptions" 
             type="bar">
