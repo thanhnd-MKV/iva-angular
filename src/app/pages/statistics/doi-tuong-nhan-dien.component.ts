@@ -33,8 +33,10 @@ export class DoiTuongNhanDienComponent implements OnInit {
   searchText = '';
   selectedTimeRange = 'custom';
   selectedCamera = '';
+  selectedArea = '';
   showTimeDropdown = false;
   showCameraDropdown = false;
+  showAreaDropdown = false;
   showDateRangePicker = false;
   customStartDate: Date | null = null;
   customEndDate: Date | null = null;
@@ -71,6 +73,18 @@ export class DoiTuongNhanDienComponent implements OnInit {
     { label: 'Tất cả Camera', value: '' }
   ];
 
+  // Camera locations data
+  cameraLocations: any[] = [];
+
+  areaOptions: { label: string; value: string }[] = [
+    { label: 'Tất cả khu vực', value: '' },
+    { label: 'Hà Nội', value: 'hanoi' },
+    { label: 'TP.HCM', value: 'hcm' },
+    { label: 'Đà Nẵng', value: 'danang' },
+    { label: 'Cần Thơ', value: 'cantho' },
+    { label: 'Hải Phòng', value: 'haiphong' }
+  ];
+
   // Data properties for display
   totalPeopleCount = 0;
   
@@ -89,7 +103,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
   ];
   
   get hasActiveFilters(): boolean {
-    return this.searchText !== '' || this.selectedCamera !== '';
+    return this.searchText !== '' || this.selectedCamera !== '' || this.selectedArea !== '';
   }
 
   // Loading states
@@ -360,6 +374,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
   ngOnInit(): void {
     // Load initial data
     this.loadCameraOptions();
+    this.loadCameraLocations();
     this.calculateChartDimensions();
     
     // Set default time range to today and load data
@@ -381,12 +396,43 @@ export class DoiTuongNhanDienComponent implements OnInit {
     });
   }
 
+  private loadCameraLocations(): void {
+    this.http.get('/api/admin/camera/camera-with-location').subscribe({
+      next: (response: any) => {
+        if (response && response.success && response.data) {
+          this.cameraLocations = response.data.cameras || [];
+          
+          // Map locations to areaOptions
+          const locations = response.data.locations || [];
+          this.areaOptions = [
+            { label: 'Tất cả khu vực', value: '' },
+            ...locations.map((location: string) => ({
+              label: location,
+              value: location
+            }))
+          ];
+          
+          console.log('Camera locations loaded:', this.cameraLocations);
+          console.log('Area options updated:', this.areaOptions);
+        }
+      },
+      error: (error) => {
+        console.error('Error loading camera locations:', error);
+      }
+    });
+  }
+
   private loadHumanStatistics(): void {
     const params: any = {};
     
     // Add camera filter if selected
     if (this.selectedCamera) {
       params.cameraSn = this.selectedCamera;
+    }
+
+    // Add area filter if selected
+    if (this.selectedArea) {
+      params.location = this.selectedArea;
     }
     
     // Add time range filter - use UTC format similar to luu-luong-ra-vao
@@ -1165,6 +1211,13 @@ export class DoiTuongNhanDienComponent implements OnInit {
   toggleCameraDropdown(): void {
     this.showCameraDropdown = !this.showCameraDropdown;
     this.showTimeDropdown = false;
+    this.showAreaDropdown = false;
+  }
+
+  toggleAreaDropdown(): void {
+    this.showAreaDropdown = !this.showAreaDropdown;
+    this.showTimeDropdown = false;
+    this.showCameraDropdown = false;
   }
 
   selectTimeRange(range: string): void {
@@ -1210,12 +1263,28 @@ export class DoiTuongNhanDienComponent implements OnInit {
     return option ? option.label : 'Tất cả Camera';
   }
 
+  selectArea(area: string): void {
+    this.selectedArea = area;
+    this.showAreaDropdown = false;
+    console.log('Area selected:', area);
+    // TODO: Load data based on area
+    this.loadStatisticsData();
+  }
+
+  getAreaLabel(): string {
+    if (!this.selectedArea) return 'Tất cả khu vực';
+    const option = this.areaOptions.find(opt => opt.value === this.selectedArea);
+    return option ? option.label : 'Tất cả khu vực';
+  }
+
   clearFilters(): void {
     this.searchText = '';
     this.selectedCamera = '';
+    this.selectedArea = '';
     this.selectedTimeRange = 'today';
     this.showTimeDropdown = false;
     this.showCameraDropdown = false;
+    this.showAreaDropdown = false;
     this.customStartDate = null;
     this.customEndDate = null;
     console.log('Filters cleared');
@@ -1231,6 +1300,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
     console.log('Loading statistics data with filters:', {
       timeRange: this.selectedTimeRange,
       camera: this.selectedCamera,
+      area: this.selectedArea,
       search: this.searchText
     });
     
@@ -1244,6 +1314,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
     if (!target.closest('.filter-btn') && !target.closest('.dropdown-menu') && !target.closest('app-date-range-picker')) {
       this.showTimeDropdown = false;
       this.showCameraDropdown = false;
+      this.showAreaDropdown = false;
     }
   }
 

@@ -26,6 +26,8 @@ export class EventDetailPopupComponent {
   @Output() imageViewerStateChange = new EventEmitter<boolean>();
 
   showImageViewer = false;
+  showVideoViewer = false;
+  currentVideoUrl: string = '';
   isImageLoading = true;
 
   closePopup(): void {
@@ -75,8 +77,37 @@ export class EventDetailPopupComponent {
     return images;
   }
 
+  getEventVideos(): string[] {
+    if (!this.eventDetail?.clipPath) return [];
+    
+    if (Array.isArray(this.eventDetail.clipPath)) {
+      return this.eventDetail.clipPath.filter((url: string) => url && url !== 'No data');
+    }
+    
+    return [];
+  }
+
+  openVideoViewer(videoUrl: string): void {
+    this.currentVideoUrl = videoUrl;
+    this.showVideoViewer = true;
+    this.imageViewerStateChange.emit(true);
+  }
+
+  closeVideoViewer(): void {
+    this.showVideoViewer = false;
+    this.currentVideoUrl = '';
+    this.imageViewerStateChange.emit(false);
+  }
+
   getFakeImages(count: number): any[] {
     return count > 0 ? Array(count).fill(null) : [];
+  }
+
+  getFakeItemsCount(): number {
+    const videosCount = this.getEventVideos().length;
+    const imagesCount = this.getEventImages().length;
+    const total = videosCount + imagesCount;
+    return total < 4 ? (4 - total) : 0;
   }
 
   getEventImageLabel(index: number): string {
@@ -93,6 +124,8 @@ export class EventDetailPopupComponent {
   // Get main image label based on event type
   getMainImageLabel(index: number): string {
     if (this.isPersonEvent()) {
+      if (index === 0) return 'Đối tượng (crop)';
+      if (index === 1) return 'Đối tượng (full)';
       return 'Đối tượng';
     }
     return index === 0 ? 'Biển số' : 'Phương tiện';

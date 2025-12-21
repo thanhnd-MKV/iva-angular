@@ -1,0 +1,128 @@
+<div class="video-player-container" 
+     (mousemove)="onMouseMove()" 
+     (mouseleave)="onMouseLeave()"
+     [class.fullscreen]="isFullscreen">
+  
+  <!-- Video Element -->
+  <video #videoElement
+         [src]="videoUrl"
+         [autoplay]="autoplay"
+         [muted]="isMuted"
+         class="video-element"
+         crossorigin="anonymous"
+         preload="metadata"
+         (click)="togglePlay()"
+         (loadedmetadata)="onLoadedMetadata()"
+         (timeupdate)="onTimeUpdate()"
+         (error)="onVideoError($event)"
+         (play)="isPlaying = true"
+         (pause)="isPlaying = false"
+         (waiting)="isLoading = true"
+         (canplay)="isLoading = false">
+  </video>
+  
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" *ngIf="isLoading && !hasError">
+    <div class="spinner"></div>
+    <span>Đang tải video...</span>
+  </div>
+  
+  <!-- Error Overlay -->
+  <div class="error-overlay" *ngIf="hasError">
+    <mat-icon class="error-icon">error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+  
+  <!-- Play Overlay Button (center) -->
+  <div class="play-overlay" *ngIf="!isPlaying && !isLoading && !hasError" (click)="togglePlay()">
+    <button class="play-overlay-btn">
+      <mat-icon>play_arrow</mat-icon>
+    </button>
+  </div>
+  
+  <!-- Video Controls -->
+  <div class="video-controls" *ngIf="showControls && showControls_ && !hasError" 
+       [class.visible]="showControls_">
+    
+    <!-- Top: Timeline Section -->
+    <div class="timeline-section">
+      <!-- Time Markers -->
+      <div class="time-markers">
+        <span class="time-marker" *ngFor="let marker of timelineMarkers" 
+              [class.visible]="isMarkerVisible(marker.time)">
+          {{ marker.label }}
+        </span>
+      </div>
+      
+      <!-- Progress Bar -->
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar-container" 
+             #progressBar
+             (click)="onProgressBarClick($event)"
+             (mousedown)="onProgressDragStart()"
+             (mousemove)="onProgressDrag($event)"
+             (mouseup)="onProgressDragEnd($event)">
+          
+          <div class="progress-track">
+            <div class="progress-buffered" [style.width.%]="buffered"></div>
+            <div class="progress-played" [style.width.%]="getProgressPercentage()"></div>
+            <div class="progress-scrubber" [style.left.%]="getProgressPercentage()">
+              <div class="scrubber-handle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bottom: Controls Section -->
+    <div class="controls-section">
+      <!-- Time Display Left -->
+      <div class="time-display-left">
+        <span class="time-text">{{ formatTime(currentTime) }}</span>
+      </div>
+      
+      <!-- Center Controls -->
+      <div class="center-controls">
+        <button class="control-btn-small" (click)="skipBackward()">
+          <mat-icon>replay_10</mat-icon>
+        </button>
+        
+        <button class="control-btn-play" (click)="togglePlay()">
+          <mat-icon>{{ isPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
+        </button>
+        
+        <button class="control-btn-small" (click)="skipForward()">
+          <mat-icon>forward_10</mat-icon>
+        </button>
+      </div>
+      
+      <!-- Right Controls -->
+      <div class="right-controls">
+        <button class="control-btn-small speed-btn" (click)="showSpeedMenu = !showSpeedMenu">
+          <span class="speed-text">{{ playbackRate }}x</span>
+        </button>
+        
+        <div class="speed-menu" *ngIf="showSpeedMenu">
+          <button class="speed-option" 
+                  *ngFor="let speed of playbackSpeeds"
+                  [class.active]="playbackRate === speed"
+                  (click)="changePlaybackSpeed(speed)">
+            {{ speed }}x
+          </button>
+        </div>
+        
+        <button class="control-btn-small" (click)="toggleMute()">
+          <mat-icon>{{ isMuted || volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up' }}</mat-icon>
+        </button>
+        
+        <div class="time-display-right">
+          <span class="time-text">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+        </div>
+        
+        <button class="control-btn-small" (click)="toggleFullscreen()">
+          <mat-icon>{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

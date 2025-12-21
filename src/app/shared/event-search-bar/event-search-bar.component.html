@@ -38,8 +38,8 @@
         <input 
           type="text" 
           class="search-input" 
-          placeholder="biển số xe"
-          [(ngModel)]="searchText"
+          [placeholder]="searchInputPlaceholder"
+          [(ngModel)]="searchValue"
           (keypress)="onSearchKeyPress($event)">
       </div>
       
@@ -80,6 +80,56 @@
     <!-- Full view khi mở rộng -->
     <div class="expanded-view" *ngIf="showAdvancedFilters">
       <div class="filters-section">
+        <!-- Image Upload Dropdown -->
+        <div *ngIf="showImageUpload" class="filter-dropdown image-upload-dropdown" (clickOutside)="showImageUploadDropdown = false">
+          <button class="dropdown-trigger" (click)="toggleImageUploadDropdown()">
+            <svg class="image-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span class="trigger-label">{{ getImageUploadLabel() }}</span>
+            
+            <!-- Thumbnails hiển thị ảnh đã chọn -->
+            <div class="selected-images-preview" *ngIf="uploadedImages.length > 0" (click)="$event.stopPropagation()">
+              <div class="image-thumbnail" *ngFor="let img of uploadedImages.slice(0, 3)">
+                <img [src]="img.thumbnailUrl || img.imageUrl" [alt]="img.fileName" />
+              </div>
+              <div class="more-images" *ngIf="uploadedImages.length > 3">
+                +{{ uploadedImages.length - 3 }}
+              </div>
+            </div>
+            
+            <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu image-upload-menu" *ngIf="showImageUploadDropdown" (click)="$event.stopPropagation()">
+            <app-image-upload
+              [autoUpload]="true"
+              [allowMultiple]="true"
+              [existingImages]="uploadedImages"
+              (imagesUploaded)="handleImagesUploaded($event)">
+            </app-image-upload>
+          </div>
+        </div>
+
+        <!-- Threshold Slider (Hiển thị trực tiếp) -->
+        <div *ngIf="showThresholdSlider" class="threshold-filter-inline">
+          <label class="threshold-label">Ngưỡng nhận diện</label>
+          <div class="slider-container">
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              step="1"
+              class="threshold-slider"
+              [style.background]="'linear-gradient(to right, #3b82f6 0%, #3b82f6 ' + thresholdPercentage + ', #e5e7eb ' + thresholdPercentage + ', #e5e7eb 100%)'"
+              [(ngModel)]="threshold">
+            <span class="threshold-value">{{ threshold }}%</span>
+          </div>
+        </div>
+
         <!-- Dynamic Filter Dropdowns -->
         <div *ngFor="let filter of filters" class="filter-dropdown" (clickOutside)="dropdownStates[filter.key] = false">
           <button class="dropdown-trigger" (click)="toggleDropdown(filter.key)">

@@ -1,0 +1,70 @@
+<app-event-search-bar 
+  [filters]="eventFilters"
+  [showSearchInput]="true"
+  [searchInputPlaceholder]="'Tìm kiếm biển số xe'"
+  [showAdvancedSearch]="true"
+  (searchTriggered)="handleSearch($event)"
+  (advancedSearchTriggered)="handleAdvancedSearch()">
+</app-event-search-bar>
+
+<div class="content-layout" [class.tracking-mode]="isTrackingMode">
+  <!-- Table Section -->
+  <div class="table-section" [class.with-map]="isTrackingMode">
+    <app-base-table 
+      [title]="isTrackingMode ? 'Lộ trình - ' + trackingTarget : 'Giao thông'" 
+      [data]="tableData" 
+      [columnsToDisplay]="columnsToDisplay"
+      [columnDefs]="columnDefs" 
+      [actions]="['view']" 
+      [hasError]="hasError"
+      [errorMessage]="errorMessage"
+      (view)="handleViewClick($event)"
+      (imageClick)="handleImageClick($event)"
+      (rowClick)="handleRowClick($event)"
+      (columnClick)="handleColumnClick($event)"
+      (refresh)="onRetry()"
+      (clearFilterData)="onClearFilterData()">
+    </app-base-table>
+
+    <app-custom-paginator 
+      *ngIf="shouldShowPagination && !isTrackingMode"
+      [totalItems]="totalItems" 
+      [pageSize]="pageSize" 
+      [currentPage]="pageNumber"
+      (pageChange)="onPageChange($event)">
+    </app-custom-paginator>
+  </div>
+
+  <!-- Tracking Map Section (shown only in tracking mode) -->
+  <div class="map-section" *ngIf="isTrackingMode">
+    <app-tracking-map 
+      [locations]="trackingLocations"
+      [trackingTarget]="trackingTarget"
+      [selectedEventId]="selectedEventId">
+    </app-tracking-map>
+  </div>
+</div>
+
+<!-- Event Detail Popup (Sidebar) -->
+<div class="popup-overlay" 
+     [class.hide-overlay]="popupImageViewerOpen"
+     *ngIf="showEventDetailPopup" 
+     (click)="!popupImageViewerOpen && closeEventDetailPopup()">
+  <app-event-detail-popup
+    [eventDetail]="selectedEventDetail"
+    [isVisible]="showEventDetailPopup"
+    (close)="closeEventDetailPopup()"
+    (viewFullDetail)="navigateToFullDetail($event)"
+    (imageViewerStateChange)="onPopupImageViewerChange($event)">
+  </app-event-detail-popup>
+</div>
+
+<!-- Image Viewer Overlay -->
+<div class="image-viewer-overlay" *ngIf="showImageViewer" (click)="closeImageViewer()">
+  <div class="image-viewer-container" (click)="$event.stopPropagation()">
+    <app-image-viewer 
+      [event]="currentImageViewerData" 
+      (close)="closeImageViewer()">
+    </app-image-viewer>
+  </div>
+</div>

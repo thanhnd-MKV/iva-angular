@@ -35,11 +35,25 @@
       </div>
     </div>
 
-    <!-- Vehicle Images Section -->
+    <!-- Videos and Event Images Section - Combined in one row -->
     <div class="section">
-      <h4 class="section-title">Hình ảnh sự kiện</h4>
+      <h4 class="section-title">Video và Hình ảnh sự kiện</h4>
       <div class="image-gallery-grid">
-        <div class="image-item-small" *ngFor="let image of getEventImages().slice(0, 4); let i = index"
+        <!-- Videos -->
+        <div class="image-item-small video-item" *ngFor="let video of getEventVideos(); let i = index"
+             (click)="openVideoViewer(video)">
+          <video [src]="video" preload="metadata" muted playsinline #videoElement></video>
+          <div class="video-placeholder" *ngIf="!videoElement.poster">
+            <mat-icon>videocam</mat-icon>
+          </div>
+          <div class="image-label-small">Video {{ i + 1 }}</div>
+          <div class="image-overlay">
+            <mat-icon>play_circle</mat-icon>
+          </div>
+        </div>
+        
+        <!-- Event Images -->
+        <div class="image-item-small" *ngFor="let image of getEventImages().slice(0, 4 - getEventVideos().length); let i = index"
              (click)="openImageViewer(getEventImages(), i)">
           <img [src]="image" [alt]="'Sự kiện ' + (i + 1)" />
           <div class="image-label-small">{{ getEventImageLabel(i) }}</div>
@@ -47,10 +61,11 @@
             <mat-icon>zoom_in</mat-icon>
           </div>
         </div>
-        <!-- Fake images if less than 4 -->
-        <div class="image-item-small" *ngFor="let fakeImg of getFakeImages(4 - getEventImages().length); let i = index"
-             (click)="openImageViewer(getEventImages(), 0)">
-          <img [src]="getEventImages()[0] || 'assets/images/default-image.png'" [alt]="'Sự kiện fake ' + (i + 1)" />
+        
+        <!-- Fake items to fill the row -->
+        <div class="image-item-small" *ngFor="let fakeItem of getFakeImages(getFakeItemsCount()); let i = index"
+             (click)="getEventImages().length > 0 ? openImageViewer(getEventImages(), 0) : null">
+          <img [src]="getEventImages()[0] || 'assets/images/default-image.png'" [alt]="'Placeholder'" />
           <div class="image-label-small">{{ getEventImageLabel(getEventImages().length + i) }}</div>
           <div class="image-overlay">
             <mat-icon>zoom_in</mat-icon>
@@ -127,5 +142,15 @@
       [event]="eventDetail"
       (close)="closeImageViewer()">
     </app-image-viewer>
+  </div>
+</div>
+
+<!-- Video Viewer Overlay -->
+<div class="image-viewer-overlay" *ngIf="showVideoViewer" (click)="closeVideoViewer()">
+  <div class="image-viewer-container video-viewer" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeVideoViewer()">
+      <mat-icon>close</mat-icon>
+    </button>
+    <video [src]="currentVideoUrl" controls autoplay class="video-player"></video>
   </div>
 </div>

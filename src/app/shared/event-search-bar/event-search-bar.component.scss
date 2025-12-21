@@ -150,10 +150,198 @@
   gap: 6px;
 }
 
+// Image Upload Dropdown
+.image-upload-dropdown {
+  min-width: 160px;
+  
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 32px;
+    min-width: 160px;
+  }
+  
+  .image-icon {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+  
+  .trigger-label {
+    flex-shrink: 0;
+  }
+  
+  // Selected images preview thumbnails
+  .selected-images-preview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    
+    .image-thumbnail {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+    
+    .more-images {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      font-size: 10px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+  }
+  
+  .dropdown-menu.image-upload-menu {
+    min-width: 400px;
+    max-width: 500px;
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+}
+
+// Threshold Dropdown
+.threshold-filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-left: 1px solid #d1d5db;
+  margin-left: 8px;
+  
+  .threshold-label {
+    font-size: 12px;
+    color: #6b7280;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .threshold-slider {
+    width: 140px;
+    height: 6px;
+    border-radius: 10px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    
+    &:hover {
+      opacity: 0.95;
+    }
+    
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: grab;
+      border: 3px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(59, 130, 246, 0.1);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-top: -6px;
+      
+      &:hover {
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4), 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+      
+      &:active {
+        cursor: grabbing;
+        transform: scale(1.1);
+        box-shadow: 0 1px 6px rgba(59, 130, 246, 0.5), 0 0 0 3px rgba(59, 130, 246, 0.15);
+      }
+    }
+    
+    &::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: grab;
+      border: 3px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(59, 130, 246, 0.1);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      
+      &:hover {
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4), 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+      
+      &:active {
+        cursor: grabbing;
+        transform: scale(1.1);
+        box-shadow: 0 1px 6px rgba(59, 130, 246, 0.5), 0 0 0 3px rgba(59, 130, 246, 0.15);
+      }
+    }
+    
+    &::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      border-radius: 10px;
+      background: transparent;
+    }
+    
+    &::-moz-range-track {
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 10px;
+    }
+    
+    &::-moz-range-progress {
+      background: #3b82f6;
+      height: 6px;
+      border-radius: 10px;
+    }
+  }
+  
+  .threshold-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3b82f6;
+    min-width: 45px;
+    text-align: center;
+    background: #eff6ff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #bfdbfe;
+  }
+}
+
 .buttons-section {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 250px;
 }
 
 // Filter Dropdown
@@ -284,6 +472,97 @@
   flex: 1;
   min-width: 180px;
   max-width: 280px;
+}
+
+// Threshold Slider
+.threshold-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .threshold-label {
+    font-size: 13px;
+    color: #374151;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .threshold-slider {
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    background: #e5e7eb;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: all 0.15s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+    
+    &::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: all 0.15s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+    
+    &::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      border-radius: 2px;
+    }
+    
+    &::-moz-range-track {
+      width: 100%;
+      height: 4px;
+      background: #e5e7eb;
+      border-radius: 2px;
+    }
+    
+    &::-moz-range-progress {
+      background: #3b82f6;
+      height: 4px;
+      border-radius: 2px;
+    }
+  }
+  
+  .threshold-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b82f6;
+    min-width: 40px;
+    text-align: right;
+  }
 }
 
 .custom-date-picker {

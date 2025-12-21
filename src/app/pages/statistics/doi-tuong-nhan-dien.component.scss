@@ -342,6 +342,7 @@
   justify-content: space-around;
   gap: 10px;
   padding: 0 4px;
+  max-height: 260px;
 }
 
 .donut-chart {
@@ -528,7 +529,6 @@
   }
 
   .donut-legend {
-    gap: 12px 20px;
   }
 
   .legend-item {
@@ -573,7 +573,6 @@
   }
 
   .donut-legend {
-    gap: 6px 12px;
   }
 
   .legend-item {
@@ -588,6 +587,27 @@
 
 // Responsive breakpoints
 @media (max-width: 1200px) {
+  .filter-bar {
+    flex-wrap: wrap;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .filter-left {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .filter-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .search-box {
+    min-width: 150px;
+    flex: 1 1 auto;
+  }
+
   .statistics-container {
     padding: 12px;
     gap: 12px;
@@ -599,110 +619,93 @@
   }
   
   .bar-chart-card {
-    width: 100% !important; // Full width trên mobile/tablet
+    width: 100% !important;
+    max-width: 100%;
+    min-height: 300px;
+  }
+
+  .donut-chart-card {
+    width: 100% !important;
+    max-width: 100%;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 320px;
   }
   
   .chart-wrapper {
-    height: 180px;
+    height: 200px;
+    min-height: 200px;
   }
   
   .donut-content {
     flex-direction: row;
     justify-content: center;
-    gap: 16px;
+    gap: 20px;
+    padding: 10px;
+  }
+
+  .donut-chart {
+    width: 200px;
+    height: 200px;
+  }
+
+  .donut-center {
+    width: 100px;
+    height: 100px;
   }
 
   .donut-legend {
-    width: auto;
-    max-width: 300px;
-    gap: 6px 12px;
   }
 
   .line-chart-card .chart-wrapper {
-    height: 180px;
+    height: 200px;
+    min-height: 200px;
   }
 }
 
 @media (max-width: 768px) {
-  .statistics-container {
-    padding: 10px;
-    gap: 10px;
+  .filter-bar {
+    padding: 8px;
+    gap: 6px;
   }
 
-  .top-section {
-    gap: 10px;
+  .filter-left {
+    gap: 6px;
   }
 
-  .chart-card {
-    padding: 12px;
-    border-radius: 8px;
+  .search-box {
+    min-width: 120px;
+    padding: 5px 8px;
+    
+    .search-input {
+      font-size: 12px;
+    }
   }
 
-  .chart-header {
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: 8px;
-    gap: 8px;
-  }
-
-  .chart-title {
+  .filter-btn {
+    padding: 5px 8px;
     font-size: 12px;
+    
+    .btn-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+    
+    span {
+      display: none; // Ẩn text, chỉ hiện icon
+    }
   }
 
-  .chart-legend-inline {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100px;
+  .export-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    
+    span {
+      display: none; // Chỉ hiện icon download
+    }
   }
 
-  .legend-item-inline {
-    font-size: 9px;
-    gap: 4px;
-  }
-
-  .legend-dot {
-    width: 8px;
-    height: 8px;
-  }
-
-  .chart-wrapper {
-    height: 140px;
-  }
-
-  .donut-content {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .total-value {
-    font-size: 20px;
-  }
-
-  .total-label {
-    font-size: 9px;
-  }
-
-  .donut-legend {
-    gap: 5px 10px;
-    max-width: 100%;
-  }
-
-  .legend-item {
-    font-size: 10px;
-    gap: 5px;
-  }
-
-  .legend-color {
-    width: 9px;
-    height: 9px;
-  }
-
-  .line-chart-card .chart-wrapper {
-    height: 140px;
-  }
-}
-
-@media (max-width: 480px) {
   .statistics-container {
     padding: 8px;
     gap: 8px;
@@ -712,24 +715,222 @@
     gap: 8px;
   }
 
+  .summary-cards-section {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .summary-card {
+    flex: 1 1 calc(50% - 4px);
+    max-width: none;
+    min-width: 140px;
+    height: 100px;
+    padding: 12px;
+    
+    .summary-title {
+      font-size: 13px;
+    }
+    
+    .summary-value {
+      font-size: 24px;
+    }
+  }
+
   .chart-card {
     padding: 10px;
+    border-radius: 6px;
   }
 
   .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 6px;
     gap: 6px;
   }
 
   .chart-title {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .chart-legend-inline {
-    gap: 4px 6px;
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    gap: 4px 8px;
   }
 
   .legend-item-inline {
-    font-size: 8px;
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .bar-chart-card {
+    min-height: 250px;
+  }
+
+  .chart-wrapper {
+    height: 180px;
+    min-height: 180px;
+  }
+
+  .donut-chart-card {
+    min-height: 280px;
+  }
+
+  .donut-content {
+    flex-direction: column;
+    gap: 12px;
+    padding: 5px;
+  }
+
+  .donut-chart {
+    width: 180px;
+    height: 180px;
+  }
+
+  .donut-center {
+    width: 90px;
+    height: 90px;
+  }
+
+  .total-value {
+    font-size: 18px;
+  }
+
+  .total-label {
+    font-size: 9px;
+  }
+
+  .donut-legend {
+  }
+
+  .legend-item {
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  .legend-color {
+    width: 8px;
+    height: 8px;
+  }
+
+  .line-chart-card {
+    height: auto !important;
+    min-height: 200px;
+  }
+
+  .line-chart-card .chart-wrapper {
+    height: 160px;
+    min-height: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-bar {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .filter-left,
+  .filter-right {
+    width: 100%;
+  }
+
+  .search-box {
+    width: 100%;
+    min-width: 100%;
+    order: -1; // Đưa search box lên đầu
+  }
+
+  .filter-btn-wrapper {
+    flex: 1 1 auto;
+  }
+
+  .filter-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 6px;
+    
+    .btn-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+    
+    span {
+      display: none; // Chỉ hiện icon
+    }
+  }
+
+  .export-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .dropdown-menu {
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 180px;
+  }
+
+  .statistics-container {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .top-section {
+    gap: 6px;
+  }
+
+  .summary-cards-section {
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .summary-card {
+    flex: 1 1 100%;
+    max-width: 100%;
+    height: 80px;
+    padding: 10px 12px;
+    
+    .summary-title {
+      font-size: 12px;
+    }
+    
+    .summary-value {
+      font-size: 20px;
+    }
+  }
+
+  .chart-card {
+    padding: 8px;
+    border-radius: 6px;
+  }
+
+  .chart-header {
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+
+  .chart-title {
+    font-size: 12px;
+  }
+
+  .chart-legend-inline {
+    gap: 3px 6px;
+  }
+
+  .legend-item-inline {
+    font-size: 9px;
     gap: 3px;
   }
 
@@ -738,12 +939,35 @@
     height: 7px;
   }
 
+  .bar-chart-card {
+    min-height: 220px;
+  }
+
   .chart-wrapper {
-    height: 120px;
+    height: 160px;
+    min-height: 160px;
+  }
+
+  .donut-chart-card {
+    min-height: 320px;
+  }
+
+  .donut-content {
+    padding: 2px;
+  }
+
+  .donut-chart {
+    width: 160px;
+    height: 160px;
+  }
+
+  .donut-center {
+    width: 80px;
+    height: 80px;
   }
 
   .total-value {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .total-label {
@@ -751,59 +975,6 @@
   }
 
   .donut-legend {
-    grid-template-columns: 1fr;
-  }
-}
-
-// Summary Cards Section
-.summary-section {
-  padding: 0 clamp(6px, 1vh, 12px);
-  margin-bottom: clamp(6px, 1vh, 12px);
-}
-
-.summary-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: clamp(6px, 1vh, 12px);
-}
-
-.summary-card-custom {
-  background: white;
-  border-radius: 8px;
-  padding: clamp(12px, 1.2vh, 16px);
-  box-shadow: 0 4px 8px -2px rgba(10, 13, 18, 0.10), 0 2px 4px -2px rgba(10, 13, 18, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-}
-
-@media (max-width: 1200px) {
-  .summary-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .summary-section {
-    padding: 0 10px;
-    margin-bottom: 10px;
-  }
-  
-  .summary-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .summary-cards-grid {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    gap: 4px;
-    max-width: 100%;
   }
 
   .legend-item {
@@ -812,12 +983,17 @@
   }
 
   .legend-color {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
+  }
+
+  .line-chart-card {
+    min-height: 180px;
   }
 
   .line-chart-card .chart-wrapper {
-    height: 10px;
+    height: 140px;
+    min-height: 140px;
   }
 }
 
@@ -892,33 +1068,42 @@
   }
 }
 
-// Responsive design for summary cards
-@media (max-width: 768px) {
-  .summary-cards-section {
-    flex-wrap: wrap;
-    gap: 10px;
+// Touch-friendly improvements for mobile
+@media (hover: none) and (pointer: coarse) {
+  .filter-btn,
+  .export-btn,
+  .legend-item,
+  .legend-item-inline {
+    min-height: 20px; // iOS recommended touch target
+    min-width: 20px;
+  }
+
+  .dropdown-item {
+    padding: 14px 16px;
+    min-height: 44px;
+  }
+
+  .summary-card {
+    &:active {
+      transform: scale(0.98);
+    }
   }
 }
 
-@media (max-width: 480px) {
-  .summary-cards-section {
-    flex-direction: column;
-    gap: 8px;
+// Landscape mode optimization for tablets
+@media (max-width: 1024px) and (orientation: landscape) {
+  .top-section {
+    flex-direction: row;
   }
-  
-  .summary-card {
-    padding: 12px 16px;
-    flex: 1;
-    height: 80px;
-    
-    .summary-value {
-      font-size: 24px;
-    }
-    
-    .summary-title {
-      font-size: 12px;
-    }
 
+  .bar-chart-card,
+  .donut-chart-card {
+    flex: 1 1 50%;
+    min-height: 280px;
+  }
+
+  .donut-content {
+    flex-direction: row;
   }
 }
 

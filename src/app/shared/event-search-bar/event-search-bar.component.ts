@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DateRangePickerComponent } from '../date-picker-ranger/date-range-picker.component';
 import { ClickOutsideDirective } from '../directives/click-outside.directive';
+import { ImageUploadComponent } from '../components/image-upload/image-upload.component';
+import { UploadedImage } from '../services/image-upload.service';
 
 interface FilterOption {
   label: string;
@@ -21,7 +23,7 @@ export type { FilterOption, FilterConfig };
 @Component({
   selector: 'app-event-search-bar',
   standalone: true,
-  imports: [CommonModule, FormsModule, DateRangePickerComponent, ClickOutsideDirective],
+  imports: [CommonModule, FormsModule, DateRangePickerComponent, ClickOutsideDirective, ImageUploadComponent],
   templateUrl: './event-search-bar.component.html',
   styleUrls: ['./event-search-bar.component.scss'],
   encapsulation: ViewEncapsulation.None
@@ -33,7 +35,10 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   @Input() filters: FilterConfig[] = [];
   @Input() showSearchInput: boolean = true;
   @Input() searchInputPlaceholder: string = 'biển số xe';
+  @Input() searchFieldName: string = 'plateNumber'; // Field name to emit: 'plateNumber' for traffic, 'searchText' for person/generic
   @Input() showAdvancedSearch: boolean = true;
+  @Input() showImageUpload: boolean = false;  // Hiển thị upload ảnh
+  @Input() showThresholdSlider: boolean = false;  // Hiển thị ngưỡng nhận diện
   
   @ViewChild('dateRangePicker') dateRangePicker!: DateRangePickerComponent;
 
@@ -60,11 +65,23 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   // Dynamic selected values
   selectedTimeRange: string = '';
   selectedFilters: { [key: string]: string } = {};
-  searchText: string = '';
+  searchValue: string = ''; // Internal value, emitted with key from searchFieldName
   
   // Date range
   startDate: Date | null = null;
   endDate: Date | null = null;
+
+  // Uploaded images
+  uploadedImages: UploadedImage[] = [];
+  showImageUploadDropdown = false;
+  
+  // Threshold for image search
+  threshold: number = 70;
+  showThresholdDropdown = false;
+
+  get thresholdPercentage(): string {
+    return `${this.threshold}%`;
+  }
 
   // Dynamic dropdown states
   showTimeDropdown = false;
@@ -118,12 +135,24 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     this.closeAllDropdowns(filterKey);
   }
 
+  toggleImageUploadDropdown() {
+    this.showImageUploadDropdown = !this.showImageUploadDropdown;
+    this.closeAllDropdowns('imageUpload');
+  }
+
+  toggleThresholdDropdown() {
+    this.showThresholdDropdown = !this.showThresholdDropdown;
+    this.closeAllDropdowns('threshold');
+  }
+
   toggleAdvancedFilters() {
     this.showAdvancedFilters = !this.showAdvancedFilters;
   }
 
   closeAllDropdowns(except?: string) {
     if (except !== 'time') this.showTimeDropdown = false;
+    if (except !== 'imageUpload') this.showImageUploadDropdown = false;
+    if (except !== 'threshold') this.showThresholdDropdown = false;
     Object.keys(this.dropdownStates).forEach(key => {
       if (key !== except) {
         this.dropdownStates[key] = false;
@@ -149,6 +178,12 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     this.dropdownStates[filterKey] = false;
   }
 
+  // Handle images uploaded
+  handleImagesUploaded(images: UploadedImage[]) {
+    console.log('📸 Images uploaded:', images);
+    this.uploadedImages = images;
+  }
+
   // Get selected label
   getTimeRangeLabel(): string {
     const selected = this.timeRanges.find(t => t.value === this.selectedTimeRange);
@@ -162,6 +197,13 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     const selectedValue = this.selectedFilters[filterKey];
     const option = filter.options.find(o => o.value === selectedValue);
     return option?.label || filter.options[0]?.label || filter.label;
+  }
+
+  getImageUploadLabel(): string {
+    if (this.uploadedImages.length === 0) {
+      return 'Tìm kiếm hình ảnh';
+    }
+    return `Đã chọn ${this.uploadedImages.length} ảnh`;
   }
 
   // Date range handlers
@@ -179,10 +221,12 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   clearFilters() {
     this.selectedTimeRange = '';
     this.selectedFilters = {};
-    this.searchText = '';
+    this.searchValue = '';
     this.startDate = null;
     this.endDate = null;
     this.showCustomDatePicker = false;
+    this.uploadedImages = []; // Clear uploaded images
+    this.threshold = 70; // Reset threshold
     
     // Reinitialize default values
     this.filters.forEach(filter => {
@@ -201,9 +245,13 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   // Search handler
   onSearch() {
     const searchParams: any = {
-      timeRange: this.selectedTimeRange,
-      searchText: this.searchText
+      timeRange: this.selectedTimeRange
     };
+    
+    // Add search value with dynamic field name
+    if (this.searchValue) {
+      searchParams[this.searchFieldName] = this.searchValue;
+    }
     
     // Add dynamic filter values
     Object.keys(this.selectedFilters).forEach(key => {
@@ -215,6 +263,12 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     if (this.startDate && this.endDate) {
       searchParams.startDate = this.startDate;
       searchParams.endDate = this.endDate;
+    }
+    
+    // Add uploaded images if available
+    if (this.uploadedImages && this.uploadedImages.length > 0) {
+      searchParams.imageList = this.uploadedImages.map(img => img.imageUrl);
+      searchParams.threshold = this.threshold; // Add threshold when searching with images
     }
     
     this.searchTriggered.emit(searchParams);

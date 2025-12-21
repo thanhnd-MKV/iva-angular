@@ -26,11 +26,12 @@ import { KeyboardShortcutHandler } from '../../shared/constants/keyboard-shortcu
 import { BaseErrorHandlerComponent } from '../../core/components/base-error-handler.component';
 import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { CameraService } from '../camera/camera.service';
+import { TrackingMapComponent, TrackingLocation } from '../../shared/components/tracking-map/tracking-map.component';
 
 @Component({
-  selector: 'app-event-info',
-  templateUrl: './event-info.component.html',
-  styleUrls: ['./event-info.component.css'],
+  selector: 'app-person-event',
+  templateUrl: './person-event.component.html',
+  styleUrls: ['./person-event.component.css'],
   standalone: true,
   imports: [
     FormsModule,
@@ -49,22 +50,36 @@ import { CameraService } from '../camera/camera.service';
     CustomPaginatorComponent,
     EventSearchBarComponent,
     ImageViewerComponent,
-    EventDetailPopupComponent
+    EventDetailPopupComponent,
+    TrackingMapComponent
   ],
 })
-export class EventInfoComponent extends BaseErrorHandlerComponent implements OnInit {
+export class PersonEventComponent extends BaseErrorHandlerComponent implements OnInit {
   @ViewChild(EventSearchBarComponent) eventSearchBar!: EventSearchBarComponent;
   
-  // Event filters configuration
+  // Event filters configuration - for Person events
   eventFilters: FilterConfig[] = [
     {
-      key: 'vehicleType',
-      label: 'Loại phương tiện',
+      key: 'gender',
+      label: 'Giới tính',
       options: [
-        { label: 'Ô tô, xe máy', value: '' },
-        { label: 'Ô tô', value: 'car' },
-        { label: 'Xe máy', value: 'motorbike' },
-        { label: 'Xe đạp', value: 'bicycle' }
+        { label: 'Tất cả', value: '' },
+        { label: 'Nam', value: 'male' },
+        { label: 'Nữ', value: 'female' }
+      ],
+      defaultValue: ''
+    },
+    {
+      key: 'topColor',
+      label: 'Màu áo',
+      options: [
+        { label: 'Tất cả', value: '' },
+        { label: 'Trắng', value: 'white' },
+        { label: 'Đen', value: 'black' },
+        { label: 'Đỏ', value: 'red' },
+        { label: 'Xanh dương', value: 'blue' },
+        { label: 'Xanh lá', value: 'green' },
+        { label: 'Vàng', value: 'yellow' }
       ],
       defaultValue: ''
     },
@@ -73,17 +88,6 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
       label: 'Camera',
       options: [
         { label: 'Tất cả Camera', value: '' }
-      ],
-      defaultValue: ''
-    },
-    {
-      key: 'behavior',
-      label: 'Hành vi',
-      options: [
-        { label: 'Hành vi', value: '' },
-        { label: 'Vượt đèn đỏ', value: 'red_light' },
-        { label: 'Đi sai làn', value: 'wrong_lane' },
-        { label: 'Quá tốc độ', value: 'speeding' }
       ],
       defaultValue: ''
     }
@@ -175,7 +179,7 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   // 3. Restore original getListEvents() và loadTableData() logic
   // 4. Update onPageChange() to call API with page params
   pageNumber: number = 0;
-  pageSize = 11; // Set consistent pageSize for server pagination
+  pageSize = 13; // Default pageSize, will be calculated based on screen size
   total = 0;
   totalItems = 0;
   totalPages = 0;
@@ -196,6 +200,12 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   // Event detail popup
   showEventDetailPopup = false;
   selectedEventDetail: any = null;
+  
+  // Tracking mode
+  isTrackingMode = false;
+  trackingTarget = ''; // Person ID or identifier
+  trackingLocations: TrackingLocation[] = [];
+  trackingLoading = false;
 
   constructor(
     private fb: FormBuilder,
@@ -220,6 +230,12 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
     );
   }
 
+  // Host listener để lắng nghe window resize
+  @HostListener('window:resize', ['$event'])
+  onResize(event: any) {
+    this.calculatePageSize();
+  }
+
   // Hàm select option và focus vào input
   selectOptionAndFocusInput(menuItem: any) {
     // Keyboard shortcuts disabled for new search bar
@@ -227,13 +243,48 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   }
 
   override ngOnInit() {
-    super.ngOnInit(); // Call parent ngOnInit
+    super.ngOnInit(); // Call parent ngOnInit - will call initializeComponent()
+    this.calculatePageSize(); // Calculate pageSize based on screen size
     this.loadCameraOptions();
-    // Không cần calculate pageSize nữa vì đã fix cứng là 4
-    console.log('🖥️ PageSize fixed at:', this.pageSize);
+    console.log('🖥️ PageSize calculated based on screen size:', this.pageSize);
     
-    // Load initial data
+    // Load initial data using server-side pagination
     this.loadTableData();
+  }
+
+  // Calculate pageSize based on screen height for responsive design
+  private calculatePageSize(): void {
+    const screenHeight = window.innerHeight;
+    
+    // Tính toán dựa trên đo đạc thực tế từ UI
+    const headerHeight = 40;        // Main header + breadcrumb
+    const searchBarHeight = 40;    // Search bar + filter buttons
+    const tableHeaderHeight = 42;   // Table header row
+    const paginationHeight = 40;    // Pagination component
+    const margins = 10;             // Top/bottom margins
+    
+    const reservedHeight = headerHeight + searchBarHeight + tableHeaderHeight + paginationHeight + margins;
+    const availableHeight = screenHeight - reservedHeight;
+    const rowHeight = 44; // Đo từ UI thực tế (mỗi row khoảng 44px)
+    
+    // Tính số row có thể hiển thị
+    const calculatedRows = Math.floor(availableHeight / rowHeight);
+    
+    // Áp dụng bounds
+    let newPageSize = Math.max(10, Math.min(30, calculatedRows));
+
+    // Only update if pageSize changed
+    if (this.pageSize !== newPageSize) {
+      console.log(`📏 Screen: ${screenHeight}px | Reserved: ${reservedHeight}px | Available: ${availableHeight}px | Row: ${rowHeight}px | Calculated: ${calculatedRows} | Final: ${newPageSize}`);
+      this.pageSize = newPageSize;
+      
+      // If data already loaded, reload with new pageSize
+      if (this.totalItems > 0) {
+        this.pageNumber = 0;
+        this.pageIndex = 0;
+        this.loadTableData();
+      }
+    }
   }
 
   private loadCameraOptions(): void {
@@ -256,8 +307,8 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
 
   // Implement required abstract methods
   protected initializeComponent(): void {
-    // CHỈ load data thực từ API
-    this.getListEvents();
+    // Data will be loaded in ngOnInit via loadTableData()
+    // Do nothing here to avoid race condition
   }
 
   protected onRetry(): void {
@@ -266,13 +317,17 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
     this.getListEvents();
   }
 
-  // Lấy ảnh đầu tiên từ imagePath
-  private getFirstImageFromPath(imagePath: string): string {
-    if (!imagePath) return '/assets/images/no-image.png';
-    
-    // imagePath từ backend có thể chứa nhiều URL phân cách bằng dấu phẩy
-    const imageUrls = imagePath.split(',');
-    return imageUrls[0]?.trim() || '/assets/images/no-image.png';
+  // Lấy ảnh từ croppedImagePath hoặc fullImagePath
+  private getImagePath(item: any): string {
+    // Ưu tiên croppedImagePath, fallback sang fullImagePath
+    if (item.croppedImagePath) return item.croppedImagePath;
+    if (item.fullImagePath) return item.fullImagePath;
+    // Backward compatibility với imagePath cũ
+    if (item.imagePath) {
+      const imageUrls = item.imagePath.split(',');
+      return imageUrls[0]?.trim() || '/assets/images/no-image.png';
+    }
+    return '/assets/images/no-image.png';
   }
 
   // Map status từ backend boolean thành text
@@ -283,24 +338,6 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
       return 'pending'; // Chưa xử lý
     }
     return 'unknown'; // Không xác định
-  }
-
-  // Format attributes object để hiển thị theo thứ tự: topColor, gender, topCategory, bottomCategory, bottomColor
-  formatAttributes(attributes: any): string {
-    if (!attributes || typeof attributes !== 'object') {
-      return '';
-    }
-
-    const order = ['topColor', 'gender', 'topCategory', 'bottomCategory', 'bottomColor'];
-    const values: string[] = [];
-
-    order.forEach(key => {
-      if (attributes[key]) {
-        values.push(attributes[key]);
-      }
-    });
-
-    return values.join(' ');
   }
 
   getListEvents() {
@@ -318,10 +355,10 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
           // Map toàn bộ data từ backend theo cấu trúc mới
           this.allData = response.data.records.map((item: any) => ({
             ...item,
-            // Map image từ imagePath
-            image: this.getFirstImageFromPath(item.imagePath),
-            // Format attributes object để hiển thị
-            attributes: this.formatAttributes(item.attributes),
+            // Map image từ croppedImagePath hoặc fullImagePath
+            image: this.getImagePath(item),
+            // Keep attributes object as is for base-table to format
+            // attributes: item.attributes (already in ...item)
             // Map status từ boolean sang text
             status: this.mapEventStatus(item.status),
             // Sử dụng startTime hoặc eventTime
@@ -329,7 +366,9 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
             // Map cameraName (có thể fallback sang cameraSn nếu cần)
             cameraName: item.cameraName || item.cameraSn || 'N/A',
             // Map location
-            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : 'N/A')
+            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : 'N/A'),
+            // Ensure clipPath is included
+            clipPath: item.clipPath || []
           }));
           
           // Client-side pagination setup
@@ -422,7 +461,7 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
             location: eventData.location || `${eventData.latitude || 'N/A'}, ${eventData.longitude || 'N/A'}`,
             camera: eventData.cameraName || eventData.cameraSn || 'No data',
             status: eventData.status === true ? 'Đã xử lý' : eventData.status === false ? 'Chưa xử lý' : 'Không xác định',
-            imageUrl: this.getFirstImageFromPath(eventData.imagePath),
+            imageUrl: this.getImagePath(eventData),
             
             // Chi tiết đầy đủ từ API
             cameraSn: eventData.cameraSn || 'No data',
@@ -436,11 +475,15 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
             latitude: eventData.latitude ? eventData.latitude.toString() : 'No data',
             createTime: eventData.createTime || 'No data',
             updateTime: eventData.updateTime || 'No data',
-            clipPath: eventData.clipPath || null,
+            clipPath: Array.isArray(eventData.clipPath) ? eventData.clipPath : (eventData.clipPath ? [eventData.clipPath] : []),
             expiredTime: eventData.expiredTime || 'No data',
             
-            // Parse multiple images từ imagePath
-            images: eventData.imagePath ? eventData.imagePath.split(',').map((url: string) => url.trim()) : []
+            // Parse multiple images từ fullImagePath và croppedImagePath
+            images: [
+              eventData.croppedImagePath,
+              eventData.fullImagePath,
+              ...(eventData.imagePath ? eventData.imagePath.split(',').map((url: string) => url.trim()) : [])
+            ].filter(Boolean)
           };
           
           console.log('Mapped selectedEvent:', this.selectedEvent);
@@ -508,16 +551,35 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   }
   
   navigateToFullDetail(event: any) {
-    // Nếu muốn xem chi tiết đầy đủ, navigate sang trang detail
+    // Nếu muốn xem chi tiết đầy đủ, navigate sang trang detail với returnUrl
     this.closeEventDetailPopup();
-    this.router.navigate(['/event/detail', event.id]);
+    this.router.navigate(['/event/detail', event.id], {
+      state: { returnUrl: '/event/person' }
+    });
   }
   
   transformEventData(row: any): any {
-    // Parse images from imagePath
+    // Parse images - ưu tiên croppedImagePath trước, sau đó fullImagePath
     let images: string[] = [];
+    
+    // Thêm cropped image trước (nếu có)
+    if (row.croppedImagePath) {
+      images.push(row.croppedImagePath);
+    }
+    
+    // Thêm full image sau (nếu có)
+    if (row.fullImagePath) {
+      images.push(row.fullImagePath);
+    }
+    
+    // Thêm các ảnh từ imagePath cũ (backward compatibility)
     if (row.imagePath) {
-      images = row.imagePath.split(',').map((url: string) => url.trim()).filter((url: string) => url);
+      const oldImages = row.imagePath.split(',').map((url: string) => url.trim()).filter(Boolean);
+      oldImages.forEach((img: string) => {
+        if (!images.includes(img)) {
+          images.push(img);
+        }
+      });
     }
     
     // Transform data từ table row sang format cho popup với các trường mới
@@ -541,8 +603,11 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
       duration: row.duration,
       createTime: row.createTime,
       updateTime: row.updateTime,
-      clipPath: row.clipPath,
-      expiredTime: row.expiredTime
+      clipPath: Array.isArray(row.clipPath) ? row.clipPath : (row.clipPath ? [row.clipPath] : []),
+      expiredTime: row.expiredTime,
+      // Add image paths for reference
+      croppedImagePath: row.croppedImagePath,
+      fullImagePath: row.fullImagePath
     };
   }
 
@@ -554,13 +619,12 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   handleImageClick(row: any) {
     console.log('Image clicked for row:', row);
     
-    // Lấy danh sách images từ data
-    let images: string[] = [];
-    
-    if (row.imagePath) {
-      // Parse imagePath có nhiều URLs phân cách bằng dấu phẩy
-      images = row.imagePath.split(',').map((url: string) => url.trim()).filter((url: string) => url);
-    }
+    // Lấy danh sách images từ data mới
+    let images: string[] = [
+      row.croppedImagePath,
+      row.fullImagePath,
+      ...(row.imagePath ? row.imagePath.split(',').map((url: string) => url.trim()) : [])
+    ].filter(Boolean);
     
     if (images.length === 0) {
       this.snackBar.open('Không có hình ảnh để hiển thị', 'Đóng', { duration: 3000 });
@@ -591,6 +655,9 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
     
     const cleanedQuery = this.getCleanedQuery(this.queryFormModel);
     
+    // Force eventCategory to PERSON for this component
+    cleanedQuery['eventCategory'] = 'PERSON';
+    
     // Add pagination parameters for server-side pagination
     const apiParams = {
       ...cleanedQuery,
@@ -614,11 +681,13 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
           // Map toàn bộ filtered data từ backend
           this.allData = response.data.records.map((item: any) => ({
             ...item,
-            image: this.getFirstImageFromPath(item.imagePath),
-            attributes: this.formatAttributes(item.attributes),
+            image: this.getImagePath(item),
+            // Keep attributes object as is for base-table to format
+            // attributes: item.attributes (already in ...item)
             location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
             camera: item.cameraName || item.cameraSn || 'Unknown Camera',
-            status: this.mapEventStatus(item.status)
+            status: this.mapEventStatus(item.status),
+            clipPath: item.clipPath || []
           }));
           
           // Use server-side pagination info
@@ -700,24 +769,31 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
 
   // New search bar handler
   handleSearch(searchParams: any) {
-    console.log('Search params:', searchParams);
+    console.log('🔍 Search params:', searchParams);
     // Map search params to API query format
     this.queryFormModel = [];
     
-    if (searchParams.eventType) {
-      this.queryFormModel.push({ key: 'eventType', value: searchParams.eventType });
+    // Person-specific filters
+    if (searchParams.gender) {
+      this.queryFormModel.push({ key: 'gender', value: searchParams.gender });
     }
     
-    if (searchParams.vehicleType) {
-      this.queryFormModel.push({ key: 'vehicleType', value: searchParams.vehicleType });
+    if (searchParams.topColor) {
+      this.queryFormModel.push({ key: 'topColor', value: searchParams.topColor });
     }
     
     if (searchParams.cameraSn) {
       this.queryFormModel.push({ key: 'cameraSn', value: searchParams.cameraSn });
     }
     
-    if (searchParams.behavior) {
-      this.queryFormModel.push({ key: 'behavior', value: searchParams.behavior });
+    // Image list for face search
+    if (searchParams.imageList && searchParams.imageList.length > 0) {
+      console.log('📸 Searching with images:', searchParams.imageList);
+      // Send images as comma-separated string or array depending on API
+      this.queryFormModel.push({ 
+        key: 'imageList', 
+        value: searchParams.imageList.join(',') 
+      });
     }
     
     if (searchParams.searchText) {
@@ -855,7 +931,7 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
   // TEST METHOD - Force refresh pagination
   testPaginationRefresh(): void {
     console.log('🔧 Testing pagination refresh...');
-    console.log('Current pageSize (fixed):', this.pageSize);
+    console.log('Current pageSize (responsive):', this.pageSize);
     
     // Recalculate pagination với pageSize hiện tại
     this.totalPages = Math.ceil(this.totalItems / this.pageSize);
@@ -866,7 +942,7 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
     this.updateTableDataForCurrentPage();
     this.cdr.detectChanges();
     
-    console.log('✅ Pagination refreshed! New items per page:', this.pageSize);
+    console.log('✅ Pagination refreshed! Current items per page:', this.pageSize);
     console.log('📊 Current page shows:', this.tableData.length, 'items');
   }
 
@@ -887,5 +963,89 @@ export class EventInfoComponent extends BaseErrorHandlerComponent implements OnI
     
     console.log('✅ PageSize forced to 12!');
     console.log('📊 Current page shows:', this.tableData.length, 'items');
+  }
+
+  // ============= TRACKING MODE METHODS =============
+  enableTrackingMode(personIdentifier: string): void {
+    console.log('🎯 Enabling tracking mode for person:', personIdentifier);
+    this.isTrackingMode = true;
+    this.trackingTarget = personIdentifier;
+    this.loadTrackingData(personIdentifier);
+  }
+
+  disableTrackingMode(): void {
+    console.log('🔴 Disabling tracking mode');
+    this.isTrackingMode = false;
+    this.trackingTarget = '';
+    this.trackingLocations = [];
+    this.trackingLoading = false;
+  }
+
+  loadTrackingData(personIdentifier: string): void {
+    this.trackingLoading = true;
+    this.trackingLocations = [];
+
+    // Build query for tracking - search for specific person across all events
+    const trackingQueryParams = {
+      searchText: personIdentifier,
+      eventCategory: 'PERSON'
+    };
+
+    console.log('📍 Loading tracking data with query:', trackingQueryParams);
+
+    this.eventService.getListEvents(trackingQueryParams).subscribe({
+      next: (response: any) => {
+        console.log('📍 API Response:', response);
+        const events = response?.data?.records || [];
+        if (events.length > 0) {
+          // Convert events to tracking locations
+          this.trackingLocations = events
+            .filter((event: any) => event.latitude && event.longitude)
+            .map((event: any) => ({
+              lat: parseFloat(event.latitude),
+              lng: parseFloat(event.longitude),
+              eventId: event.eventId || event.id,
+              timestamp: event.startTime || event.eventTime,
+              cameraName: event.cameraName || event.cameraSn || 'Unknown Camera',
+              address: event.location || `${event.latitude}, ${event.longitude}`,
+              thumbnailUrl: this.getImagePath(event)
+            }))
+            .sort((a: TrackingLocation, b: TrackingLocation) => 
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+
+          console.log('📍 Loaded tracking locations:', this.trackingLocations.length);
+          
+          // Set table data to show ALL tracking events (no pagination in tracking mode)
+          this.tableData = events.map((item: any) => ({
+            ...item,
+            image: this.getImagePath(item),
+            location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
+            camera: item.cameraName || item.cameraSn || 'Unknown Camera',
+            status: this.mapEventStatus(item.status),
+            clipPath: item.clipPath || []
+          }));
+          this.allData = this.tableData;
+          this.totalItems = this.tableData.length;
+          this.totalPages = 1;
+          
+          console.log('📊 Tracking mode - showing all events:', this.tableData.length);
+        } else {
+          console.warn('No tracking data found for:', personIdentifier);
+          this.trackingLocations = [];
+          this.snackBar.open('Không tìm thấy dữ liệu tracking cho đối tượng này', 'Đóng', { duration: 3000 });
+        }
+        
+        this.trackingLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error loading tracking data:', error);
+        this.trackingLoading = false;
+        this.trackingLocations = [];
+        this.snackBar.open('Lỗi tải dữ liệu tracking', 'Đóng', { duration: 3000 });
+        this.cdr.detectChanges();
+      }
+    });
   }
 }

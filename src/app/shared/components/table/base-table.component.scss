@@ -182,8 +182,9 @@ table {
         padding: 2px 8px;
         border-radius: 3px;
         display: inline-block;
-        width: fit-content;
+        width: 90px;
         line-height: 1.2;
+        text-align: center;
     }
     
     .category-person {
@@ -204,9 +205,22 @@ table {
     }
 }
 
+.id-category-cell.clickable {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    &:hover .id-number {
+        color: #007bff;
+    }
+}
+
 // Attributes cell styling (centered, bullet separated)
 .attributes-cell {
-    text-align: center;
     font-size: 11px;
     font-weight: 400;
     color: #374151;
@@ -510,6 +524,10 @@ table {
 ::ng-deep .mat-mdc-row:hover,
 ::ng-deep .mat-row:hover {
     background-color: #f9f9f9 !important;
+}
+
+::ng-deep .mat-row.clickable-row {
+    cursor: pointer;
 }
 
 ::ng-deep .mat-mdc-cell,

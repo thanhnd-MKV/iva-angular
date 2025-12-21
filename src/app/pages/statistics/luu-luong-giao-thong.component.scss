@@ -399,6 +399,35 @@
       margin: 0;
     }
     
+    .legend-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: #6b7280;
+      }
+      
+      &:hover {
+        background: #f9fafb;
+        border-color: #3b82f6;
+        
+        mat-icon {
+          color: #3b82f6;
+        }
+      }
+    }
+    
     .chart-controls {
       .chart-filter-buttons {
         display: flex;
@@ -806,25 +835,106 @@
         margin: 0;
       }
       
-      .chart-legend {
+      .chart-header-legend {
         display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
+        gap: 20px;
+        align-items: center;
         
         .legend-item {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 8px;
           font-size: 12px;
+          cursor: pointer;
+          
+          &.inactive {
+            opacity: 0.4;
+            
+            .legend-text {
+              text-decoration: line-through;
+            }
+          }
           
           .legend-dot {
-            width: 8px;
-            height: 8px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
           }
           
           .legend-text {
+            color: #666;
+            font-weight: 400;
+          }
+        }
+      }
+      
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 0;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        animation: slideDown 0.3s ease;
+        
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          padding: 6px 10px;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+          cursor: pointer;
+          border: 2px solid transparent;
+          
+          &:hover {
+            background: #f9fafb;
+            
+            .legend-dot {
+              transform: scale(1.2);
+            }
+          }
+          
+          &.active {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            
+            .legend-text {
+              color: #2563eb;
+              font-weight: 600;
+            }
+          }
+          
+          &:not(.active) {
+            opacity: 0.5;
+            
+            &:hover {
+              opacity: 0.8;
+            }
+          }
+          
+          .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+          }
+          
+          .legend-text {
             color: #6b7280;
+            font-weight: 500;
           }
         }
       }

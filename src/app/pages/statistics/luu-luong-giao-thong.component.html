@@ -41,6 +41,22 @@
       </div>
     </div>
 
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn area-btn" [class.active]="showAreaDropdown || selectedArea !== ''"
+        (click)="toggleAreaDropdown()">
+        <mat-icon class="btn-icon">location_on</mat-icon>
+        <span>{{ getAreaLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+
+      <div class="dropdown-menu area-dropdown" *ngIf="showAreaDropdown">
+        <div class="dropdown-item" *ngFor="let option of areaOptions"
+          [class.selected]="selectedArea === option.value" (click)="selectArea(option.value)">
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+
     <button class="filter-btn clear-btn" (click)="clearFilters()"
       *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
       <mat-icon class="btn-icon">close</mat-icon>
@@ -90,26 +106,30 @@
         <div class="chart-card">
           <div class="chart-header">
             <h3 class="chart-title">Thống kê số lượng phương tiện</h3>
-            <div class="chart-legend">
-              <div class="legend-item">
+            <div class="chart-header-legend">
+              <div class="legend-item" 
+                   [class.inactive]="barChartFilter !== 'car' && barChartFilter !== 'all'"
+                   (click)="setBarChartFilter(barChartFilter === 'car' ? 'all' : 'car')">
                 <span class="legend-dot" style="background-color: #3b82f6;"></span>
                 <span class="legend-text">Ô tô</span>
               </div>
-              <div class="legend-item">
+              <div class="legend-item"
+                   [class.inactive]="barChartFilter !== 'motorbike' && barChartFilter !== 'all'"
+                   (click)="setBarChartFilter(barChartFilter === 'motorbike' ? 'all' : 'motorbike')">
                 <span class="legend-dot" style="background-color: #10b981;"></span>
                 <span class="legend-text">Xe máy</span>
               </div>
-              <div class="legend-item">
+              <div class="legend-item"
+                   [class.inactive]="barChartFilter !== 'truck' && barChartFilter !== 'all'"
+                   (click)="setBarChartFilter(barChartFilter === 'truck' ? 'all' : 'truck')">
                 <span class="legend-dot" style="background-color: #f59e0b;"></span>
                 <span class="legend-text">Xe tải</span>
               </div>
-              <div class="legend-item">
+              <div class="legend-item"
+                   [class.inactive]="barChartFilter !== 'bus' && barChartFilter !== 'all'"
+                   (click)="setBarChartFilter(barChartFilter === 'bus' ? 'all' : 'bus')">
                 <span class="legend-dot" style="background-color: #ef4444;"></span>
                 <span class="legend-text">Xe buýt</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot" style="background-color: #8b5cf6;"></span>
-                <span class="legend-text">Người đi bộ</span>
               </div>
             </div>
           </div>

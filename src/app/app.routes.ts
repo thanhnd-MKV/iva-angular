@@ -82,13 +82,6 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./pages/statistics/vi-pham-giao-thong.component').then(m => m.ViPhamGiaoThongComponent)
       },
       {
-        path: 'event/info',
-        title: 'Thông tin Sự kiện',
-        // canActivate: [PermissionGuard],
-        // data: { permissions: ['event:info'] },
-        loadComponent: () => import('./pages/event/event-info.component').then(m => m.EventInfoComponent)
-      },
-      {
         path: 'event/detail/:id',
         title: 'Chi tiết Sự kiện',
         // canActivate: [PermissionGuard],

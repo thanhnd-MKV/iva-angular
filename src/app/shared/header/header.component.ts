@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
+import { Location } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { filter } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
@@ -23,7 +24,8 @@ export class HeaderComponent implements OnInit {
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private titleService: Title
+    private titleService: Title,
+    private location: Location
   ) { }
 
   ngOnInit(): void {
@@ -85,16 +87,8 @@ export class HeaderComponent implements OnInit {
     return '';
   }
 
-  // Navigate back to parent page
+  // Navigate back to previous page using browser history
   navigateToParent() {
-    if (this.router.url.includes('/event/detail/')) {
-      this.router.navigate(['/event/info']);
-    } else if (this.router.url.includes('/event/')) {
-      this.router.navigate(['/event/info']);
-    } else if (this.router.url.includes('/thong-ke/')) {
-      this.router.navigate(['/dashboard']);
-    } else if (this.router.url.includes('/camera/')) {
-      this.router.navigate(['/camera/list']);
-    }
+    this.location.back();
   }
 }

@@ -43,6 +43,22 @@
       </div>
     </div>
 
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn area-btn" [class.active]="showAreaDropdown || selectedArea !== ''" (click)="toggleAreaDropdown()">
+        <mat-icon class="btn-icon">location_on</mat-icon>
+        <span>{{ getAreaLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+      
+      <div class="dropdown-menu area-dropdown" *ngIf="showAreaDropdown">
+        <div class="dropdown-item" *ngFor="let option of areaOptions"
+             [class.selected]="selectedArea === option.value"
+             (click)="selectArea(option.value)">
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+
     <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
       <mat-icon class="btn-icon">close</mat-icon>
       <span>Xóa bộ lọc</span>
@@ -58,15 +74,14 @@
 </div>
 
 <div class="statistics-container">
-  <!-- Summary Cards Section -->
 
 
-  <!-- Top Section: Bar Chart + Donut Chart -->
+  <!-- Top Section: Donut Chart + Bar Chart -->
   <div class="top-section">
-    <!-- Bar Chart -->
 
-         <div>
-        <div class="summary-cards-section">
+<div class="left-section">
+        <!-- Summary Cards Section -->
+  <div class="summary-cards-section">
     <div class="summary-card" [ngClass]="'summary-card-' + card.color" *ngFor="let card of summaryCards">
       <div class="summary-header">
         <span class="summary-title">{{ card.title }}</span>
@@ -80,39 +95,41 @@
       </div>
     </div>
   </div>
-  <div class="chart-card donut-chart-card">
-    <h3 class="chart-title">Thống kê lượt xuất hiện độ tuổi</h3>
-    <div class="donut-wrapper" [class.loading]="isDonutChartLoading">
-      <div *ngIf="isDonutChartLoading" class="loading-overlay">
-        <mat-spinner diameter="40"></mat-spinner>
-      </div>
-      <div class="donut-content">
-        <div class="donut-chart">
-          <canvas baseChart 
-            [data]="donutChartData" 
-            [options]="donutChartOptions" 
-            type="doughnut">
-          </canvas>
-          <div class="donut-center">
-            <div class="total-label">Tổng</div>
-            <div class="total-value">{{ formattedTotalCount }}</div>
-          </div>
+    <!-- Donut Chart -->
+    <div class="chart-card donut-chart-card">
+      <h3 class="chart-title">Thống kê lượt xuất hiện độ tuổi</h3>
+      <div class="donut-wrapper" [class.loading]="isDonutChartLoading">
+        <div *ngIf="isDonutChartLoading" class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
         </div>
-        <div class="donut-legend">
-          <div class="legend-item" 
-               *ngFor="let item of donutChartData.labels; let i = index"
-               [class.hidden]="isAgeGroupHidden(item)"
-               (click)="toggleAgeGroup(item)">
-            <div class="legend-color" [style.background-color]="getBackgroundColor(i)"></div>
-            <span class="legend-label">{{ item }}</span>
-            <span class="legend-value">{{ getAgeGroupCount(item) }}</span>
+        <div class="donut-content">
+          <div class="donut-chart">
+            <canvas baseChart 
+              [data]="donutChartData" 
+              [options]="donutChartOptions" 
+              type="doughnut">
+            </canvas>
+            <div class="donut-center">
+              <div class="total-label">Tổng</div>
+              <div class="total-value">{{ formattedTotalCount }}</div>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-item" 
+                 *ngFor="let item of donutChartData.labels; let i = index"
+                 [class.hidden]="isAgeGroupHidden(item)"
+                 (click)="toggleAgeGroup(item)">
+              <div class="legend-color" [style.background-color]="getBackgroundColor(i)"></div>
+              <span class="legend-label">{{ item }}</span>
+              <span class="legend-value">{{ getAgeGroupCount(item) }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-     </div>
+</div>
 
+    <!-- Bar Chart -->
     <div class="chart-card bar-chart-card">
       <div class="chart-header">
         <h3 class="chart-title">Thống kê nhận chủng học</h3>

@@ -99,7 +99,7 @@ interface CameraLocation {
   styles: [`
     .map-container {
       width: 100%;
-      height: 100%;
+      height: calc(100% );
       position: relative;
       border-radius: 8px;
       overflow: hidden;

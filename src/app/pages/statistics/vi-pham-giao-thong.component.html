@@ -41,6 +41,22 @@
             </div>
         </div>
 
+        <div class="filter-btn-wrapper">
+            <button class="filter-btn area-btn" [class.active]="showAreaDropdown || selectedArea !== ''"
+                (click)="toggleAreaDropdown()">
+                <mat-icon class="btn-icon">location_on</mat-icon>
+                <span>{{ getAreaLabel() }}</span>
+                <mat-icon class="dropdown-icon">expand_more</mat-icon>
+            </button>
+
+            <div class="dropdown-menu area-dropdown" *ngIf="showAreaDropdown">
+                <div class="dropdown-item" *ngFor="let option of areaOptions"
+                    [class.selected]="selectedArea === option.value" (click)="selectArea(option.value)">
+                    {{ option.label }}
+                </div>
+            </div>
+        </div>
+
         <button class="filter-btn clear-btn" (click)="clearFilters()"
             *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
             <mat-icon class="btn-icon">close</mat-icon>
@@ -75,22 +91,21 @@
             <div class="summary-cards">
                 <div class="summary-card" [class.summary-card-blue]="card.color === 'blue'"
                     [class.summary-card-green]="card.color === 'green'"
-                    [class.summary-card-purple]="card.color === 'purple'" *ngFor="let card of summaryCards">
+                    [class.summary-card-purple]="card.color === 'purple'" *ngFor="let card of summaryCards; let i = index">
                     <div class="summary-header">
                         <span class="summary-title">{{ card.title }}</span>
                     </div>
                     <div style="display: flex;justify-content: space-between;">
                         <div class="summary-body">
-                            <span class="summary-value">{{ card.value }}</span>
+                            <!-- Card đầu tiên hiển thị số, các card còn lại hiển thị text -->
+                            <span class="summary-value" *ngIf="i === 0">{{ card.value }}</span>
+                            <span class="summary-value text-value" *ngIf="i !== 0">{{ card.subtitle || card.value }}</span>
                             <span class="summary-change" [class.positive]="card.isPositive"
                                 [class.negative]="!card.isPositive" *ngIf="card.change > 0">
                                 <mat-icon class="change-icon">{{ card.isPositive ? 'arrow_upward' : 'arrow_downward'
                                     }}</mat-icon>
                                 {{ card.change }}%
                             </span>
-                        </div>
-                        <div class="summary-subtitle" *ngIf="card.subtitle">
-                            <span>{{ card.subtitle }}</span>
                         </div>
                     </div>
                 </div>

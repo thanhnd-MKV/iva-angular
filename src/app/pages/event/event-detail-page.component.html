@@ -11,7 +11,7 @@
     <h3>{{ errorMessage }}</h3>
     <div class="error-actions">
       <button mat-raised-button color="primary" (click)="retry()">Thử lại</button>
-      <button mat-button (click)="goToList()">Về danh sách</button>
+      <button mat-button (click)="goBack()">Quay lại</button>
     </div>
   </div>
 
@@ -48,7 +48,7 @@
             
             <div class="info-row">
               <span class="label">Giới tính</span>
-              <span class="value">{{ getGenderDisplay(eventDetail.gender) }}</span>
+              <span class="value">{{ getGenderDisplay(eventDetail.gender || eventDetail.attributes?.gender) }}</span>
             </div>
             
             <div class="info-row">
@@ -57,10 +57,24 @@
             </div>
             
             <div class="info-row">
-              <span class="label">Trang phục</span>
+              <span class="label">Trang phục trên</span>
               <span class="value">
-                <span class="color-dot" [style.background]="getClothingColor(eventDetail.clothingColor)"></span>
-                {{ eventDetail.clothing || eventDetail.clothingDescription || 'N/A' }}
+                <span class="color-dot" 
+                      *ngIf="eventDetail.topColor || eventDetail.attributes?.topColor"
+                      [style.background]="getClothingColor(eventDetail.topColor || eventDetail.attributes?.topColor)"></span>
+                {{ getTopCategoryDisplay(eventDetail.topCategory || eventDetail.attributes?.topCategory) }} • 
+                {{ getColorDisplay(eventDetail.topColor || eventDetail.attributes?.topColor) }}
+              </span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Trang phục dưới</span>
+              <span class="value">
+                <span class="color-dot" 
+                      *ngIf="eventDetail.bottomColor || eventDetail.attributes?.bottomColor"
+                      [style.background]="getClothingColor(eventDetail.bottomColor || eventDetail.attributes?.bottomColor)"></span>
+                {{ getBottomCategoryDisplay(eventDetail.bottomCategory || eventDetail.attributes?.bottomCategory) }} • 
+                {{ getColorDisplay(eventDetail.bottomColor || eventDetail.attributes?.bottomColor) }}
               </span>
             </div>
             
@@ -79,16 +93,16 @@
           
           <!-- Traffic Event (Giao thông) -->
           <ng-container *ngIf="isTrafficEvent()">
-            <div class="info-row">
+            <div class="info-row" *ngIf="eventDetail.plateNumber || eventDetail.licensePlate || eventDetail.attributes?.plateNumber">
               <span class="label">Biển số</span>
               <span class="value">
                 <span class="license-plate" [ngClass]="getPlateTypeClass(selectedPlateType)">
-                  {{ eventDetail.plateNumber || eventDetail.licensePlate || 'N/A' }}
+                  {{ eventDetail.plateNumber || eventDetail.licensePlate || eventDetail.attributes?.plateNumber || 'N/A' }}
                 </span>
               </span>
             </div>
             
-            <div class="info-row">
+            <div class="info-row" *ngIf="eventDetail.plateNumber || eventDetail.licensePlate || eventDetail.attributes?.plateNumber">
               <span class="label">Loại biển số</span>
               <span class="value">
                 <span class="plate-indicator" [ngClass]="getPlateTypeClass(selectedPlateType)"></span>
@@ -100,12 +114,12 @@
               </span>
             </div>
             
-            <div class="info-row">
+            <div class="info-row" *ngIf="eventDetail.vehicleModel || eventDetail.vehicleType">
               <span class="label">Mẫu mã xe</span>
               <span class="value">{{ eventDetail.vehicleModel || eventDetail.vehicleType || 'N/A' }}</span>
             </div>
             
-            <div class="info-row">
+            <div class="info-row" *ngIf="eventDetail.vehicleColor">
               <span class="label">Màu xe</span>
               <span class="value">
                 <span class="color-dot" [style.background]="getColorCode(eventDetail.vehicleColor)"></span>
@@ -120,12 +134,22 @@
             
             <div class="info-row">
               <span class="label">Loại vi phạm</span>
-              <span class="value violation-text">{{ eventDetail.eventType || eventDetail.violationType || 'N/A' }}</span>
+              <span class="value violation-text">{{ getEventTypeDisplay(eventDetail.eventType) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <span class="label">Camera</span>
+              <span class="value">{{ eventDetail.cameraName || eventDetail.cameraSn || 'N/A' }}</span>
             </div>
             
             <div class="info-row">
               <span class="label">Thời gian</span>
               <span class="value">{{ formatDateTime(eventDetail.startTime || eventDetail.eventTime) }}</span>
+            </div>
+            
+            <div class="info-row" *ngIf="eventDetail.duration">
+              <span class="label">Thời lượng</span>
+              <span class="value">{{ eventDetail.duration }} giây</span>
             </div>
             
             <div class="info-row">
@@ -221,45 +245,20 @@
     <div class="right-panel">
       <!-- Media Display -->
       <div class="media-display">
-        <!-- Video View - Show when clipPath exists -->
-        <ng-container *ngIf="hasVideo()">
-          <div class="video-wrapper" *ngIf="selectedMediaType === 'video'">
-            <video #videoPlayer 
-                   [src]="eventDetail.clipPath" 
-                   class="video-player"
-                   (loadedmetadata)="onVideoLoaded()"
-                   (timeupdate)="onVideoTimeUpdate()"
-                   (ended)="onVideoEnded()">
-            </video>
-            <div class="video-overlay-btn" *ngIf="!isPlaying" (click)="togglePlay()">
-              <mat-icon>play_arrow</mat-icon>
-            </div>
-          </div>
-          <div class="video-controls" *ngIf="selectedMediaType === 'video'">
-            <button class="ctrl-btn" (click)="skipBackward()"><mat-icon>replay_10</mat-icon></button>
-            <button class="ctrl-btn play" (click)="togglePlay()">
-              <mat-icon>{{ isPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
-            </button>
-            <button class="ctrl-btn" (click)="skipForward()"><mat-icon>forward_10</mat-icon></button>
-            <button class="speed-btn" (click)="changePlaybackSpeed()">{{ playbackSpeed }}x</button>
-            <div class="video-progress">
-              <input type="range" min="0" max="100" [value]="videoProgress" 
-                     (input)="onProgressChange($event)" class="progress-slider">
-              <span class="time-display">{{ formatVideoTime(currentTime) }} / {{ formatVideoTime(duration) }}</span>
-            </div>
-          </div>
-          
-          <!-- Show image when in image mode but video is available -->
-          <div class="image-wrapper" *ngIf="selectedMediaType === 'image'">
-            <img [src]="selectedImage || getMainImage()" alt="Event image" class="main-image" (click)="openImageViewer()">
-            <button class="fullscreen-btn" (click)="openImageViewer()">
-              <mat-icon>fullscreen</mat-icon>
-            </button>
-          </div>
+        <!-- Video View - Show when video is selected -->
+        <ng-container *ngIf="hasVideo() && selectedMediaType === 'video'">
+          <app-video-player 
+            [videoUrl]="getCurrentVideoUrl()"
+            [autoplay]="true"
+            [showControls]="true"
+            [showTimeline]="true"
+            (videoLoaded)="onVideoLoaded()"
+            (videoError)="onVideoError($event)">
+          </app-video-player>
         </ng-container>
         
-        <!-- Image View Only - Show when NO clipPath -->
-        <ng-container *ngIf="!hasVideo()">
+        <!-- Image View - Show when image is selected or no video -->
+        <ng-container *ngIf="!hasVideo() || selectedMediaType === 'image'">
           <div class="image-wrapper">
             <img [src]="selectedImage || getMainImage()" alt="Event image" class="main-image" (click)="openImageViewer()">
             <button class="fullscreen-btn" (click)="openImageViewer()">
@@ -269,40 +268,49 @@
         </ng-container>
       </div>
       
-      <!-- Thumbnails Section -->
+      <!-- Thumbnails Section - Combined Images and Videos -->
       <div class="thumbnails-section">
-        <div class="thumb-group" *ngIf="getEventImages().length > 0">
-          <span class="thumb-title">{{ isPersonEvent() ? 'Đối tượng' : 'Hình ảnh vi phạm' }} ({{ getEventImages().length }})</span>
-          <div class="thumb-list">
-            <div class="thumb-item" 
-                 *ngFor="let img of getEventImages(); let i = index"
-                 [class.active]="selectedImageIndex === i && selectedMediaType === 'image'"
-                 (click)="selectImage(img, i)">
-              <img [src]="img" alt="Thumbnail">
+        <div class="combined-thumb-group">
+          <!-- Images Group -->
+          <div class="media-group" *ngIf="getEventImages().length > 0">
+            <span class="media-group-title">Hình ảnh vi phạm ({{ getEventImages().length }})</span>
+            <div class="media-items">
+              <div class="thumb-item image-item" 
+                   *ngFor="let img of getEventImages(); let i = index"
+                   [class.active]="selectedImageIndex === i && selectedMediaType === 'image'"
+                   (click)="selectImage(img, i)">
+                <img [src]="img" alt="Thumbnail">
+                <span class="thumb-label">{{ getImageLabel(i) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Video Group -->
+          <div class="media-group" *ngIf="getEventVideos().length > 0">
+            <span class="media-group-title">Video ({{ getEventVideos().length }})</span>
+            <div class="media-items">
+              <div class="thumb-item video-item" 
+                   *ngFor="let video of getEventVideos(); let i = index"
+                   [class.active]="selectedMediaType === 'video' && selectedVideoIndex === i"
+                   (click)="selectVideo(video, i)">
+                <video [src]="video" 
+                       preload="metadata" 
+                       muted 
+                       playsinline 
+                       crossorigin="anonymous"
+                       #videoElement
+                       (error)="videoElement.style.display='none'"></video>
+                <div class="video-overlay" *ngIf="videoElement.error || videoElement.readyState < 2">
+                  <mat-icon class="video-placeholder-icon">videocam</mat-icon>
+                </div>
+                <mat-icon class="play-icon">play_circle_filled</mat-icon>
+                <span class="thumb-label">Video {{ i + 1 }}</span>
+              </div>
             </div>
           </div>
         </div>
         
-        <!-- Video thumbnail - only show when clipPath exists -->
-        <div class="thumb-group" *ngIf="hasVideo()">
-          <span class="thumb-title">Video</span>
-          <div class="thumb-list">
-            <div class="thumb-item video" 
-                 [class.active]="selectedMediaType === 'video'"
-                 (click)="selectVideo()">
-              <img [src]="getVideoThumbnail()" alt="Video thumbnail">
-              <mat-icon class="play-icon">play_circle_filled</mat-icon>
-            </div>
-          </div>
-        </div>
-        
-        <div class="thumb-actions" *ngIf="getEventImages().length > 4 || hasVideo()">
-          <button class="nav-arrow" (click)="scrollThumbnails('left')" [disabled]="thumbnailScrollIndex === 0">
-            <mat-icon>chevron_left</mat-icon>
-          </button>
-          <button class="nav-arrow" (click)="scrollThumbnails('right')">
-            <mat-icon>chevron_right</mat-icon>
-          </button>
+        <div class="thumb-actions" *ngIf="getEventImages().length > 4 || getEventVideos().length > 0">
           <button class="download-all-btn" (click)="downloadAllMedia()">
             <mat-icon>download</mat-icon>
             <span>Tải toàn bộ</span>

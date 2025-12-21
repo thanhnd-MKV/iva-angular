@@ -52,10 +52,15 @@
   border-radius: 5px;
   background: white;
   min-width: 200px;
+  height: 32px; // Match with filter-btn height
+  box-sizing: border-box;
   
   .search-icon {
     font-size: 16px;
     color: #9ca3af;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
   
   .search-input {
@@ -64,6 +69,7 @@
     flex: 1;
     font-size: 13px;
     color: #374151;
+    line-height: 1;
     
     &::placeholder {
       color: #9ca3af;
@@ -89,12 +95,15 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  height: 32px; // Fixed height
+  box-sizing: border-box;
   
   .btn-icon, .dropdown-icon {
     font-size: 16px;
     width: 16px;
     height: 16px;
     color: #9ca3af;
+    flex-shrink: 0;
   }
   
   &:hover {
@@ -216,7 +225,7 @@
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    height: 100%;
+    height: calc(100% - 32px);
     min-height: 400px;
     display: flex;
     flex-direction: column;
@@ -325,7 +334,13 @@
     font-weight: 700;
     color: #1f2937;
     line-height: 1;
-    line-height: 1;
+    
+    // For text values (non-numeric)
+    &.text-value {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
   }
   
   .summary-change {
@@ -364,7 +379,7 @@
   gap: 16px;
   flex: 1;
   min-height: 270px;
-  max-height: 100%;
+  max-height: 400px; // Limit max height to prevent stretching
   width: 100%;
   overflow: visible;
 }
@@ -489,7 +504,7 @@
   flex: 1;
   min-width: 300px;
   min-height: 270px;
-  max-height: 100%;
+  max-height: 400px; // Match with charts-row max-height
   display: flex;
   flex-direction: column;
   overflow: hidden;

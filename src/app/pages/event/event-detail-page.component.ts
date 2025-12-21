@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { GoogleMapComponent } from '../../shared/components/google-map/google-map.component';
 import { ImageViewerComponent } from '../../shared/image-viewer/image-viewer.component';
+import { VideoPlayerComponent } from '../../shared/components/video-player/video-player.component';
 import { EventService } from './event.service';
 
 @Component({
@@ -19,7 +20,8 @@ import { EventService } from './event.service';
     MatButtonModule,
     MatIconModule,
     GoogleMapComponent,
-    ImageViewerComponent
+    ImageViewerComponent,
+    VideoPlayerComponent
   ],
   templateUrl: './event-detail-page.component.html',
   styleUrls: ['./event-detail-page.component.css']
@@ -32,12 +34,15 @@ export class EventDetailPageComponent implements OnInit {
   loading = true;
   error = false;
   errorMessage = '';
+  previousUrl: string = '/event/info'; // Default fallback
   
   // Media state
   selectedPlateType = 'yellow';
   selectedMediaType: 'video' | 'image' = 'image';
   selectedImage: string | null = null;
   selectedImageIndex = 0;
+  selectedVideoIndex = 0;
+  currentVideoUrl: string | null = null;
   thumbnailScrollIndex = 0;
   
   // Video state
@@ -66,6 +71,17 @@ export class EventDetailPageComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // Get previous URL from navigation state or query params
+    const navigation = this.router.getCurrentNavigation();
+    const state = history.state;
+    
+    // Try to get returnUrl from state, query params, or referrer
+    this.previousUrl = state?.returnUrl || 
+                       this.route.snapshot.queryParams['returnUrl'] || 
+                       '/event/info';
+    
+    console.log('Previous URL:', this.previousUrl);
+    
     // Lấy ID từ route params
     this.eventId = this.route.snapshot.paramMap.get('id');
     
@@ -88,12 +104,36 @@ export class EventDetailPageComponent implements OnInit {
           const data = response.data;
           this.eventDetail = {
             ...data,
-            // Map các trường cần thiết
-            image: data.imagePath ? this.getFirstImageFromPath(data.imagePath) : data.imageUrl,
-            location: data.location || (data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : 'N/A'),
-            camera: data.cameraName || data.cameraSn || 'Unknown Camera',
-            // Giữ nguyên status vì đã đúng kiểu
-            status: data.status
+            // Map dữ liệu mới từ API
+            eventId: data.eventId,
+            cameraSn: data.cameraSn,
+            cameraId: data.cameraId,
+            cameraName: data.cameraName,
+            eventType: data.eventType,
+            eventCategory: data.eventCategory,
+            startTime: data.startTime,
+            eventTime: data.eventTime,
+            duration: data.duration,
+            location: data.location,
+            longitude: data.longitude,
+            latitude: data.latitude,
+            status: data.status,
+            
+            // Map attributes
+            gender: data.attributes?.gender || data.gender,
+            topColor: data.attributes?.topColor || data.topColor,
+            topCategory: data.attributes?.topCategory || data.topCategory,
+            bottomColor: data.attributes?.bottomColor || data.bottomColor,
+            bottomCategory: data.attributes?.bottomCategory || data.bottomCategory,
+            
+            // Map images and videos
+            fullImagePath: data.fullImagePath,
+            croppedImagePath: data.croppedImagePath,
+            clipPath: data.clipPath,
+            
+            // Backward compatibility
+            image: data.croppedImagePath || data.fullImagePath || data.imagePath,
+            camera: data.cameraName || data.cameraSn || 'Unknown Camera'
           };
           
           // Set map properties once
@@ -116,14 +156,14 @@ export class EventDetailPageComponent implements OnInit {
     return imageUrls[0]?.trim() || '/assets/images/no-image.png';
   }
 
-  // Sử dụng Location service để back với history
+  // Sử dụng Location service để back về màn trước đó
   goBack() {
-    this.location.back();
-  }
-
-  // Navigate về trang danh sách
-  goToList() {
-    this.router.navigate(['/event/info']);
+    // Try to navigate to stored previous URL, fallback to location.back()
+    if (this.previousUrl && this.previousUrl !== '/event/info') {
+      this.router.navigateByUrl(this.previousUrl);
+    } else {
+      this.location.back();
+    }
   }
 
   onEventUpdated(updatedEvent: any) {
@@ -208,6 +248,26 @@ export class EventDetailPageComponent implements OnInit {
     }
   }
 
+  // Get event type display (convert Red_Light to "Vượt đèn đỏ", etc.)
+  getEventTypeDisplay(eventType: string): string {
+    if (!eventType) return 'N/A';
+    
+    const eventTypeMap: { [key: string]: string } = {
+      'red_light': 'Vượt đèn đỏ',
+      'speeding': 'Vượt tốc độ',
+      'wrong_lane': 'Đi sai làn',
+      'lane_violation': 'Vi phạm làn đường',
+      'no_helmet': 'Không đội mũ bảo hiểm',
+      'wrong_direction': 'Đi ngược chiều',
+      'parking_violation': 'Dừng đỗ sai quy định',
+      'face_recognition': 'Nhận diện khuôn mặt',
+      'person': 'Phát hiện người',
+      'vehicle': 'Phát hiện phương tiện'
+    };
+    
+    return eventTypeMap[eventType.toLowerCase()] || eventType.replace(/_/g, ' ');
+  }
+
   // Get location link for Google Maps
   getLocationLink(): string {
     const lat = this.eventDetail?.latitude;
@@ -257,10 +317,12 @@ export class EventDetailPageComponent implements OnInit {
 
   // Video loaded handler
   onVideoLoaded() {
-    if (this.videoPlayer?.nativeElement) {
-      this.isPlaying = false;
-      this.videoProgress = 0;
-    }
+    console.log('Video loaded successfully');
+  }
+
+  // Video error handler
+  onVideoError(event: any) {
+    console.error('Video loading error:', event);
   }
 
   // Skip backward 10 seconds
@@ -301,13 +363,33 @@ export class EventDetailPageComponent implements OnInit {
   }
 
   // Select video to play
-  selectVideo() {
+  selectVideo(videoUrl?: string, index?: number) {
     this.selectedMediaType = 'video';
+    if (videoUrl !== undefined && index !== undefined) {
+      this.currentVideoUrl = videoUrl;
+      this.selectedVideoIndex = index;
+    } else {
+      // If called without params, select first video
+      const videos = this.getEventVideos();
+      if (videos.length > 0) {
+        this.currentVideoUrl = videos[0];
+        this.selectedVideoIndex = 0;
+      }
+    }
   }
 
   // Check if event has video (clipPath)
   hasVideo(): boolean {
-    return !!(this.eventDetail?.clipPath);
+    return this.getEventVideos().length > 0;
+  }
+
+  // Get current video URL for player
+  getCurrentVideoUrl(): string {
+    if (this.currentVideoUrl) {
+      return this.currentVideoUrl;
+    }
+    const videos = this.getEventVideos();
+    return videos[0] || '';
   }
 
   // Video time update handler
@@ -361,8 +443,48 @@ export class EventDetailPageComponent implements OnInit {
 
   // Get event images array
   getEventImages(): string[] {
-    if (!this.eventDetail?.imagePath) return [];
-    return this.eventDetail.imagePath.split(',').map((img: string) => img.trim()).filter((img: string) => img);
+    if (!this.eventDetail) return [];
+    
+    const images: string[] = [];
+    
+    // Add croppedImagePath if exists
+    if (this.eventDetail.croppedImagePath) {
+      images.push(this.eventDetail.croppedImagePath);
+    }
+    
+    // Add fullImagePath if exists
+    if (this.eventDetail.fullImagePath) {
+      images.push(this.eventDetail.fullImagePath);
+    }
+    
+    // Add imagePath if exists (backward compatibility)
+    if (this.eventDetail.imagePath) {
+      const oldImages = this.eventDetail.imagePath.split(',').map((img: string) => img.trim()).filter((img: string) => img);
+      oldImages.forEach((img: string) => {
+        if (!images.includes(img)) {
+          images.push(img);
+        }
+      });
+    }
+    
+    return images;
+  }
+
+  // Get event videos array from clipPath
+  getEventVideos(): string[] {
+    if (!this.eventDetail?.clipPath) return [];
+    
+    // If clipPath is already an array, return it
+    if (Array.isArray(this.eventDetail.clipPath)) {
+      return this.eventDetail.clipPath.filter((url: string) => url && url !== 'No data');
+    }
+    
+    // If clipPath is a string, return as single-item array
+    if (typeof this.eventDetail.clipPath === 'string' && this.eventDetail.clipPath !== 'No data') {
+      return [this.eventDetail.clipPath];
+    }
+    
+    return [];
   }
 
   // Get main display image
@@ -370,6 +492,24 @@ export class EventDetailPageComponent implements OnInit {
     if (this.selectedImage) return this.selectedImage;
     const images = this.getEventImages();
     return images[0] || '/assets/images/no-image.png';
+  }
+
+  // Get image label (badge) for thumbnail
+  getImageLabel(index: number): string {
+    const images = this.getEventImages();
+    
+    // For person events, show specific labels
+    if (this.isPersonEvent()) {
+      if (index === 0 && this.eventDetail?.croppedImagePath) {
+        return 'Đối tượng (crop)';
+      }
+      if (index === 1 && this.eventDetail?.fullImagePath) {
+        return 'Đối tượng (full)';
+      }
+    }
+    
+    // Default label for other images
+    return `Ảnh ${index + 1}`;
   }
 
   // Get image caption
@@ -447,7 +587,14 @@ export class EventDetailPageComponent implements OnInit {
   
   // Check if event is person/face recognition type
   isPersonEvent(): boolean {
-    if (!this.eventDetail?.eventType) return false;
+    if (!this.eventDetail?.eventType && !this.eventDetail?.eventCategory) return false;
+    
+    // Check eventCategory first (more reliable)
+    if (this.eventDetail.eventCategory?.toUpperCase() === 'PERSON') {
+      return true;
+    }
+    
+    // Fallback to eventType check
     const personTypes = ['face_recognition', 'people_in_out', 'people_unidentified', 
                          'people_unknown_face_alert', 'person', 'face', 'người', 'nhận diện'];
     return personTypes.some(type => 
@@ -457,7 +604,14 @@ export class EventDetailPageComponent implements OnInit {
 
   // Check if event is traffic type
   isTrafficEvent(): boolean {
-    if (!this.eventDetail?.eventType) return false;
+    if (!this.eventDetail?.eventType && !this.eventDetail?.eventCategory) return false;
+    
+    // Check eventCategory first
+    if (this.eventDetail.eventCategory?.toUpperCase() === 'VEHICLE') {
+      return true;
+    }
+    
+    // Fallback to eventType check
     const trafficTypes = ['traffic', 'vehicle', 'giao thông', 'xe', 'biển số', 
                           'license_plate', 'motorcycle', 'car', 'truck'];
     return trafficTypes.some(type => 
@@ -505,8 +659,8 @@ export class EventDetailPageComponent implements OnInit {
   }
 
   // Get gender display text
-  getGenderDisplay(gender: string): string {
-    if (!gender) return 'N/A';
+  getGenderDisplay(gender: string | null | undefined): string {
+    if (!gender || gender === null) return 'N/A';
     const genderMap: { [key: string]: string } = {
       'male': 'Nam',
       'female': 'Nữ',
@@ -519,8 +673,49 @@ export class EventDetailPageComponent implements OnInit {
   }
 
   // Get clothing color
-  getClothingColor(color: string): string {
+  getClothingColor(color: string | null | undefined): string {
+    if (!color || color === null) return '#e0e0e0';
     return this.getColorCode(color);
+  }
+
+  // Format top category (loại áo)
+  getTopCategoryDisplay(category: string | null | undefined): string {
+    if (!category || category === null) return 'N/A';
+    const categoryMap: { [key: string]: string } = {
+      'LongSleeve': 'Áo dài tay',
+      'ShortSleeve': 'Áo ngắn tay',
+      'Sleeveless': 'Áo không tay'
+    };
+    return categoryMap[category] || category;
+  }
+
+  // Format bottom category (loại quần)
+  getBottomCategoryDisplay(category: string | null | undefined): string {
+    if (!category || category === null) return 'N/A';
+    const categoryMap: { [key: string]: string } = {
+      'LongPants': 'Quần dài',
+      'ShortPants': 'Quần ngắn',
+      'Skirt': 'Váy'
+    };
+    return categoryMap[category] || category;
+  }
+
+  // Format color display
+  getColorDisplay(color: string | null | undefined): string {
+    if (!color || color === null) return 'N/A';
+    const colorMap: { [key: string]: string } = {
+      'White': 'Trắng',
+      'Black': 'Đen',
+      'Red': 'Đỏ',
+      'Blue': 'Xanh dương',
+      'Green': 'Xanh lá',
+      'Yellow': 'Vàng',
+      'Gray': 'Xám',
+      'Brown': 'Nâu',
+      'Orange': 'Cam',
+      'Pink': 'Hồng'
+    };
+    return colorMap[color] || color;
   }
 
   // ============ Status Methods ============

@@ -155,7 +155,7 @@
 
             <!-- ID with Category Layout (2 lines) -->
             <ng-container *ngSwitchCase="$any(columnDefs[column]?.type) === 'id-category'">
-              <div class="id-category-cell">
+              <div class="id-category-cell clickable" (click)="onColumnClick(column, row)">
                 <div class="id-number">{{ row.id || 'N/A' }}</div>
                 <div class="category-label" [ngClass]="getCategoryClass(row.eventCategory)">
                   {{ getCategoryLabel(row.eventCategory) }}
@@ -166,7 +166,7 @@
             <!-- Attributes display (centered, bullet separated) -->
             <ng-container *ngSwitchCase="$any(columnDefs[column]?.type) === 'attributes'">
               <div class="attributes-cell">
-                {{ row.attributes || '' }}
+                {{ formatAttributes(row) }}
               </div>
             </ng-container>
 
@@ -231,7 +231,7 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="onRowClick(row)" class="clickable-row"></tr>
     </table>
   </div>
 </div>

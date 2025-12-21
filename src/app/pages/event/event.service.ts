@@ -8,21 +8,65 @@ export interface EventData {
   eventId: string;
   name: string;
   cameraSn: string;
-  licensePlate: string;
-  eventType: string;
-  speed: string;
-  timestamp: string;
-  imageUrl: string;
-  images?: string[]; // Thêm mảng ảnh
-  imagePath?: string; // Đường dẫn ảnh từ backend
-  location: string;
-  latitude?: number; // Toạ độ
-  longitude?: number; // Toạ độ
+  cameraId?: number;
   cameraName: string;
-  status: 'pending' | 'processed';
-  startTime?: string; // Thời gian bắt đầu
-  camera?: string; // Camera name
-  image?: string; // Mapped image
+  frameId?: string;
+  
+  // Event info
+  eventType: string;
+  eventCategory?: string;
+  eventTime?: string;
+  startTime?: string;
+  duration?: number;
+  
+  // Location
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  
+  // Status
+  status: 'pending' | 'processed' | boolean;
+  createTime?: string;
+  updateTime?: string;
+  expiredTime?: string;
+  
+  // Media
+  imageUrl?: string;
+  images?: string[];
+  imagePath?: string;
+  fullImagePath?: string;
+  croppedImagePath?: string;
+  clipPath?: string | string[];
+  
+  // Vehicle attributes
+  licensePlate?: string;
+  speed?: string;
+  vehicleColor?: string;
+  vehicleModel?: string;
+  vehicleType?: string;
+  plateNumber?: string;
+  
+  // Person attributes
+  attributes?: {
+    topColor?: string | null;
+    gender?: string | null;
+    topCategory?: string | null;
+    bottomCategory?: string | null;
+    bottomColor?: string | null;
+  };
+  gender?: string | null;
+  topColor?: string | null;
+  topCategory?: string | null;
+  bottomColor?: string | null;
+  bottomCategory?: string | null;
+  age?: string;
+  ageRange?: string;
+  personName?: string;
+  
+  // Legacy fields
+  timestamp?: string;
+  camera?: string;
+  image?: string;
 }
 
 @Injectable({ providedIn: 'root' })

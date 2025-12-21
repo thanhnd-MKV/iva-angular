@@ -43,6 +43,22 @@
       </div>
     </div>
 
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn area-btn" [class.active]="showAreaDropdown || selectedArea !== ''" (click)="toggleAreaDropdown()">
+        <mat-icon class="btn-icon">location_on</mat-icon>
+        <span>{{ getAreaLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+      
+      <div class="dropdown-menu area-dropdown" *ngIf="showAreaDropdown">
+        <div class="dropdown-item" *ngFor="let option of areaOptions"
+             [class.selected]="selectedArea === option.value"
+             (click)="selectArea(option.value)">
+          {{ option.label }}
+        </div>
+      </div>
+    </div>
+
     <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters || selectedTimeRange === 'custom'">
       <mat-icon class="btn-icon">close</mat-icon>
       <span>Xóa bộ lọc</span>

@@ -66,6 +66,7 @@ export class BaseTableComponent implements OnInit, OnChanges {
   @Output() create = new EventEmitter<any>();
   @Output() columnClick = new EventEmitter<{column: string, row: any}>(); // Thêm columnClick output
   @Output() imageClick = new EventEmitter<any>();
+  @Output() rowClick = new EventEmitter<any>(); // Event when clicking on table row
   @Output() refresh = new EventEmitter<void>(); // Event cho refresh button
   @Output() clearFilters = new EventEmitter<void>(); // Event cho clear filters button
   @Output() clearFilterData = new EventEmitter<void>(); // Event để clear data trong filter search bar
@@ -324,6 +325,10 @@ export class BaseTableComponent implements OnInit, OnChanges {
     }
   }
 
+  onRowClick(row: any) {
+    this.rowClick.emit(row);
+  }
+
   handleViewClick(row: any) {
     // Xử lý khi người dùng click vào nút xem
     console.log('Viewing row:', row);
@@ -379,6 +384,91 @@ export class BaseTableComponent implements OnInit, OnChanges {
       'VEHICLE': 'category-vehicle'
     };
     return classes[category] || 'category-default';
+  }
+
+  // Format attributes object for display
+  formatAttributes(row: any): string {
+    if (!row || !row.attributes) return '';
+    
+    const attrs = row.attributes;
+    const parts: string[] = [];
+    
+    // Check event category to determine which attributes to show
+    if (row.eventCategory === 'PERSON') {
+      // Person event: show gender, topCategory, topColor, bottomCategory, bottomColor
+      // Gender mapping
+      if (attrs.gender) {
+        const genderMap: { [key: string]: string } = {
+          'male': 'Nam',
+          'Male': 'Nam',
+          'female': 'Nữ',
+          'Female': 'Nữ'
+        };
+        parts.push(genderMap[attrs.gender] || attrs.gender);
+      }
+      
+      // Top category (loại áo)
+      if (attrs.topCategory) {
+        const topCategoryMap: { [key: string]: string } = {
+          'LongSleeve': 'Áo dài tay',
+          'ShortSleeve': 'Áo ngắn tay',
+          'Sleeveless': 'Áo không tay'
+        };
+        parts.push(topCategoryMap[attrs.topCategory] || attrs.topCategory);
+      }
+      
+      // Top color
+      if (attrs.topColor) {
+        const colorMap: { [key: string]: string } = {
+          'White': 'Trắng',
+          'Black': 'Đen',
+          'Red': 'Đỏ',
+          'Blue': 'Xanh dương',
+          'Green': 'Xanh lá',
+          'Yellow': 'Vàng',
+          'Gray': 'Xám',
+          'Brown': 'Nâu',
+          'Orange': 'Cam',
+          'Pink': 'Hồng'
+        };
+        parts.push(colorMap[attrs.topColor] || attrs.topColor);
+      }
+      
+      // Bottom category (loại quần)
+      if (attrs.bottomCategory) {
+        const bottomCategoryMap: { [key: string]: string } = {
+          'LongPants': 'Quần dài',
+          'ShortPants': 'Quần ngắn',
+          'Skirt': 'Váy'
+        };
+        parts.push(bottomCategoryMap[attrs.bottomCategory] || attrs.bottomCategory);
+      }
+      
+      // Bottom color
+      if (attrs.bottomColor) {
+        const colorMap: { [key: string]: string } = {
+          'White': 'Trắng',
+          'Black': 'Đen',
+          'Red': 'Đỏ',
+          'Blue': 'Xanh dương',
+          'Green': 'Xanh lá',
+          'Yellow': 'Vàng',
+          'Gray': 'Xám',
+          'Brown': 'Nâu',
+          'Orange': 'Cam',
+          'Pink': 'Hồng'
+        };
+        parts.push(colorMap[attrs.bottomColor] || attrs.bottomColor);
+      }
+    } else if (row.eventCategory === 'VEHICLE') {
+      // Vehicle event: show plateNumber
+      if (attrs.plateNumber) {
+        parts.push(`Biển số: ${attrs.plateNumber}`);
+      }
+    }
+    
+    // Join with bullet separator
+    return parts.length > 0 ? parts.join(' • ') : '';
   }
 
   // Format date helper
