@@ -78,8 +78,18 @@
             (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
           <div>
             <li>
-              <a routerLink="/event/info" routerLinkActive="active" (click)="closeEventMenu()">
-                Thông tin Sự kiện
+              <a routerLink="/event/all" routerLinkActive="active" (click)="closeEventMenu()">
+                Tất cả sự kiện
+              </a>
+            </li>
+            <li>
+              <a routerLink="/event/person" routerLinkActive="active" (click)="closeEventMenu()">
+                Đối tượng người
+              </a>
+            </li>
+            <li>
+              <a routerLink="/event/traffic" routerLinkActive="active" (click)="closeEventMenu()">
+                Giao thông
               </a>
             </li>
             <li>

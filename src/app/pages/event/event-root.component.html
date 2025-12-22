@@ -1,1 +1,31 @@
-<p>event-root works!</p>
+<div class="event-container">
+  <div class="tabs-header">
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'all'"
+      (click)="selectTab('all')">
+      <span class="tab-icon">📋</span>
+      <span>Tất cả sự kiện</span>
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'person'"
+      (click)="selectTab('person')">
+      <span class="tab-icon">👤</span>
+      <span>Sự kiện người</span>
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'traffic'"
+      (click)="selectTab('traffic')">
+      <span class="tab-icon">🚗</span>
+      <span>Sự kiện giao thông</span>
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <app-event-list *ngIf="activeTab === 'all'"></app-event-list>
+    <app-person-event *ngIf="activeTab === 'person'"></app-person-event>
+    <app-traffic-event *ngIf="activeTab === 'traffic'"></app-traffic-event>
+  </div>
+</div>

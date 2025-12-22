@@ -47,11 +47,25 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./pages/camera-config/camera-config.component').then(m => m.CameraConfigComponent)
       },
       {
-        path: 'event',
-        title: 'Event',
+        path: 'event/all',
+        title: 'Tất cả sự kiện',
         // canActivate: [PermissionGuard],
-        // data: { permissions: ['event'] },
-        loadComponent: () => import('./pages/event/event-root.component').then(m => m.EventRootComponent)
+        // data: { permissions: ['event:all'] },
+        loadComponent: () => import('./pages/event/event-list.component').then(m => m.EventListComponent)
+      },
+      {
+        path: 'event/person',
+        title: 'Đối tượng người',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['event:person'] },
+        loadComponent: () => import('./pages/event/person-event.component').then(m => m.PersonEventComponent)
+      },
+      {
+        path: 'event/traffic',
+        title: 'Giao thông',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['event:traffic'] },
+        loadComponent: () => import('./pages/event/traffic-event.component').then(m => m.TrafficEventComponent)
       },
       {
         path: 'thong-ke/doi-tuong-nhan-dien',
