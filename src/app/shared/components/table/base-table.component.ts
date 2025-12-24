@@ -43,6 +43,7 @@ export class BaseTableComponent implements OnInit, OnChanges {
   @Input() isLoading: boolean = false; // Loading state for refresh button
   @Input() hasError: boolean = false; // Server error state
   @Input() errorMessage: string = ''; // Custom error message
+  @Input() selectedEventId: string = ''; // Selected event ID for highlighting
   @Input() columnDefs: {
     [key: string]: {
       width?: string,
@@ -338,6 +339,12 @@ export class BaseTableComponent implements OnInit, OnChanges {
   // Checkbox methods
   isSelected(row: any): boolean {
     return this.selectedRows.some(selected => selected.id === row.id);
+  }
+
+  // Check if row is highlighted by selectedEventId
+  isHighlighted(row: any): boolean {
+    if (!this.selectedEventId) return false;
+    return row.eventId === this.selectedEventId || row.id === this.selectedEventId;
   }
 
   toggleSelection(row: any, event: any): void {

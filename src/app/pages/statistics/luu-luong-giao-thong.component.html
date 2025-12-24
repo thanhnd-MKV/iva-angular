@@ -1,10 +1,10 @@
 <div class="filter-bar">
   <div class="filter-left">
-    <div class="search-box">
+    <!-- <div class="search-box">
       <mat-icon class="search-icon">search</mat-icon>
       <input type="text" placeholder="Tìm kiếm" class="search-input" [(ngModel)]="searchText"
         (keyup.enter)="onSearch()">
-    </div>
+    </div> -->
 
     <div class="filter-btn-wrapper">
       <button class="filter-btn time-btn" [class.active]="showTimeDropdown" (click)="toggleTimeDropdown()">
@@ -80,7 +80,11 @@
       <div class="map-card">
         <h3 class="chart-title">Lưu lượng theo camera</h3>
         <div class="map-wrapper">
-          <app-traffic-flow-map [cameraLocations]="cameraLocations"></app-traffic-flow-map>
+          <app-traffic-flow-map 
+            [cameraLocations]="cameraLocations"
+            [mapCenter]="mapCenter"
+            [mapZoom]="mapZoom">
+          </app-traffic-flow-map>
         </div>
       </div>
     </div>

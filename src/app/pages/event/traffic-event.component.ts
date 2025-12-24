@@ -101,7 +101,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     'eventId',      // ID/ Phân loại (event ID)
     'attributes',   // Thuộc tính (attributes object)
     'status',       // Trạng thái
-    'startTime',    // Thời gian (eventTime/startTime)
+    'eventTime',    // Thời gian
     'cameraName',   // Camera (cameraName)
     'location',     // Vị trí
   ];
@@ -140,7 +140,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       fontWeight: '500',
       headerFontSize: '11px'
     },
-    startTime: {
+    eventTime: {
       label: 'Thời gian',
       type: 'date',
       width: '110px',
@@ -356,12 +356,14 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
           // Map toàn bộ data từ backend theo cấu trúc mới
           this.allData = response.data.records.map((item: any) => ({
             ...item,
+            // Ensure eventId is included
+            eventId: item.eventId || item.id,
             // Map image từ croppedImagePath hoặc fullImagePath
             image: this.getImagePath(item),
             // Map status từ boolean sang text
             status: this.mapEventStatus(item.status),
-            // Sử dụng startTime hoặc eventTime
-            startTime: item.startTime || item.eventTime,
+            // Sử dụng eventTime
+            eventTime: item.eventTime,
             // Map cameraName (có thể fallback sang cameraSn nếu cần)
             cameraName: item.cameraName || item.cameraSn || 'N/A',
             // Map location
@@ -444,8 +446,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
           this.selectedEvent = {
             id: eventData.id || 'No data',
             eventId: eventData.eventId || 'No data',
-            time: eventData.startTime || eventData.eventTime || 'No data',
-            startTime: eventData.startTime || eventData.eventTime || 'No data',
+            time: eventData.eventTime || 'No data',
             eventTime: eventData.eventTime || 'No data',
             location: eventData.location || `${eventData.latitude || 'N/A'}, ${eventData.longitude || 'N/A'}`,
             camera: eventData.cameraName || eventData.cameraSn || 'No data',
@@ -535,7 +536,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     // Only handle row click in tracking mode
     if (this.isTrackingMode) {
       console.log('📄 Row clicked in tracking mode');
-      const eventId = row.id ;
+      const eventId = row.eventId || row.id;
       console.log('🆔 Event ID from row:', eventId);
       console.log('🆔 Setting selectedEventId to:', eventId);
       this.selectedEventId = eventId;
@@ -611,7 +612,6 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       imageUrl: images[0] || '',
       images: images,
       status: row.status,
-      startTime: row.startTime,
       eventTime: row.eventTime,
       location: row.location,
       latitude: row.latitude || 0,
@@ -697,6 +697,8 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
           // Map toàn bộ filtered data từ backend
           this.allData = response.data.records.map((item: any) => ({
             ...item,
+            // Ensure eventId is included
+            eventId: item.eventId || item.id,
             image: this.getImagePath(item),
             // Keep attributes object as is for base-table to format
             // attributes: item.attributes (already in ...item)
@@ -985,7 +987,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     console.log('📊 Current page shows:', this.tableData.length, 'items');
   }
 
-  // ============= TRACKING MODE METHODS =============
+  // ============= TRACKING MODE METHODS WITH TRIP ANIMATION =============
   enableTrackingMode(licensePlate: string): void {
     console.log('🎯 Enabling tracking mode for vehicle:', licensePlate);
     this.isTrackingMode = true;
@@ -1018,14 +1020,14 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
         console.log('📍 API Response:', response);
         const events = response?.data?.records || [];
         if (events.length > 0) {
-          // Convert events to tracking locations
+          // Convert events to tracking locations - dùng eventTime để sắp xếp
           this.trackingLocations = events
-            .filter((event: any) => event.latitude && event.longitude)
+            .filter((event: any) => event.latitude && event.longitude && event.eventTime)
             .map((event: any) => ({
               lat: parseFloat(event.latitude),
               lng: parseFloat(event.longitude),
               eventId: event.eventId || event.id,
-              timestamp: event.startTime || event.eventTime,
+              timestamp: event.eventTime,
               cameraName: event.cameraName || event.cameraSn || 'Unknown Camera',
               address: event.location || `${event.latitude}, ${event.longitude}`,
               thumbnailUrl: this.getImagePath(event)
@@ -1035,22 +1037,33 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
             );
 
           console.log('📍 Loaded tracking locations:', this.trackingLocations.length);
+          console.log('📍 Trip points sorted by eventTime:', this.trackingLocations.map(l => ({
+            time: l.timestamp,
+            lat: l.lat,
+            lng: l.lng
+          })));
           
           // Set table data to show ALL tracking events (no pagination in tracking mode)
-          this.tableData = events.map((item: any) => ({
-            ...item,
-            id: item.id, // Normalize ID field
-            image: this.getImagePath(item),
-            location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
-            camera: item.cameraName || item.cameraSn || 'Unknown Camera',
-            status: this.mapEventStatus(item.status),
-            clipPath: item.clipPath || []
-          }));
+          this.tableData = events
+            .sort((a: any, b: any) => 
+              new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime()
+            )
+            .map((item: any) => ({
+              ...item,
+              id: item.id,
+              eventId: item.eventId || item.id, // Ensure eventId is in tableData
+              image: this.getImagePath(item),
+              eventTime: item.eventTime,
+              location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
+              camera: item.cameraName || item.cameraSn || 'Unknown Camera',
+              status: this.mapEventStatus(item.status),
+              clipPath: item.clipPath || []
+            }));
           this.allData = this.tableData;
           this.totalItems = this.tableData.length;
           this.totalPages = 1;
           
-          console.log('📊 Tracking mode - showing all events:', this.tableData.length);
+          console.log('📊 Tracking mode - showing all events sorted by eventTime:', this.tableData.length);
         } else {
           console.warn('No tracking data found for:', licensePlate);
           this.trackingLocations = [];

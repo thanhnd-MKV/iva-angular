@@ -530,6 +530,16 @@ table {
     cursor: pointer;
 }
 
+// Highlighted row style
+::ng-deep .mat-row.highlighted-row {
+    background-color: #e3f2fd !important; // Light blue background
+    border-left: 4px solid #2196F3 !important; // Blue left border
+    
+    &:hover {
+        background-color: #bbdefb !important; // Darker blue on hover
+    }
+}
+
 ::ng-deep .mat-mdc-cell,
 ::ng-deep .mat-cell {
     border-bottom: 1px solid #C9CACB !important;

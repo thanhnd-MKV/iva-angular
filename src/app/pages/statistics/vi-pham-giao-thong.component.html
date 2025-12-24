@@ -1,10 +1,10 @@
 <div class="filter-bar">
     <div class="filter-left">
-        <div class="search-box">
+        <!-- <div class="search-box">
             <mat-icon class="search-icon">search</mat-icon>
             <input type="text" placeholder="Tìm kiếm" class="search-input" [(ngModel)]="searchText"
                 (keyup.enter)="onSearch()">
-        </div>
+        </div> -->
 
         <div class="filter-btn-wrapper">
             <button class="filter-btn time-btn" [class.active]="showTimeDropdown" (click)="toggleTimeDropdown()">
@@ -80,7 +80,11 @@
             <div class="map-card">
                 <h3 class="chart-title">Bản đồ vi phạm giao thông</h3>
                 <div class="map-wrapper">
-                    <app-traffic-flow-map [cameraLocations]="cameraLocations"></app-traffic-flow-map>
+                    <app-traffic-flow-map 
+                      [cameraLocations]="cameraLocations"
+                      [mapCenter]="mapCenter"
+                      [mapZoom]="mapZoom">
+                    </app-traffic-flow-map>
                 </div>
             </div>
         </div>
@@ -125,14 +129,17 @@
                                 </canvas>
                                 <div class="donut-center">
                                     <span class="total-label">Tổng</span>
-                                    <span class="total-value">212</span>
+                                    <span class="total-value">{{ totalViolationsForDonut }}</span>
                                 </div>
                             </div>
                             <div class="donut-legend">
                                 <div class="legend-item" *ngFor="let label of donutChartData.labels; let i = index">
-                                    <span class="legend-dot" [style.background-color]="getDonutColor(i)"></span>
+                                    <span class="legend-dot" [style.background-color]="getDonutLegendColor(i)"></span>
                                     <span class="legend-text">{{ label }}</span>
                                     <span class="legend-value">{{ donutChartData.datasets[0].data[i] }}</span>
+                                </div>
+                                <div *ngIf="!donutChartData.labels || donutChartData.labels.length === 0" class="no-data-message">
+                                    Không có dữ liệu
                                 </div>
                             </div>
                         </div>
@@ -145,28 +152,15 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Số lượng loại vi phạm theo khu vực</h3>
-                        <div class="chart-legend">
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background-color: #EF4444;"></span>
-                                <span class="legend-text">Vượt đèn đỏ</span>
+                        <!-- <div class="chart-legend">
+                            <div class="legend-item" *ngFor="let dataset of barChartData.datasets">
+                                <span class="legend-dot" [style.background-color]="dataset.backgroundColor"></span>
+                                <span class="legend-text">{{ dataset.label }}</span>
                             </div>
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background-color: #8B5CF6;"></span>
-                                <span class="legend-text">Đi sai làn</span>
+                            <div *ngIf="!barChartData.datasets || barChartData.datasets.length === 0" class="no-data-message">
+                                Không có dữ liệu
                             </div>
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background-color: #10B981;"></span>
-                                <span class="legend-text">Không đội mũ bảo hiểm</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background-color: #F59E0B;"></span>
-                                <span class="legend-text">Dùng điện thoại khi lái</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background-color: #06B6D4;"></span>
-                                <span class="legend-text">Vi phạm khác</span>
-                            </div>
-                        </div>
+                        </div> -->
                     </div>
                     <div class="chart-wrapper" [class.loading]="isBarChartLoading">
                         <div *ngIf="isBarChartLoading" class="loading-overlay">

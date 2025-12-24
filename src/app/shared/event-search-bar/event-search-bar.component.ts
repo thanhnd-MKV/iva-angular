@@ -267,7 +267,10 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     
     // Add uploaded images if available
     if (this.uploadedImages && this.uploadedImages.length > 0) {
-      searchParams.imageList = this.uploadedImages.map(img => img.imageUrl);
+      // Send File objects if available, otherwise URLs
+      searchParams.imageList = this.uploadedImages
+        .map(img => img.file || img.imageUrl)
+        .filter(item => item); // Remove nulls
       searchParams.threshold = this.threshold; // Add threshold when searching with images
     }
     

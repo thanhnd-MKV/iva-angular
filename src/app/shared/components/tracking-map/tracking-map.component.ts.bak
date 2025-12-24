@@ -1,0 +1,998 @@
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, AfterViewInit, ElementRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { GoogleMap } from '@angular/google-maps';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { GoogleMapComponent } from '../google-map/google-map.component';
+import { ImageViewerComponent } from '../image-viewer/image-viewer.component';
+
+export interface TrackingLocation {
+  lat: number;
+  lng: number;
+  eventId: string;
+  timestamp: string;
+  cameraName: string;
+  address?: string;
+  thumbnailUrl?: string;
+}
+
+interface GroupedMarker {
+  lat: number;
+  lng: number;
+  cameraName: string;
+  address?: string;
+  events: TrackingLocation[];
+  count: number;
+}
+
+@Component({
+  selector: 'app-tracking-map',
+  standalone: true,
+  imports: [CommonModule, MatIconModule, MatButtonModule, GoogleMapComponent],
+  template: `
+    <div class="tracking-map-container">
+      <div class="map-header">
+        <div class="header-left">
+          <mat-icon class="header-icon">location_on</mat-icon>
+          <h3 class="map-title">Lộ trình di chuyển</h3>
+        </div>
+        <div class="header-right">
+          <span class="location-count">{{ groupedMarkers.length }} camera - {{ locations.length }} sự kiện</span>
+        </div>
+      </div>
+
+      <div class="map-wrapper" #mapWrapper>
+        <app-google-map
+          [latitude]="centerLat"
+          [longitude]="centerLng"
+          [zoom]="mapZoom"
+          [height]="'100%'"
+          [width]="'100%'">
+        </app-google-map>
+        
+        <!-- Canvas overlay for path -->
+        <canvas #pathCanvas class="path-canvas"></canvas>
+        
+        <!-- Animated moving marker -->
+        <div *ngIf="isAnimating && animationMarkerPosition" 
+             class="animated-marker"
+             [ngStyle]="getAnimationMarkerStyle()">
+          <div class="animated-marker-inner">
+            <mat-icon class="marker-icon">directions_car</mat-icon>
+          </div>
+        </div>
+        
+        <!-- Custom markers - Camera icons with badge -->
+        <div class="marker-overlay">
+          <div *ngFor="let marker of groupedMarkers; let i = index"
+               class="camera-marker"
+               [class.active]="selectedMarkerIndex === i"
+               [style.left]="getMarkerPosition(marker).left"
+               [style.top]="getMarkerPosition(marker).top"
+               (click)="selectMarker(marker, i)">
+            <mat-icon class="camera-icon">videocam</mat-icon>
+            <span class="event-badge" *ngIf="marker.count > 1">{{ marker.count }}</span>
+          </div>
+        </div>
+        
+        <!-- Info popup -->
+        <div *ngIf="selectedMarker" class="info-popup">
+          <div class="info-header">
+            <h4 class="info-title">{{ selectedMarker.cameraName }}</h4>
+            <button class="close-btn" (click)="closePopup()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="info-body">
+            <div class="info-row" *ngIf="selectedMarker.address">
+              <mat-icon class="info-icon">place</mat-icon>
+              <span class="info-text">{{ selectedMarker.address }}</span>
+            </div>
+            <div class="info-row">
+              <mat-icon class="info-icon">event</mat-icon>
+              <span class="info-text">{{ selectedMarker.count }} sự kiện</span>
+            </div>
+            <button mat-raised-button 
+                    color="primary" 
+                    class="view-images-btn"
+                    (click)="openImageViewer()"
+                    *ngIf="getEventImages().length > 0">
+              <mat-icon>photo_library</mat-icon>
+              <span>Xem {{ getEventImages().length }} ảnh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .tracking-map-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-icon {
+      color: #2196F3;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .map-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .location-count {
+      font-size: 12px;
+      color: #6b7280;
+      background: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .map-wrapper {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    /* Map wrapper */
+    .map-wrapper {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    .map-wrapper app-google-map {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .path-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Animated moving marker */
+    .animated-marker {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      z-index: 25;
+      pointer-events: none;
+      animation: pulse 2s infinite;
+    }
+
+    .animated-marker-inner {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 4px rgba(255, 107, 107, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .animated-marker .marker-icon {
+      font-size: 22px !important;
+      width: 22px !important;
+      height: 22px !important;
+      color: white;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 4px rgba(255, 107, 107, 0.2);
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 8px rgba(255, 107, 107, 0.3);
+      }
+    }
+
+    .marker-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .custom-marker {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      margin-left: -16px;
+      margin-top: -16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .camera-marker {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      margin-left: -20px;
+      margin-top: -20px;
+      border-radius: 50%;
+      background: #2196F3;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .camera-marker:hover {
+      transform: scale(1.15);
+      z-index: 15;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .camera-marker.active {
+      transform: scale(1.25);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      z-index: 20;
+      background: #1976D2;
+    }
+
+    .camera-icon {
+      font-size: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+      color: white;
+    }
+
+    .event-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #f44336;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 10px;
+      min-width: 16px;
+      text-align: center;
+      border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .marker-number {
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      user-select: none;
+    }
+
+    /* Info popup */
+    .info-popup {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      min-width: 200px;
+      max-width: 260px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 100;
+      pointer-events: all;
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 8px 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .info-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1f2937;
+      flex: 1;
+      line-height: 1.3;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
+    }
+
+    .close-btn mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .info-body {
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .info-icon {
+      flex-shrink: 0;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      color: #6b7280;
+      margin-top: 1px;
+    }
+
+    .info-text {
+      font-size: 11px;
+      color: #374151;
+      line-height: 1.4;
+    }
+
+    .view-images-btn {
+      width: 100%;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-transform: none;
+      font-weight: 500;
+      font-size: 11px !important;
+      padding: 6px 12px !important;
+      min-height: 32px !important;
+      
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+  `]
+})
+export class TrackingMapComponent implements OnChanges, AfterViewInit {
+  @ViewChild(GoogleMapComponent) googleMapComponent!: GoogleMapComponent;
+  @ViewChild('mapWrapper') mapWrapper!: ElementRef;
+  @ViewChild('pathCanvas') pathCanvas!: ElementRef;
+
+  @Input() locations: TrackingLocation[] = [];
+  @Input() trackingTarget: string = '';
+  @Input() selectedEventId: string = ''; // Event ID selected from table
+
+  centerLat = 21.0285;
+  centerLng = 105.8542;
+  mapZoom = 13;
+  
+  groupedMarkers: GroupedMarker[] = [];
+  markerPositions: Map<string, {top: string, left: string}> = new Map(); // Cache marker positions
+  selectedMarker: GroupedMarker | null = null;
+  selectedMarkerIndex: number = -1;
+  private recalculateTimeout: any = null; // For debouncing position recalculation
+  
+  // Trip animation properties
+  private animationMarkerPosition: {top: string, left: string} | null = null;
+  private animationProgress: number = 0;
+  private animationFrameId: number | null = null;
+  isAnimating: boolean = false;
+  animationSpeed: number = 2000; // ms per segment
+
+  constructor(private dialog: MatDialog) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['locations'] && this.locations.length > 0) {
+      // Group locations by GPS coordinates
+      this.groupLocationsByGPS();
+      
+      // Update center to first location
+      this.centerLat = this.locations[0].lat;
+      this.centerLng = this.locations[0].lng;
+      
+      // Start trip animation after map is ready
+      setTimeout(() => {
+        this.startTripAnimation();
+      }, 1000);
+    }
+    
+    if (changes['selectedEventId'] && this.selectedEventId) {
+      // Highlight selected event from table
+      this.selectMarkerByEventId(this.selectedEventId);
+    }
+  }
+      
+      // Adjust zoom based on spread
+      this.calculateOptimalZoom();
+
+      // Redraw path after location changes and map is ready
+      setTimeout(() => {
+        this.drawPath();
+      }, 1000);
+    }
+
+    // Handle selectedEventId change - find and select the marker containing this event
+    if (changes['selectedEventId']) {
+      console.log('🔄 selectedEventId changed to:', this.selectedEventId);
+      if (this.selectedEventId) {
+        this.selectMarkerByEventId(this.selectedEventId);
+      } else {
+        this.closePopup();
+      }
+    }
+  }
+
+  groupLocationsByGPS(): void {
+    const groupMap = new Map<string, GroupedMarker>();
+    
+    this.locations.forEach(location => {
+      // Round to 5 decimal places to group nearby coordinates (~1 meter precision)
+      const key = `${location.lat.toFixed(5)},${location.lng.toFixed(5)}`;
+      
+      if (groupMap.has(key)) {
+        const group = groupMap.get(key)!;
+        group.events.push(location);
+        group.count = group.events.length;
+      } else {
+        groupMap.set(key, {
+          lat: location.lat,
+          lng: location.lng,
+          cameraName: location.cameraName,
+          address: location.address,
+          events: [location],
+          count: 1
+        });
+      }
+    });
+    
+    this.groupedMarkers = Array.from(groupMap.values());
+    console.log('Grouped markers:', this.groupedMarkers.length, 'from', this.locations.length, 'locations');
+    
+    // Cache marker positions after grouping (delayed to ensure map is ready)
+    setTimeout(() => {
+      this.cacheMarkerPositions();
+    }, 500); // Increased delay to ensure map is fully rendered
+  }
+
+  cacheMarkerPositions(): void {
+    this.markerPositions.clear();
+    this.groupedMarkers.forEach((marker, index) => {
+      const key = `${marker.lat},${marker.lng}`;
+      const position = this.calculateMarkerPosition(marker.lat, marker.lng);
+      this.markerPositions.set(key, position);
+    });
+    console.log('Cached', this.markerPositions.size, 'marker positions');
+  }
+
+  ngAfterViewInit(): void {
+    // Initial draw after view initialization
+    setTimeout(() => {
+      this.drawPath();
+      this.setupMapEventListeners();
+    }, 1500);
+  }
+
+  setupMapEventListeners(): void {
+    if (!this.googleMapComponent || !this.googleMapComponent.map || !this.googleMapComponent.map.googleMap) {
+      console.log('Google Map not ready for event listeners');
+      return;
+    }
+
+    const googleMap = this.googleMapComponent.map.googleMap;
+    
+    // Listen to map events to recalculate marker positions
+    googleMap.addListener('idle', () => {
+      console.log('Map idle - recalculating marker positions');
+      this.cacheMarkerPositions();
+      this.drawPath(); // Redraw path as well
+    });
+
+    googleMap.addListener('zoom_changed', () => {
+      // Debounce recalculation
+      if (this.recalculateTimeout) {
+        clearTimeout(this.recalculateTimeout);
+      }
+      this.recalculateTimeout = setTimeout(() => {
+        this.cacheMarkerPositions();
+      }, 150);
+    });
+
+    googleMap.addListener('bounds_changed', () => {
+      // Debounce recalculation to avoid too frequent updates
+      if (this.recalculateTimeout) {
+        clearTimeout(this.recalculateTimeout);
+      }
+      this.recalculateTimeout = setTimeout(() => {
+        this.cacheMarkerPositions();
+      }, 150);
+    });
+  }
+
+  calculateOptimalZoom(): void {
+    if (this.locations.length < 2) {
+      this.mapZoom = 15;
+      return;
+    }
+
+    // Calculate bounds
+    let minLat = this.locations[0].lat;
+    let maxLat = this.locations[0].lat;
+    let minLng = this.locations[0].lng;
+    let maxLng = this.locations[0].lng;
+
+    this.locations.forEach(loc => {
+      minLat = Math.min(minLat, loc.lat);
+      maxLat = Math.max(maxLat, loc.lat);
+      minLng = Math.min(minLng, loc.lng);
+      maxLng = Math.max(maxLng, loc.lng);
+    });
+
+    const latDiff = maxLat - minLat;
+    const lngDiff = maxLng - minLng;
+    const maxDiff = Math.max(latDiff, lngDiff);
+
+    // Set zoom based on spread
+    if (maxDiff > 0.5) this.mapZoom = 10;
+    else if (maxDiff > 0.1) this.mapZoom = 12;
+    else if (maxDiff > 0.05) this.mapZoom = 13;
+    else if (maxDiff > 0.01) this.mapZoom = 14;
+    else this.mapZoom = 15;
+
+    // Center to average position
+    this.centerLat = (minLat + maxLat) / 2;
+    this.centerLng = (minLng + maxLng) / 2;
+  }
+
+  drawPath(): void {
+    if (!this.pathCanvas || !this.googleMapComponent || this.locations.length < 2) {
+      console.log('drawPath skipped:', {
+        hasCanvas: !!this.pathCanvas,
+        hasGoogleMapComponent: !!this.googleMapComponent,
+        locationsCount: this.locations.length
+      });
+      return;
+    }
+
+    const canvas = this.pathCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.log('No canvas context');
+      return;
+    }
+
+    // Get map instance from GoogleMapComponent
+    const map = this.googleMapComponent.map;
+    if (!map || !map.googleMap) {
+      console.log('No google map instance:', {
+        hasMap: !!map,
+        hasGoogleMap: map ? !!map.googleMap : false
+      });
+      return;
+    }
+
+    const googleMap = map.googleMap;
+
+    // Set canvas size to match map container
+    const mapContainer = this.mapWrapper.nativeElement;
+    canvas.width = mapContainer.offsetWidth;
+    canvas.height = mapContainer.offsetHeight;
+
+    console.log('Drawing path with canvas size:', canvas.width, 'x', canvas.height);
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Get projection and convert lat/lng to pixel coordinates
+    const projection = googleMap.getProjection();
+    if (!projection) {
+      console.log('No projection available yet');
+      return;
+    }
+
+    const points: {x: number, y: number}[] = [];
+    this.locations.forEach(loc => {
+      const latLng = new google.maps.LatLng(loc.lat, loc.lng);
+      const worldPoint = projection.fromLatLngToPoint(latLng);
+      if (worldPoint) {
+        const scale = Math.pow(2, googleMap.getZoom() || 13);
+        const bounds = googleMap.getBounds();
+        if (bounds) {
+          const neBound = bounds.getNorthEast();
+          const swBound = bounds.getSouthWest();
+          const neWorldPoint = projection.fromLatLngToPoint(neBound);
+          const swWorldPoint = projection.fromLatLngToPoint(swBound);
+          
+          if (neWorldPoint && swWorldPoint) {
+            const worldWidth = (neWorldPoint.x - swWorldPoint.x) * scale;
+            const worldHeight = (swWorldPoint.y - neWorldPoint.y) * scale;
+            
+            const x = ((worldPoint.x - swWorldPoint.x) * scale / worldWidth) * canvas.width;
+            const y = ((worldPoint.y - neWorldPoint.y) * scale / worldHeight) * canvas.height;
+            
+            points.push({x, y});
+          }
+        }
+      }
+    });
+
+    if (points.length < 2) return;
+
+    // Draw path
+    ctx.strokeStyle = '#2196F3';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.7;
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+
+    // Draw arrows
+    ctx.fillStyle = '#2196F3';
+    for (let i = 0; i < points.length - 1; i++) {
+      const start = points[i];
+      const end = points[i + 1];
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+
+      const angle = Math.atan2(end.y - start.y, end.x - start.x);
+
+      ctx.save();
+      ctx.translate(midX, midY);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-8, -4);
+      ctx.lineTo(-8, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  getMarkerPosition(marker: GroupedMarker): {top: string, left: string} {
+    const key = `${marker.lat},${marker.lng}`;
+    return this.markerPositions.get(key) || {top: '0px', left: '0px'};
+  }
+
+  calculateMarkerPosition(lat: number, lng: number): {top: string, left: string} {
+    if (!this.googleMapComponent || !this.mapWrapper) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const map = this.googleMapComponent.map;
+    if (!map || !map.googleMap) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const googleMap = map.googleMap;
+    const projection = googleMap.getProjection();
+    if (!projection) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const latLng = new google.maps.LatLng(lat, lng);
+    const worldPoint = projection.fromLatLngToPoint(latLng);
+    if (!worldPoint) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const scale = Math.pow(2, googleMap.getZoom() || 13);
+    const bounds = googleMap.getBounds();
+    if (!bounds) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const neBound = bounds.getNorthEast();
+    const swBound = bounds.getSouthWest();
+    const neWorldPoint = projection.fromLatLngToPoint(neBound);
+    const swWorldPoint = projection.fromLatLngToPoint(swBound);
+
+    if (!neWorldPoint || !swWorldPoint) {
+      return {top: '0px', left: '0px'};
+    }
+
+    const mapContainer = this.mapWrapper.nativeElement;
+    const worldWidth = (neWorldPoint.x - swWorldPoint.x) * scale;
+    const worldHeight = (swWorldPoint.y - neWorldPoint.y) * scale;
+
+    const x = ((worldPoint.x - swWorldPoint.x) * scale / worldWidth) * mapContainer.offsetWidth;
+    const y = ((worldPoint.y - neWorldPoint.y) * scale / worldHeight) * mapContainer.offsetHeight;
+
+    return {
+      top: `${y}px`,
+      left: `${x}px`
+    };
+  }
+
+  selectMarker(marker: GroupedMarker, index: number): void {
+    this.selectedMarker = marker;
+    this.selectedMarkerIndex = index;
+    // Don't update map center to prevent markers from jumping
+  }
+
+  selectMarkerByEventId(eventId: string): void {
+    console.log('🔍 Searching for event ID:', eventId);
+    console.log('📍 Total grouped markers:', this.groupedMarkers.length);
+    
+    // Find the marker that contains the event with this ID
+    for (let i = 0; i < this.groupedMarkers.length; i++) {
+      const marker = this.groupedMarkers[i];
+      console.log(`  Checking marker ${i}:`, marker.cameraName, `(${marker.events.length} events)`);
+      
+      const eventFound = marker.events.find(event => {
+        console.log(`    - Event ID: ${event.eventId}`);
+        return event.eventId === eventId;
+      });
+      
+      if (eventFound) {
+        console.log('✅ Found event in marker:', marker.cameraName);
+        this.selectMarker(marker, i);
+        return;
+      }
+    }
+    
+    // If event not found, close popup
+    console.log('❌ Event not found in any marker');
+    this.closePopup();
+  }
+
+  closePopup(): void {
+    this.selectedMarker = null;
+    this.selectedMarkerIndex = -1;
+  }
+
+  getPopupPositionForMarker(): {top: string, left: string} {
+    // Popup now uses fixed top-right positioning via CSS
+    // This method kept for compatibility but values are not used
+    return {top: '0px', left: '0px'};
+  }
+
+  formatTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  formatDateTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    return date.toLocaleString('vi-VN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getEventImages(): string[] {
+    if (!this.selectedMarker) {
+      return [];
+    }
+    return this.selectedMarker.events
+      .filter(event => event.thumbnailUrl)
+      .map(event => event.thumbnailUrl!);
+  }
+
+  openImageViewer(): void {
+    const images = this.getEventImages();
+    if (images.length === 0) {
+      return;
+    }
+
+    this.dialog.open(ImageViewerComponent, {
+      data: {
+        images: images,
+        startIndex: 0
+      },
+      width: '90vw',
+      height: '90vh',
+      maxWidth: '1400px',
+      maxHeight: '900px',
+      panelClass: 'image-viewer-dialog'
+    });
+  }
+
+  // ============= TRIP ANIMATION METHODS =============
+  
+  startTripAnimation(): void {
+    if (this.locations.length < 2) {
+      console.log('⚠️ Not enough locations for animation');
+      return;
+    }
+
+    console.log('🎬 Starting trip animation with', this.locations.length, 'points');
+    this.isAnimating = true;
+    this.animationProgress = 0;
+    this.drawTripPath();
+    this.animateMarker();
+  }
+
+  stopTripAnimation(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    this.isAnimating = false;
+    this.animationMarkerPosition = null;
+  }
+
+  private drawTripPath(): void {
+    if (!this.pathCanvas || !this.googleMapComponent) {
+      return;
+    }
+
+    const canvas: HTMLCanvasElement = this.pathCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match map wrapper
+    const mapContainer = this.mapWrapper.nativeElement;
+    canvas.width = mapContainer.offsetWidth;
+    canvas.height = mapContainer.offsetHeight;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw path connecting all points
+    ctx.strokeStyle = '#2196F3';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([10, 5]); // Dashed line
+
+    ctx.beginPath();
+    let firstPoint = true;
+
+    for (const location of this.locations) {
+      const pos = this.calculateMarkerPosition(location.lat, location.lng);
+      const x = parseFloat(pos.left);
+      const y = parseFloat(pos.top);
+
+      if (firstPoint) {
+        ctx.moveTo(x, y);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+
+    ctx.stroke();
+
+    // Draw start point (green)
+    const startPos = this.calculateMarkerPosition(this.locations[0].lat, this.locations[0].lng);
+    ctx.fillStyle = '#4CAF50';
+    ctx.beginPath();
+    ctx.arc(parseFloat(startPos.left), parseFloat(startPos.top), 8, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw end point (red)
+    const endLocation = this.locations[this.locations.length - 1];
+    const endPos = this.calculateMarkerPosition(endLocation.lat, endLocation.lng);
+    ctx.fillStyle = '#f44336';
+    ctx.beginPath();
+    ctx.arc(parseFloat(endPos.left), parseFloat(endPos.top), 8, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  private animateMarker(): void {
+    if (!this.isAnimating || this.locations.length < 2) {
+      return;
+    }
+
+    const totalSegments = this.locations.length - 1;
+    const currentSegment = Math.floor(this.animationProgress * totalSegments);
+    const segmentProgress = (this.animationProgress * totalSegments) % 1;
+
+    if (currentSegment >= totalSegments) {
+      // Animation complete
+      console.log('✅ Animation complete');
+      this.animationProgress = 0;
+      // Loop animation
+      setTimeout(() => {
+        if (this.isAnimating) {
+          this.animateMarker();
+        }
+      }, 1000);
+      return;
+    }
+
+    // Interpolate position between current and next location
+    const start = this.locations[currentSegment];
+    const end = this.locations[currentSegment + 1];
+
+    const interpolatedLat = start.lat + (end.lat - start.lat) * segmentProgress;
+    const interpolatedLng = start.lng + (end.lng - start.lng) * segmentProgress;
+
+    // Calculate screen position
+    this.animationMarkerPosition = this.calculateMarkerPosition(interpolatedLat, interpolatedLng);
+
+    // Update progress
+    const segmentDuration = this.animationSpeed;
+    const increment = 1 / (totalSegments * 60); // 60 fps
+    this.animationProgress += increment / (segmentDuration / 1000);
+
+    // Continue animation
+    this.animationFrameId = requestAnimationFrame(() => this.animateMarker());
+  }
+
+  getAnimationMarkerStyle(): any {
+    if (!this.animationMarkerPosition) {
+      return { display: 'none' };
+    }
+    return {
+      position: 'absolute',
+      top: this.animationMarkerPosition.top,
+      left: this.animationMarkerPosition.left,
+      transform: 'translate(-50%, -50%)',
+      zIndex: 50
+    };
+  }
+}

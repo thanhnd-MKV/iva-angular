@@ -1,11 +1,7 @@
-import { Component, Input, OnChanges, SimpleChanges, ViewChild, AfterViewInit, ElementRef } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, AfterViewInit, OnDestroy, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GoogleMap } from '@angular/google-maps';
 import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { GoogleMapComponent } from '../google-map/google-map.component';
-import { ImageViewerComponent } from '../image-viewer/image-viewer.component';
 
 export interface TrackingLocation {
   lat: number;
@@ -17,32 +13,19 @@ export interface TrackingLocation {
   thumbnailUrl?: string;
 }
 
-interface GroupedMarker {
-  lat: number;
-  lng: number;
-  cameraName: string;
-  address?: string;
-  events: TrackingLocation[];
-  count: number;
-}
-
 @Component({
   selector: 'app-tracking-map',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule, GoogleMapComponent],
+  imports: [CommonModule, MatIconModule, GoogleMapComponent],
   template: `
     <div class="tracking-map-container">
-      <div class="map-header">
-        <div class="header-left">
-          <mat-icon class="header-icon">location_on</mat-icon>
-          <h3 class="map-title">Lộ trình di chuyển</h3>
-        </div>
-        <div class="header-right">
-          <span class="location-count">{{ groupedMarkers.length }} camera - {{ locations.length }} sự kiện</span>
-        </div>
-      </div>
-
       <div class="map-wrapper" #mapWrapper>
+        <!-- Info box overlay -->
+        <div class="map-info-overlay" *ngIf="trackingTarget">
+          <div class="info-header">ID: {{ trackingTarget }}</div>
+          <div class="info-detail">Sự kiện ghi nhận: {{ locations.length }}</div>
+        </div>
+
         <app-google-map
           [latitude]="centerLat"
           [longitude]="centerLng"
@@ -50,49 +33,6 @@ interface GroupedMarker {
           [height]="'100%'"
           [width]="'100%'">
         </app-google-map>
-        
-        <!-- Canvas overlay for path -->
-        <canvas #pathCanvas class="path-canvas"></canvas>
-        
-        <!-- Custom markers - Camera icons with badge -->
-        <div class="marker-overlay">
-          <div *ngFor="let marker of groupedMarkers; let i = index"
-               class="camera-marker"
-               [class.active]="selectedMarkerIndex === i"
-               [style.left]="getMarkerPosition(marker).left"
-               [style.top]="getMarkerPosition(marker).top">
-            <mat-icon class="camera-icon">videocam</mat-icon>
-            <span class="event-badge" *ngIf="marker.count > 1">{{ marker.count }}</span>
-          </div>
-        </div>
-        
-        <!-- Info popup -->
-        <div *ngIf="selectedMarker" class="info-popup">
-          <div class="info-header">
-            <h4 class="info-title">{{ selectedMarker.cameraName }}</h4>
-            <button class="close-btn" (click)="closePopup()">
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
-          <div class="info-body">
-            <div class="info-row" *ngIf="selectedMarker.address">
-              <mat-icon class="info-icon">place</mat-icon>
-              <span class="info-text">{{ selectedMarker.address }}</span>
-            </div>
-            <div class="info-row">
-              <mat-icon class="info-icon">event</mat-icon>
-              <span class="info-text">{{ selectedMarker.count }} sự kiện</span>
-            </div>
-            <button mat-raised-button 
-                    color="primary" 
-                    class="view-images-btn"
-                    (click)="openImageViewer()"
-                    *ngIf="getEventImages().length > 0">
-              <mat-icon>photo_library</mat-icon>
-              <span>Xem {{ getEventImages().length }} ảnh</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   `,
@@ -102,415 +42,111 @@ interface GroupedMarker {
       flex-direction: column;
       height: 100%;
       background: white;
-      border-radius: 8px;
+      position: relative;
+    }
+
+    .map-wrapper {
+      flex: 1;
+      position: relative;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
-
-    .map-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e0e0e0;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .header-icon {
-      color: #2196F3;
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
-    }
-
-    .map-title {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 600;
-      color: #1f2937;
-    }
-
-    .location-count {
-      font-size: 12px;
-      color: #6b7280;
-      background: white;
-      padding: 4px 10px;
-      border-radius: 12px;
-      border: 1px solid #e0e0e0;
-    }
-
-    .map-wrapper {
-      flex: 1;
-      min-height: 0;
-      position: relative;
-    }
-
-    /* Map wrapper */
-    .map-wrapper {
-      flex: 1;
-      min-height: 0;
-      position: relative;
-    }
-
+    
     .map-wrapper app-google-map {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
-      z-index: 0;
     }
 
-    .path-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    .marker-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 3;
-    }
-
-    .custom-marker {
-      position: absolute;
-      width: 32px;
-      height: 32px;
-      margin-left: -16px;
-      margin-top: -16px;
-      border-radius: 50%;
-      background: #3b82f6;
-      border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      pointer-events: auto;
-      z-index: 10;
-    }
-
-    .camera-marker {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      margin-left: -20px;
-      margin-top: -20px;
-      border-radius: 50%;
-      background: #2196F3;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      pointer-events: auto;
-      z-index: 10;
-    }
-
-    .camera-marker:hover {
-      transform: scale(1.15);
-      z-index: 15;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    .camera-marker.active {
-      transform: scale(1.25);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-      z-index: 20;
-      background: #1976D2;
-    }
-
-    .camera-icon {
-      font-size: 20px !important;
-      width: 20px !important;
-      height: 20px !important;
-      color: white;
-    }
-
-    .event-badge {
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      background: #f44336;
-      color: white;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 5px;
-      border-radius: 10px;
-      min-width: 16px;
-      text-align: center;
-      border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    .marker-number {
-      font-size: 12px;
-      font-weight: 600;
-      color: white;
-      user-select: none;
-    }
-
-    /* Info popup */
-    .info-popup {
+    .map-info-overlay {
       position: absolute;
       top: 16px;
-      right: 16px;
+      left: 16px;
       background: white;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      min-width: 200px;
-      max-width: 260px;
-      max-height: 300px;
-      overflow-y: auto;
-      z-index: 100;
-      pointer-events: all;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      z-index: 10;
+      min-width: 180px;
     }
 
     .info-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 8px 10px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-
-    .info-title {
-      margin: 0;
-      font-size: 12px;
-      font-weight: 600;
-      color: #1f2937;
-      flex: 1;
-      line-height: 1.3;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      color: #6b7280;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-left: 6px;
-    }
-
-    .close-btn mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-    }
-
-    .info-body {
-      padding: 8px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .info-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-    }
-
-    .info-icon {
-      flex-shrink: 0;
       font-size: 14px;
-      width: 14px;
-      height: 14px;
-      color: #6b7280;
-      margin-top: 1px;
+      font-weight: 600;
+      color: #1a202c;
+      margin-bottom: 6px;
     }
 
-    .info-text {
-      font-size: 11px;
-      color: #374151;
-      line-height: 1.4;
-    }
-
-    .view-images-btn {
-      width: 100%;
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      text-transform: none;
+    .info-detail {
+      font-size: 12px;
+      color: #718096;
       font-weight: 500;
-      font-size: 11px !important;
-      padding: 6px 12px !important;
-      min-height: 32px !important;
-      
-      mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-      }
     }
   `]
 })
-export class TrackingMapComponent implements OnChanges, AfterViewInit {
+export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild(GoogleMapComponent) googleMapComponent!: GoogleMapComponent;
   @ViewChild('mapWrapper') mapWrapper!: ElementRef;
-  @ViewChild('pathCanvas') pathCanvas!: ElementRef;
 
   @Input() locations: TrackingLocation[] = [];
   @Input() trackingTarget: string = '';
-  @Input() selectedEventId: string = ''; // Event ID selected from table
+  @Input() selectedEventId: string = '';
 
   centerLat = 21.0285;
   centerLng = 105.8542;
   mapZoom = 13;
   
-  groupedMarkers: GroupedMarker[] = [];
-  markerPositions: Map<string, {top: string, left: string}> = new Map(); // Cache marker positions
-  selectedMarker: GroupedMarker | null = null;
-  selectedMarkerIndex: number = -1;
-  private recalculateTimeout: any = null; // For debouncing position recalculation
+  private recalculateTimeout: any = null;
+  private polyline: google.maps.Polyline | null = null;
+  private animationInterval: any = null;
+  private eventMarkers: google.maps.Marker[] = [];
+  private highlightMarker: google.maps.Marker | null = null;
+  private customInfoWindow: HTMLElement | null = null;
 
-  constructor(private dialog: MatDialog) {}
+  constructor() {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['locations'] && this.locations.length > 0) {
-      // Group locations by GPS coordinates
-      this.groupLocationsByGPS();
-      
-      // Update center to first location
-      this.centerLat = this.locations[0].lat;
-      this.centerLng = this.locations[0].lng;
-      
-      // Adjust zoom based on spread
       this.calculateOptimalZoom();
-
-      // Redraw path after location changes and map is ready
       setTimeout(() => {
-        this.drawPath();
-      }, 1000);
+        this.drawPolylineWithAnimation();
+        this.createEventMarkers();
+      }, 300);
     }
 
-    // Handle selectedEventId change - find and select the marker containing this event
-    if (changes['selectedEventId']) {
-      console.log('🔄 selectedEventId changed to:', this.selectedEventId);
-      if (this.selectedEventId) {
-        this.selectMarkerByEventId(this.selectedEventId);
-      } else {
-        this.closePopup();
-      }
+    // Handle selectedEventId changes
+    if (changes['selectedEventId'] && this.selectedEventId) {
+      setTimeout(() => {
+        this.highlightSelectedEvent();
+      }, 100);
     }
-  }
-
-  groupLocationsByGPS(): void {
-    const groupMap = new Map<string, GroupedMarker>();
-    
-    this.locations.forEach(location => {
-      // Round to 5 decimal places to group nearby coordinates (~1 meter precision)
-      const key = `${location.lat.toFixed(5)},${location.lng.toFixed(5)}`;
-      
-      if (groupMap.has(key)) {
-        const group = groupMap.get(key)!;
-        group.events.push(location);
-        group.count = group.events.length;
-      } else {
-        groupMap.set(key, {
-          lat: location.lat,
-          lng: location.lng,
-          cameraName: location.cameraName,
-          address: location.address,
-          events: [location],
-          count: 1
-        });
-      }
-    });
-    
-    this.groupedMarkers = Array.from(groupMap.values());
-    console.log('Grouped markers:', this.groupedMarkers.length, 'from', this.locations.length, 'locations');
-    
-    // Cache marker positions after grouping (delayed to ensure map is ready)
-    setTimeout(() => {
-      this.cacheMarkerPositions();
-    }, 500); // Increased delay to ensure map is fully rendered
-  }
-
-  cacheMarkerPositions(): void {
-    this.markerPositions.clear();
-    this.groupedMarkers.forEach((marker, index) => {
-      const key = `${marker.lat},${marker.lng}`;
-      const position = this.calculateMarkerPosition(marker.lat, marker.lng);
-      this.markerPositions.set(key, position);
-    });
-    console.log('Cached', this.markerPositions.size, 'marker positions');
   }
 
   ngAfterViewInit(): void {
-    // Initial draw after view initialization
     setTimeout(() => {
-      this.drawPath();
       this.setupMapEventListeners();
-    }, 1500);
+      if (this.locations.length > 0) {
+        this.drawPolylineWithAnimation();
+        this.createEventMarkers();
+      }
+    }, 500);
   }
 
   setupMapEventListeners(): void {
     if (!this.googleMapComponent || !this.googleMapComponent.map || !this.googleMapComponent.map.googleMap) {
-      console.log('Google Map not ready for event listeners');
       return;
     }
 
     const googleMap = this.googleMapComponent.map.googleMap;
-    
-    // Listen to map events to recalculate marker positions
+
     googleMap.addListener('idle', () => {
-      console.log('Map idle - recalculating marker positions');
-      this.cacheMarkerPositions();
-      this.drawPath(); // Redraw path as well
-    });
-
-    googleMap.addListener('zoom_changed', () => {
-      // Debounce recalculation
-      if (this.recalculateTimeout) {
-        clearTimeout(this.recalculateTimeout);
-      }
-      this.recalculateTimeout = setTimeout(() => {
-        this.cacheMarkerPositions();
-      }, 150);
-    });
-
-    googleMap.addListener('bounds_changed', () => {
-      // Debounce recalculation to avoid too frequent updates
-      if (this.recalculateTimeout) {
-        clearTimeout(this.recalculateTimeout);
-      }
-      this.recalculateTimeout = setTimeout(() => {
-        this.cacheMarkerPositions();
-      }, 150);
+      // Map is ready
     });
   }
 
   calculateOptimalZoom(): void {
     if (this.locations.length < 2) {
-      this.mapZoom = 15;
       return;
     }
 
-    // Calculate bounds
     let minLat = this.locations[0].lat;
     let maxLat = this.locations[0].lat;
     let minLng = this.locations[0].lng;
@@ -523,271 +159,470 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit {
       maxLng = Math.max(maxLng, loc.lng);
     });
 
+    this.centerLat = (minLat + maxLat) / 2;
+    this.centerLng = (minLng + maxLng) / 2;
+
     const latDiff = maxLat - minLat;
     const lngDiff = maxLng - minLng;
     const maxDiff = Math.max(latDiff, lngDiff);
-
-    // Set zoom based on spread
-    if (maxDiff > 0.5) this.mapZoom = 10;
-    else if (maxDiff > 0.1) this.mapZoom = 12;
-    else if (maxDiff > 0.05) this.mapZoom = 13;
+    
+    if (maxDiff > 0.1) this.mapZoom = 11;
+    else if (maxDiff > 0.05) this.mapZoom = 12;
+    else if (maxDiff > 0.02) this.mapZoom = 13;
     else if (maxDiff > 0.01) this.mapZoom = 14;
     else this.mapZoom = 15;
-
-    // Center to average position
-    this.centerLat = (minLat + maxLat) / 2;
-    this.centerLng = (minLng + maxLng) / 2;
   }
 
-  drawPath(): void {
-    if (!this.pathCanvas || !this.googleMapComponent || this.locations.length < 2) {
-      console.log('drawPath skipped:', {
-        hasCanvas: !!this.pathCanvas,
+  drawPolylineWithAnimation(): void {
+    if (!this.googleMapComponent || !this.googleMapComponent.map || this.locations.length < 2) {
+      return;
+    }
+
+    const googleMap = this.googleMapComponent.map.googleMap;
+    if (!googleMap) return;
+
+    // Clear previous polyline and markers
+    if (this.polyline) {
+      this.polyline.setMap(null);
+    }
+    if (this.animationInterval) {
+      clearInterval(this.animationInterval);
+    }
+
+    // Create path from locations
+    const path = this.locations.map(loc => new google.maps.LatLng(loc.lat, loc.lng));
+
+    // Create animated icon
+    const lineSymbol = {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillOpacity: 1,
+      strokeColor: '#003D7A',
+      fillColor: '#FFF',
+      scale: 6
+    };
+
+    // Create polyline with animation
+    this.polyline = new google.maps.Polyline({
+      path: path,
+      geodesic: true,
+      strokeColor: '#7B68EE',
+      strokeOpacity: 1,
+      strokeWeight: 4,
+      icons: [
+        {
+          icon: lineSymbol,
+          offset: '0%'
+        }
+      ]
+    });
+
+    this.polyline.setMap(googleMap);
+
+    // Animate the icon
+    this.animatePolylineIcon();
+
+    // Fit bounds to show all points
+    const bounds = new google.maps.LatLngBounds();
+    this.locations.forEach(loc => {
+      bounds.extend(new google.maps.LatLng(loc.lat, loc.lng));
+    });
+    googleMap.fitBounds(bounds);
+  }
+
+  private animatePolylineIcon(): void {
+    if (!this.polyline) return;
+
+    let count = 0;
+    this.animationInterval = setInterval(() => {
+      count = (count + 1) % 200;
+      const icons = this.polyline!.get('icons');
+      if (icons && icons.length > 0) {
+        icons[0].offset = (count / 2) + '%';
+        this.polyline!.set('icons', icons);
+      }
+    }, 100);
+  }
+
+  private createEventMarkers(): void {
+    console.log('🎯 createEventMarkers called, locations:', this.locations.length);
+    
+    if (!this.googleMapComponent || !this.googleMapComponent.map || this.locations.length === 0) {
+      console.warn('⚠️ Cannot create markers:', {
         hasGoogleMapComponent: !!this.googleMapComponent,
+        hasMap: !!this.googleMapComponent?.map,
         locationsCount: this.locations.length
       });
       return;
     }
 
-    const canvas = this.pathCanvas.nativeElement;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('No canvas context');
+    const googleMap = this.googleMapComponent.map.googleMap;
+    if (!googleMap) {
+      console.error('❌ No googleMap instance');
       return;
     }
 
-    // Get map instance from GoogleMapComponent
-    const map = this.googleMapComponent.map;
-    if (!map || !map.googleMap) {
-      console.log('No google map instance:', {
-        hasMap: !!map,
-        hasGoogleMap: map ? !!map.googleMap : false
+    console.log('✅ Google Map ready, creating markers...');
+
+    // Clear previous event markers
+    this.eventMarkers.forEach(marker => marker.setMap(null));
+    this.eventMarkers = [];
+
+    // Create markers for each event location - ALL locations with numbered markers
+    this.locations.forEach((location, index) => {
+      const isFirst = index === 0;
+      const isLast = index === this.locations.length - 1;
+      
+      // Create numbered label marker
+      const marker = new google.maps.Marker({
+        position: new google.maps.LatLng(location.lat, location.lng),
+        map: googleMap,
+        label: {
+          text: String(index + 1),
+          color: 'white',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: isFirst ? 10 : (isLast ? 10 : 14),
+          fillColor: isFirst ? '#4CAF50' : (isLast ? '#FF9800' : '#667eea'),
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2
+        },
+        zIndex: isFirst || isLast ? 100 : 50
       });
-      return;
-    }
 
-    const googleMap = map.googleMap;
+      // Add click listener to show InfoWindow
+      marker.addListener('click', () => {
+        console.log('🖱️ Marker clicked:', index + 1, location.cameraName);
+        this.showInfoWindow(marker, location, index + 1);
+      });
 
-    // Set canvas size to match map container
-    const mapContainer = this.mapWrapper.nativeElement;
-    canvas.width = mapContainer.offsetWidth;
-    canvas.height = mapContainer.offsetHeight;
-
-    console.log('Drawing path with canvas size:', canvas.width, 'x', canvas.height);
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Get projection and convert lat/lng to pixel coordinates
-    const projection = googleMap.getProjection();
-    if (!projection) {
-      console.log('No projection available yet');
-      return;
-    }
-
-    const points: {x: number, y: number}[] = [];
-    this.locations.forEach(loc => {
-      const latLng = new google.maps.LatLng(loc.lat, loc.lng);
-      const worldPoint = projection.fromLatLngToPoint(latLng);
-      if (worldPoint) {
-        const scale = Math.pow(2, googleMap.getZoom() || 13);
-        const bounds = googleMap.getBounds();
-        if (bounds) {
-          const neBound = bounds.getNorthEast();
-          const swBound = bounds.getSouthWest();
-          const neWorldPoint = projection.fromLatLngToPoint(neBound);
-          const swWorldPoint = projection.fromLatLngToPoint(swBound);
-          
-          if (neWorldPoint && swWorldPoint) {
-            const worldWidth = (neWorldPoint.x - swWorldPoint.x) * scale;
-            const worldHeight = (swWorldPoint.y - neWorldPoint.y) * scale;
-            
-            const x = ((worldPoint.x - swWorldPoint.x) * scale / worldWidth) * canvas.width;
-            const y = ((worldPoint.y - neWorldPoint.y) * scale / worldHeight) * canvas.height;
-            
-            points.push({x, y});
-          }
-        }
-      }
+      this.eventMarkers.push(marker);
     });
 
-    if (points.length < 2) return;
-
-    // Draw path
-    ctx.strokeStyle = '#2196F3';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 0.7;
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.stroke();
-
-    // Draw arrows
-    ctx.fillStyle = '#2196F3';
-    for (let i = 0; i < points.length - 1; i++) {
-      const start = points[i];
-      const end = points[i + 1];
-      const midX = (start.x + end.x) / 2;
-      const midY = (start.y + end.y) / 2;
-
-      const angle = Math.atan2(end.y - start.y, end.x - start.x);
-
-      ctx.save();
-      ctx.translate(midX, midY);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-8, -4);
-      ctx.lineTo(-8, 4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
+    console.log(`✅ Created ${this.eventMarkers.length} markers with click listeners`);
   }
 
-  getMarkerPosition(marker: GroupedMarker): {top: string, left: string} {
-    const key = `${marker.lat},${marker.lng}`;
-    return this.markerPositions.get(key) || {top: '0px', left: '0px'};
-  }
+  private showInfoWindow(marker: google.maps.Marker, location: TrackingLocation, markerNumber: number): void {
+    console.log('📍 showInfoWindow called:', {
+      markerNumber,
+      cameraName: location.cameraName,
+      totalEvents: this.locations.length
+    });
 
-  calculateMarkerPosition(lat: number, lng: number): {top: string, left: string} {
-    if (!this.googleMapComponent || !this.mapWrapper) {
-      return {top: '0px', left: '0px'};
+    if (!this.googleMapComponent || !this.googleMapComponent.map) {
+      console.error('❌ No googleMapComponent');
+      return;
     }
 
-    const map = this.googleMapComponent.map;
-    if (!map || !map.googleMap) {
-      return {top: '0px', left: '0px'};
+    const googleMap = this.googleMapComponent.map.googleMap;
+    if (!googleMap) {
+      console.error('❌ No googleMap');
+      return;
     }
 
-    const googleMap = map.googleMap;
-    const projection = googleMap.getProjection();
-    if (!projection) {
-      return {top: '0px', left: '0px'};
+    // Close previous custom info window
+    if (this.customInfoWindow) {
+      if ((this.customInfoWindow as any)._boundsListener) {
+        google.maps.event.removeListener((this.customInfoWindow as any)._boundsListener);
+      }
+      this.customInfoWindow.remove();
+      this.customInfoWindow = null;
     }
 
-    const latLng = new google.maps.LatLng(lat, lng);
-    const worldPoint = projection.fromLatLngToPoint(latLng);
-    if (!worldPoint) {
-      return {top: '0px', left: '0px'};
-    }
+    // Create custom HTML overlay
+    this.customInfoWindow = document.createElement('div');
+    this.customInfoWindow.style.cssText = `
+      position: absolute;
+      background: white;
+      padding: 14px 16px;
+      min-width: 260px;
+      max-width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      z-index: 1000;
+      pointer-events: auto;
+    `;
 
-    const scale = Math.pow(2, googleMap.getZoom() || 13);
-    const bounds = googleMap.getBounds();
-    if (!bounds) {
-      return {top: '0px', left: '0px'};
-    }
+    this.customInfoWindow.innerHTML = `
+      <div style="
+        font-size: 16px;
+        font-weight: 700;
+        color: #1E3A8A;
+        margin-bottom: 12px;
+        letter-spacing: -0.3px;">
+        ID: ${location.cameraName}
+      </div>
+      
+      <div style="
+        height: 1px;
+        background: #E5E7EB;
+        margin-bottom: 12px;">
+      </div>
+      
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;">
+        <span style="
+          font-size: 14px;
+          font-weight: 500;
+          color: #374151;">
+          Sự kiện ghi nhận
+        </span>
+        <span style="
+          font-size: 16px;
+          font-weight: 600;
+          color: #111827;">
+          ${this.locations.length}
+        </span>
+      </div>
+    `;
 
-    const neBound = bounds.getNorthEast();
-    const swBound = bounds.getSouthWest();
-    const neWorldPoint = projection.fromLatLngToPoint(neBound);
-    const swWorldPoint = projection.fromLatLngToPoint(swBound);
+    // Get marker position
+    const markerPos = marker.getPosition();
+    if (!markerPos) return;
 
-    if (!neWorldPoint || !swWorldPoint) {
-      return {top: '0px', left: '0px'};
-    }
+    const updatePosition = () => {
+      const projection = googleMap.getProjection();
+      if (!projection || !this.customInfoWindow || !markerPos) return;
 
-    const mapContainer = this.mapWrapper.nativeElement;
-    const worldWidth = (neWorldPoint.x - swWorldPoint.x) * scale;
-    const worldHeight = (swWorldPoint.y - neWorldPoint.y) * scale;
+      const worldPoint = projection.fromLatLngToPoint(markerPos);
+      if (!worldPoint) return;
 
-    const x = ((worldPoint.x - swWorldPoint.x) * scale / worldWidth) * mapContainer.offsetWidth;
-    const y = ((worldPoint.y - neWorldPoint.y) * scale / worldHeight) * mapContainer.offsetHeight;
+      const mapBounds = googleMap.getBounds();
+      if (!mapBounds) return;
 
-    return {
-      top: `${y}px`,
-      left: `${x}px`
+      const ne = mapBounds.getNorthEast();
+      const sw = mapBounds.getSouthWest();
+      const nePoint = projection.fromLatLngToPoint(ne);
+      const swPoint = projection.fromLatLngToPoint(sw);
+      if (!nePoint || !swPoint) return;
+
+      const mapDiv = googleMap.getDiv();
+      const rect = mapDiv.getBoundingClientRect();
+
+      const pixelX = ((worldPoint.x - swPoint.x) / (nePoint.x - swPoint.x)) * rect.width;
+      const pixelY = ((worldPoint.y - nePoint.y) / (swPoint.y - nePoint.y)) * rect.height;
+
+      this.customInfoWindow!.style.left = `${pixelX}px`;
+      this.customInfoWindow!.style.top = `${pixelY}px`;
+      this.customInfoWindow!.style.transform = 'translate(-50%, calc(-100% - 20px))';
     };
+
+    // Append to map
+    const mapDiv = googleMap.getDiv();
+    mapDiv.style.position = 'relative';
+    mapDiv.appendChild(this.customInfoWindow);
+
+    // Position and track map changes
+    updatePosition();
+    const listener = googleMap.addListener('bounds_changed', updatePosition);
+    (this.customInfoWindow as any)._boundsListener = listener;
+
+    console.log('✅ Custom InfoWindow created');
   }
 
-  selectMarker(marker: GroupedMarker, index: number): void {
-    this.selectedMarker = marker;
-    this.selectedMarkerIndex = index;
-    // Don't update map center to prevent markers from jumping
-  }
-
-  selectMarkerByEventId(eventId: string): void {
-    console.log('🔍 Searching for event ID:', eventId);
-    console.log('📍 Total grouped markers:', this.groupedMarkers.length);
+  private highlightSelectedEvent(): void {
+    console.log('🔥 highlightSelectedEvent called, selectedEventId:', this.selectedEventId);
     
-    // Find the marker that contains the event with this ID
-    for (let i = 0; i < this.groupedMarkers.length; i++) {
-      const marker = this.groupedMarkers[i];
-      console.log(`  Checking marker ${i}:`, marker.cameraName, `(${marker.events.length} events)`);
-      
-      const eventFound = marker.events.find(event => {
-        console.log(`    - Event ID: ${event.eventId}`);
-        return event.eventId === eventId;
+    if (!this.googleMapComponent || !this.googleMapComponent.map || !this.selectedEventId) {
+      console.warn('⚠️ Cannot highlight:', {
+        hasComponent: !!this.googleMapComponent,
+        hasMap: !!this.googleMapComponent?.map,
+        selectedEventId: this.selectedEventId
       });
+      return;
+    }
+
+    const googleMap = this.googleMapComponent.map.googleMap;
+    if (!googleMap) {
+      console.error('❌ No googleMap instance');
+      return;
+    }
+
+    // Find the location matching the selectedEventId
+    const selectedLocation = this.locations.find(loc => loc.eventId === this.selectedEventId);
+    
+    if (!selectedLocation) {
+      console.error('❌ Event not found with ID:', this.selectedEventId);
+      return;
+    }
+
+    console.log('✅ Found location:', selectedLocation.cameraName);
+
+    // Find the index of selected location
+    const selectedIndex = this.locations.findIndex(loc => loc.eventId === this.selectedEventId);
+
+    // Clear previous highlight marker
+    if (this.highlightMarker) {
+      this.highlightMarker.setMap(null);
+    }
+
+    // Create pulsing highlight marker overlay
+    this.highlightMarker = new google.maps.Marker({
+      position: new google.maps.LatLng(selectedLocation.lat, selectedLocation.lng),
+      map: googleMap,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 20,
+        fillColor: '#FF0000',
+        fillOpacity: 0.3,
+        strokeColor: '#FF0000',
+        strokeWeight: 2
+      },
+      zIndex: 199,
+      animation: google.maps.Animation.BOUNCE
+    });
+
+    // Pan to selected location and adjust zoom if needed
+    googleMap.panTo(new google.maps.LatLng(selectedLocation.lat, selectedLocation.lng));
+    const currentZoom = googleMap.getZoom() || 13;
+    if (currentZoom < 14) {
+      googleMap.setZoom(14);
+    }
+
+    // Show custom InfoWindow for the selected event
+    console.log('📍 Showing custom InfoWindow for selected event...');
+    
+    // Close previous info window
+    if (this.customInfoWindow) {
+      this.customInfoWindow.remove();
+      this.customInfoWindow = null;
+    }
+
+    // Wait for map to finish panning, then show InfoWindow
+    setTimeout(() => {
+      // Get the corresponding numbered marker to anchor InfoWindow
+      const targetMarker = this.eventMarkers[selectedIndex];
       
-      if (eventFound) {
-        console.log('✅ Found event in marker:', marker.cameraName);
-        this.selectMarker(marker, i);
+      if (!targetMarker) {
+        console.error('❌ Could not find marker at index:', selectedIndex);
         return;
       }
-    }
+
+      console.log('✅ Found target marker at index:', selectedIndex);
+
+      // Create custom HTML InfoWindow overlay
+      this.customInfoWindow = document.createElement('div');
+      this.customInfoWindow.style.cssText = `
+        position: absolute;
+        background: white;
+        padding: 14px 16px;
+        min-width: 260px;
+        max-width: 300px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        z-index: 1000;
+        pointer-events: auto;
+      `;
+
+      this.customInfoWindow.innerHTML = `
+        <div style="
+          font-size: 16px;
+          font-weight: 700;
+          color: #1E3A8A;
+          margin-bottom: 12px;
+          letter-spacing: -0.3px;">
+          ID: ${selectedLocation.cameraName}
+        </div>
+        
+        <div style="
+          height: 1px;
+          background: #E5E7EB;
+          margin-bottom: 12px;">
+        </div>
+        
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;">
+          <span style="
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;">
+            Sự kiện ghi nhận
+          </span>
+          <span style="
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;">
+            ${this.locations.length}
+          </span>
+        </div>
+      `;
+
+      // Calculate position relative to marker using bounds_changed event
+      const updatePosition = () => {
+        const projection = googleMap.getProjection();
+        if (!projection || !this.customInfoWindow) return;
+
+        const markerLatLng = new google.maps.LatLng(selectedLocation.lat, selectedLocation.lng);
+        const worldPoint = projection.fromLatLngToPoint(markerLatLng);
+        if (!worldPoint) return;
+
+        const mapDiv = googleMap.getDiv();
+        const bounds = mapDiv.getBoundingClientRect();
+        const ne = googleMap.getBounds()?.getNorthEast();
+        const sw = googleMap.getBounds()?.getSouthWest();
+        if (!ne || !sw) return;
+
+        const nePoint = projection.fromLatLngToPoint(ne);
+        const swPoint = projection.fromLatLngToPoint(sw);
+        if (!nePoint || !swPoint) return;
+
+        // Calculate pixel position within map bounds
+        const pixelX = ((worldPoint.x - swPoint.x) / (nePoint.x - swPoint.x)) * bounds.width;
+        const pixelY = ((worldPoint.y - nePoint.y) / (swPoint.y - nePoint.y)) * bounds.height;
+
+        this.customInfoWindow.style.left = `${pixelX}px`;
+        this.customInfoWindow.style.top = `${pixelY}px`;
+        this.customInfoWindow.style.transform = 'translate(-50%, calc(-100% - 20px))';
+        
+        console.log('📐 Custom InfoWindow positioned at:', { x: pixelX, y: pixelY });
+      };
+
+      // Append to map div first
+      const mapDiv = googleMap.getDiv();
+      mapDiv.style.position = 'relative';
+      mapDiv.appendChild(this.customInfoWindow);
+      
+      // Update position immediately and on map changes
+      updatePosition();
+      
+      const boundsListener = googleMap.addListener('bounds_changed', updatePosition);
+      
+      // Store listener for cleanup
+      (this.customInfoWindow as any)._boundsListener = boundsListener;
+      
+      console.log('✅ Custom InfoWindow added to map');
+      console.log('✅ Custom InfoWindow created and positioned');
+    }, 500);
     
-    // If event not found, close popup
-    console.log('❌ Event not found in any marker');
-    this.closePopup();
+    // Keep the highlight marker and InfoWindow visible (don't auto-remove)
   }
 
-  closePopup(): void {
-    this.selectedMarker = null;
-    this.selectedMarkerIndex = -1;
-  }
-
-  getPopupPositionForMarker(): {top: string, left: string} {
-    // Popup now uses fixed top-right positioning via CSS
-    // This method kept for compatibility but values are not used
-    return {top: '0px', left: '0px'};
-  }
-
-  formatTime(timestamp: string): string {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  formatDateTime(timestamp: string): string {
-    const date = new Date(timestamp);
-    return date.toLocaleString('vi-VN', { 
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  getEventImages(): string[] {
-    if (!this.selectedMarker) {
-      return [];
+  ngOnDestroy(): void {
+    if (this.animationInterval) {
+      clearInterval(this.animationInterval);
     }
-    return this.selectedMarker.events
-      .filter(event => event.thumbnailUrl)
-      .map(event => event.thumbnailUrl!);
-  }
-
-  openImageViewer(): void {
-    const images = this.getEventImages();
-    if (images.length === 0) {
-      return;
+    if (this.polyline) {
+      this.polyline.setMap(null);
     }
-
-    this.dialog.open(ImageViewerComponent, {
-      data: {
-        images: images,
-        startIndex: 0
-      },
-      width: '90vw',
-      height: '90vh',
-      maxWidth: '1400px',
-      maxHeight: '900px',
-      panelClass: 'image-viewer-dialog'
-    });
+    if (this.highlightMarker) {
+      this.highlightMarker.setMap(null);
+    }
+    if (this.customInfoWindow) {
+      // Remove bounds listener if exists
+      if ((this.customInfoWindow as any)._boundsListener) {
+        google.maps.event.removeListener((this.customInfoWindow as any)._boundsListener);
+      }
+      this.customInfoWindow.remove();
+    }
+    this.eventMarkers.forEach(marker => marker.setMap(null));
   }
 }

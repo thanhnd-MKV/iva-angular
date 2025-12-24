@@ -175,7 +175,8 @@ export class ImageUploadComponent {
             fileName: response.fileName,
             fileSize: response.fileSize,
             uploadedAt: response.uploadedAt,
-            thumbnailUrl: localPreviewUrl // Store local preview in thumbnailUrl temporarily
+            thumbnailUrl: localPreviewUrl, // Store local preview in thumbnailUrl temporarily
+            file: filesWithPreviews[index]?.file // Store original File object
           });
         });
         

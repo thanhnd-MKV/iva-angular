@@ -28,7 +28,7 @@
 .content-layout {
   display: flex;
   gap: 12px;
-  height: 100%;
+  height: calc(100% - 200px);
 }
 
 .content-layout.tracking-mode {
@@ -47,9 +47,9 @@
 }
 
 .map-section {
-  flex: 0 0 40%;
-  max-width: 40%;
-  height: calc(100vh - 140px);
+  flex: 0 0 39%;
+  max-width: 39%;
+  height: calc(100vh - 240px);
   transition: all 0.3s ease;
   animation: slideIn 0.3s ease;
 }

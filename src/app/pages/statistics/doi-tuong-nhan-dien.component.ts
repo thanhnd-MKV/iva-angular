@@ -16,8 +16,8 @@ interface BeDataResponse {
   message: string | null;
   data: {
     age_range: { [key: string]: number };
-    gender: { [hour: string]: { Female?: number; Male?: number; unknown?: number } };
-    complexion: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; unknown?: number } };
+    gender: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } };
+    complexion: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } };
   };
 }
 
@@ -303,7 +303,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
       },
       { 
         data: Array(24).fill(0),
-        label: 'Không xác định', 
+        label: 'Khác', 
         borderColor: '#3b82f6', 
         backgroundColor: 'transparent',
         tension: 0.4,
@@ -348,6 +348,8 @@ export class DoiTuongNhanDienComponent implements OnInit {
       },
       tooltip: {
         enabled: true,
+        mode: 'index',
+        intersect: false,
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         titleColor: 'white',
         bodyColor: 'white',
@@ -568,34 +570,69 @@ export class DoiTuongNhanDienComponent implements OnInit {
     }
     
     // Update summary cards
-    this.updateSummaryCardsFromNewData(data);
+    this.updateSummaryCardsFromNewData(data, isDayView);
   }
 
   private updateDonutChartFromAgeRange(ageRange: { [key: string]: number }): void {
-    const labels = Object.keys(ageRange);
-    const values = Object.values(ageRange);
-    const colors = ['#ec4899', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#84cc16', '#f97316'];
+    // Define age groups in correct order from youngest to oldest, plus Unknown at the end
+    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Unknown'];
+    const allColors = ['#8b5cf6', '#f97316', '#84cc16', '#ec4899', '#3b82f6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#9ca3af'];
+    const allHoverColors = ['#7c3aed', '#ea580c', '#65a30d', '#db2777', '#2563eb', '#d97706', '#059669', '#0891b2', '#dc2626', '#6b7280'];
+    
+    // Sort labels and values according to age order
+    const sortedLabels: string[] = [];
+    const sortedValues: number[] = [];
+    const sortedColors: string[] = [];
+    const sortedHoverColors: string[] = [];
+    
+    let totalCount = 0;
+    this.ageGroupCounts = {};
+    
+    // Process in correct order from youngest to oldest, then Unknown
+    ageGroupsOrder.forEach((ageKey, index) => {
+      if (ageRange.hasOwnProperty(ageKey)) {
+        const count = ageRange[ageKey] || 0;
+        totalCount += count;
+        
+        // Display "Khác" for Unknown in the chart and legend
+        const displayLabel = ageKey === 'Unknown' ? 'Khác' : ageKey;
+        
+        // Store count with displayLabel as key for legend
+        this.ageGroupCounts[displayLabel] = count;
+        
+        if (count > 0) {
+          sortedLabels.push(displayLabel);
+          sortedValues.push(count);
+          sortedColors.push(allColors[index]);
+          sortedHoverColors.push(allHoverColors[index]);
+        }
+      }
+    });
+    
+    this.totalPeopleCount = totalCount;
     
     this.donutChartData = {
-      labels: labels,
+      labels: sortedLabels,
       datasets: [{
-        data: values,
-        backgroundColor: colors.slice(0, labels.length),
-        hoverBackgroundColor: colors.slice(0, labels.length),
+        data: sortedValues,
+        backgroundColor: sortedColors,
+        hoverBackgroundColor: sortedHoverColors,
         borderWidth: 0
       }]
     };
-    
-    // Update age group counts for legend
-    this.ageGroupCounts = ageRange;
-    this.totalPeopleCount = values.reduce((sum, val) => sum + val, 0);
   }
 
-  private updateLineChartFromGenderData(genderData: { [hour: string]: { Female?: number; Male?: number; unknown?: number } }): void {
+  private updateLineChartFromGenderData(genderData: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
+    console.log('🔍 updateLineChartFromGenderData - genderData:', genderData);
+    console.log('🔍 Sample hour data for hour 0:', genderData['0']);
+    
     const hours = Array.from({length: 24}, (_, i) => i.toString());
     const maleData = hours.map(hour => genderData[hour]?.Male || 0);
     const femaleData = hours.map(hour => genderData[hour]?.Female || 0);
-    const unknownData = hours.map(hour => genderData[hour]?.unknown || 0);
+    const unknownData = hours.map(hour => genderData[hour]?.Unknown || 0);
+    
+    console.log('🔍 unknownData array:', unknownData);
+    console.log('🔍 Total unknown:', unknownData.reduce((a, b) => a + b, 0));
     
     this.lineChartData = {
       labels: hours,
@@ -607,8 +644,8 @@ export class DoiTuongNhanDienComponent implements OnInit {
           backgroundColor: 'transparent',
           tension: 0.4,
           borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          pointRadius: 2,
+          pointHoverRadius: 5,
           pointBackgroundColor: '#10b981',
           pointBorderColor: '#fff',
           pointBorderWidth: 2
@@ -620,21 +657,21 @@ export class DoiTuongNhanDienComponent implements OnInit {
           backgroundColor: 'transparent',
           tension: 0.4,
           borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          pointRadius: 2,
+          pointHoverRadius: 5,
           pointBackgroundColor: '#8b5cf6',
           pointBorderColor: '#fff',
           pointBorderWidth: 2
         },
         { 
           data: unknownData,
-          label: 'Không xác định', 
+          label: 'Khác', 
           borderColor: '#f59e0b', 
           backgroundColor: 'transparent',
           tension: 0.4,
           borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          pointRadius: 2,
+          pointHoverRadius: 5,
           pointBackgroundColor: '#f59e0b',
           pointBorderColor: '#fff',
           pointBorderWidth: 2
@@ -643,7 +680,10 @@ export class DoiTuongNhanDienComponent implements OnInit {
     };
   }
 
-  private updateBarChartFromComplexionData(complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; unknown?: number } }): void {
+  private updateBarChartFromComplexionData(complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
+    console.log('🔍 updateBarChartFromComplexionData - complexionData:', complexionData);
+    console.log('🔍 Sample hour data for hour 0:', complexionData['0']);
+    
     const hours = Array.from({length: 24}, (_, i) => i.toString());
     
     const asianData = hours.map(hour => complexionData[hour]?.Asian || 0);
@@ -652,6 +692,10 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const middleEasternData = hours.map(hour => complexionData[hour]?.MiddleEastern || 0);
     const blackData = hours.map(hour => complexionData[hour]?.Black || 0);
     const latinoData = hours.map(hour => complexionData[hour]?.Latino || 0);
+    const unknownData = hours.map(hour => complexionData[hour]?.Unknown || 0);
+    
+    console.log('🔍 unknownData for complexion:', unknownData);
+    console.log('🔍 Total unknown complexion:', unknownData.reduce((a, b) => a + b, 0));
     
     this.barChartData = {
       labels: hours,
@@ -662,21 +706,30 @@ export class DoiTuongNhanDienComponent implements OnInit {
         { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 8 },
         { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 8 },
         { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 8 },
+        { data: unknownData, label: 'Khác', backgroundColor: '#9ca3af', hoverBackgroundColor: '#6b7280', borderRadius: 4, barThickness: 8 },
       ]
     };
   }
 
-  private updateLineChartFromGenderDataByDay(genderData: { [day: string]: { Female?: number; Male?: number; unknown?: number } }): void {
+  private updateLineChartFromGenderDataByDay(genderData: { [day: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
+    console.log('🔍 updateLineChartFromGenderDataByDay - genderData keys:', Object.keys(genderData));
+    
     // For by-day view, use day labels instead of hour labels
-    const days = Object.keys(genderData).sort();
+    // Keys might be day numbers (1, 2, 3...) or full dates
+    const days = Object.keys(genderData).sort((a, b) => parseInt(a) - parseInt(b));
     const dayLabels = days.map(day => {
+      // If day is just a number, format it as "Ngày X"
+      if (/^\d+$/.test(day)) {
+        return `Ngày ${day}`;
+      }
+      // Otherwise treat as date string
       const date = new Date(day);
       return date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
     });
     
     const maleData = days.map(day => genderData[day]?.Male || 0);
     const femaleData = days.map(day => genderData[day]?.Female || 0);
-    const unknownData = days.map(day => genderData[day]?.unknown || 0);
+    const unknownData = days.map(day => genderData[day]?.Unknown || 0);
     
     this.lineChartData = {
       labels: dayLabels,
@@ -709,7 +762,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
         },
         { 
           data: unknownData,
-          label: 'Không xác định', 
+          label: 'Khác', 
           borderColor: '#f59e0b', 
           backgroundColor: 'transparent',
           tension: 0.4,
@@ -724,10 +777,18 @@ export class DoiTuongNhanDienComponent implements OnInit {
     };
   }
 
-  private updateBarChartFromComplexionDataByDay(complexionData: { [day: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; unknown?: number } }): void {
+  private updateBarChartFromComplexionDataByDay(complexionData: { [day: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
+    console.log('🔍 updateBarChartFromComplexionDataByDay - complexionData keys:', Object.keys(complexionData));
+    
     // For by-day view, use day labels instead of hour labels
-    const days = Object.keys(complexionData).sort();
+    // Keys might be day numbers (1, 2, 3...) or full dates
+    const days = Object.keys(complexionData).sort((a, b) => parseInt(a) - parseInt(b));
     const dayLabels = days.map(day => {
+      // If day is just a number, format it as "Ngày X"
+      if (/^\d+$/.test(day)) {
+        return `Ngày ${day}`;
+      }
+      // Otherwise treat as date string
       const date = new Date(day);
       return date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
     });
@@ -738,6 +799,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const middleEasternData = days.map(day => complexionData[day]?.MiddleEastern || 0);
     const blackData = days.map(day => complexionData[day]?.Black || 0);
     const latinoData = days.map(day => complexionData[day]?.Latino || 0);
+    const unknownData = days.map(day => complexionData[day]?.Unknown || 0);
     
     this.barChartData = {
       labels: dayLabels,
@@ -748,30 +810,63 @@ export class DoiTuongNhanDienComponent implements OnInit {
         { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 12 },
         { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 12 },
         { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 12 },
+        { data: unknownData, label: 'Khác', backgroundColor: '#9ca3af', hoverBackgroundColor: '#6b7280', borderRadius: 4, barThickness: 12 },
       ]
     };
   }
 
-  private updateSummaryCardsFromNewData(data: BeDataResponse['data']): void {
+  private updateSummaryCardsFromNewData(data: BeDataResponse['data'], isDayView: boolean = false): void {
+    console.log('🔍 updateSummaryCardsFromNewData - isDayView:', isDayView);
+    console.log('🔍 gender data keys:', Object.keys(data.gender));
+    
     // Calculate total people count from age range
     const totalCount = Object.values(data.age_range).reduce((sum, val) => sum + val, 0);
     
     // Find peak from gender data (works for both hour and day data)
     let maxCount = 0;
     let peakPeriod = '0';
+    
+    // Debug: log all period totals
+    const periodTotals: { period: string, total: number }[] = [];
+    
     Object.entries(data.gender).forEach(([period, genderCount]) => {
-      const periodTotal = (genderCount.Male || 0) + (genderCount.Female || 0) + (genderCount.unknown || 0);
+      const periodTotal = (genderCount.Male || 0) + (genderCount.Female || 0) + (genderCount.Unknown || 0);
+      periodTotals.push({ period, total: periodTotal });
+      
       if (periodTotal > maxCount) {
         maxCount = periodTotal;
         peakPeriod = period;
       }
     });
     
-    // Find dominant age group
+    // Sort and show top 5 periods
+    const sortedPeriods = periodTotals.sort((a, b) => b.total - a.total);
+    console.log('🔍 Top 5 periods with highest count:');
+    sortedPeriods.slice(0, 5).forEach((p, i) => {
+      const genderBreakdown = data.gender[p.period];
+      console.log(`  ${i + 1}. Period ${p.period}: ${p.total.toLocaleString()} (Male: ${genderBreakdown?.Male || 0}, Female: ${genderBreakdown?.Female || 0}, Unknown: ${genderBreakdown?.Unknown || 0})`);
+    });
+    console.log('🔍 Peak period:', peakPeriod, 'with count:', maxCount.toLocaleString());
+    
+    // Verify calculation
+    const peakGender = data.gender[peakPeriod];
+    const verifyTotal = (peakGender?.Male || 0) + (peakGender?.Female || 0) + (peakGender?.Unknown || 0);
+    console.log('🔍 Verify peak calculation:', { 
+      period: peakPeriod, 
+      male: peakGender?.Male || 0, 
+      female: peakGender?.Female || 0, 
+      unknown: peakGender?.Unknown || 0,
+      calculatedTotal: verifyTotal,
+      maxCount: maxCount,
+      match: verifyTotal === maxCount ? '✅ CORRECT' : '❌ MISMATCH'
+    });
+    
+    // Find dominant age group (exclude Unknown)
     let dominantAgeGroup = '20-29t';
     let maxAgeCount = 0;
     Object.entries(data.age_range).forEach(([ageRange, count]) => {
-      if (count > maxAgeCount) {
+      // Skip Unknown age group
+      if (ageRange !== 'Unknown' && count > maxAgeCount) {
         maxAgeCount = count;
         dominantAgeGroup = ageRange + 't';
       }
@@ -816,7 +911,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
         },
         { 
           data: unknownCount,
-          label: 'Không xác định', 
+          label: 'Khác', 
           borderColor: '#3b82f6', 
           backgroundColor: 'transparent',
           tension: 0.4,
@@ -864,27 +959,11 @@ export class DoiTuongNhanDienComponent implements OnInit {
     // Update donut chart (age distribution) from ageRangeCount
     const ageRangeCount = data.ageRangeCount || {};
     
-    // Map API age ranges to display labels - combine young ages
-    const ageGroups: { [key: string]: number } = {
-      '0-9': 0,
-      '10-19': 0,
-      '20-29': 0,
-      '30-39': 0,
-      '40-49': 0,
-      '50-59': 0,
-      '60-69': 0,
-      '70+': 0
-    };
-
-    // Map the API data to display groups
-    ageGroups['0-9'] = (ageRangeCount['0-2'] || 0) + (ageRangeCount['3-9'] || 0);
-    ageGroups['10-19'] = ageRangeCount['10-19'] || 0;
-    ageGroups['20-29'] = ageRangeCount['20-29'] || 0;
-    ageGroups['30-39'] = ageRangeCount['30-39'] || 0;
-    ageGroups['40-49'] = ageRangeCount['40-49'] || 0;
-    ageGroups['50-59'] = ageRangeCount['50-59'] || 0;
-    ageGroups['60-69'] = ageRangeCount['60-69'] || 0;
-    ageGroups['70+'] = ageRangeCount['70-100'] || 0;
+    // Define age groups in correct order from youngest to oldest
+    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100'];
+    const ageGroupsDisplay = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100'];
+    const allColors = ['#8b5cf6', '#f97316', '#84cc16', '#ec4899', '#3b82f6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444'];
+    const allHoverColors = ['#7c3aed', '#ea580c', '#65a30d', '#db2777', '#2563eb', '#d97706', '#059669', '#0891b2', '#dc2626'];
 
     // Filter out age groups with 0 count for cleaner display
     const nonZeroLabels: string[] = [];
@@ -892,25 +971,29 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const nonZeroColors: string[] = [];
     const nonZeroHoverColors: string[] = [];
     
-    const allColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
-    const allHoverColors = ['#059669', '#2563eb', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#475569'];
-    
     // Calculate total count for center display
-    this.totalPeopleCount = Object.values(ageGroups).reduce((sum, count) => sum + count, 0);
+    let totalCount = 0;
     
     // Store age group counts for legend display
     this.ageGroupCounts = {};
     
-    Object.keys(ageGroups).forEach((label, index) => {
-      const count = ageGroups[label];
-      this.ageGroupCounts[label] = count;
+    // Process in correct order from youngest to oldest
+    ageGroupsOrder.forEach((ageKey, index) => {
+      const count = ageRangeCount[ageKey] || 0;
+      const displayLabel = ageGroupsDisplay[index];
+      
+      totalCount += count;
+      this.ageGroupCounts[displayLabel] = count;
+      
       if (count > 0) {
-        nonZeroLabels.push(label);
+        nonZeroLabels.push(displayLabel);
         nonZeroData.push(count);
         nonZeroColors.push(allColors[index]);
         nonZeroHoverColors.push(allHoverColors[index]);
       }
     });
+    
+    this.totalPeopleCount = totalCount;
 
     this.donutChartData = {
       labels: nonZeroLabels,
@@ -1014,12 +1097,26 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const dataset = this.donutChartData.datasets[0];
     const labels = this.donutChartData.labels as string[];
     
+    // Use the same color array as in updateDonutChartFromAgeRange
+    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Khác'];
+    const allColors = ['#8b5cf6', '#f97316', '#84cc16', '#ec4899', '#3b82f6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#9ca3af'];
+    
+    // Map each label to its original color based on age group order
+    const originalColors = labels.map(label => {
+      // Find the index in ageGroupsOrder
+      const displayLabel = label;
+      let colorIndex = ageGroupsOrder.indexOf(displayLabel);
+      
+      // If not found directly, might need to handle "Unknown" vs "Khác" mapping
+      if (colorIndex === -1) {
+        colorIndex = 0; // Default color
+      }
+      
+      return allColors[colorIndex];
+    });
+    
     // Reset all segments to visible first
     const originalData = labels.map(label => this.getAgeGroupCount(label));
-    const originalColors = labels.map((_, index) => {
-      const allColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
-      return allColors[index % allColors.length];
-    });
 
     // Apply hidden state
     dataset.data = originalData.map((value, index) => {

@@ -218,26 +218,26 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     const params: any = { fromUtc, toUtc };
     if (this.selectedCamera) params.cameraSn = this.selectedCamera;
     
-    this.http.get<any>('/api/admin/events/by-camera', { params }).subscribe({
-      next: (response) => {
-        if (response && response.data) {
-          const cameras = response.data;
+    // this.http.get<any>('/api/admin/events/by-camera', { params }).subscribe({
+    //   next: (response) => {
+    //     if (response && response.data) {
+    //       const cameras = response.data;
           
-          // Update camera locations for map
-          this.cameraLocations = cameras.map((c: any) => ({
-            name: c.cameraName || c.cameraSn,
-            lat: c.latitude || 0,
-            lng: c.longitude || 0,
-            inCount: c.inCount || 0,
-            outCount: c.outCount || 0,
-            total: c.count || 0
-          })).filter((c: any) => c.lat !== 0 && c.lng !== 0);
-        }
-      },
-      error: (error) => {
-        console.error('Error loading camera locations:', error);
-      }
-    });
+    //       // Update camera locations for map
+    //       this.cameraLocations = cameras.map((c: any) => ({
+    //         name: c.cameraName || c.cameraSn,
+    //         lat: c.latitude || 0,
+    //         lng: c.longitude || 0,
+    //         inCount: c.inCount || 0,
+    //         outCount: c.outCount || 0,
+    //         total: c.count || 0
+    //       })).filter((c: any) => c.lat !== 0 && c.lng !== 0);
+    //     }
+    //   },
+    //   error: (error) => {
+    //     console.error('Error loading camera locations:', error);
+    //   }
+    // });
   }
   
   exportReport(): void {

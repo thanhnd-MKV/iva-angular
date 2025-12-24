@@ -165,4 +165,28 @@ export class EventService {
     const idParam = ids.join(',');
     return this.http.delete(`${this.apiUrl}/batchDelete?ids=${idParam}`);
   }
+
+  /**
+   * Search events by uploaded image files
+   * @param imageFiles Array of File objects from local upload
+   * @returns Observable with search results
+   */
+  searchByImage(imageFiles: File[]): Observable<any> {
+    console.log('🔍 EventService.searchByImage() called with', imageFiles.length, 'files');
+    
+    // Create FormData
+    const formData = new FormData();
+    
+    // Append all files with field name 'images'
+    imageFiles.forEach((file, index) => {
+      formData.append('images', file);
+      console.log(`✅ Appended file ${index + 1}:`, file.name, `(${(file.size / 1024).toFixed(2)} KB)`);
+    });
+    
+    console.log('📡 Making HTTP POST request to:', this.apiUrl + '/search-by-image');
+    return this.http.post<any>(
+      this.apiUrl + '/search-by-image',
+      formData
+    );
+  }
 }

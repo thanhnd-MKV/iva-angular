@@ -172,6 +172,16 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
         ticks: {
           font: {
             size: 11
+          },
+          callback: function(value) {
+            // Format large numbers (e.g., 1000 → 1k)
+            if (typeof value === 'number') {
+              if (value >= 1000) {
+                return (value / 1000).toFixed(1) + 'k';
+              }
+              return value;
+            }
+            return value;
           }
         }
       }
@@ -340,10 +350,23 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     console.log('Exporting report...');
   }
 
+  // DEPRECATED: This method is no longer used - GPS data loaded from /api/admin/events/traffic-volume/stats
+  // Kept for reference only - can be removed in future cleanup
+  /*
   private loadCameraLocations(): void {
     this.http.get('/api/admin/camera/camera-with-location').subscribe({
       next: (response: any) => {
         if (response && response.success && response.data) {
+          // 🔍 DEBUG: Log complete response structure
+          console.log('🔍 API Response:', JSON.stringify(response.data, null, 2));
+          console.log('🔍 Cameras array:', response.data.cameras);
+          console.log('🔍 Locations array:', response.data.locations);
+          
+          // 🔍 DEBUG: Log first camera object structure
+          if (response.data.cameras && response.data.cameras.length > 0) {
+            console.log('🔍 First camera object:', JSON.stringify(response.data.cameras[0], null, 2));
+          }
+          
           this.cameraLocations = response.data.cameras || [];
           
           // Map locations to areaOptions
@@ -365,6 +388,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       }
     });
   }
+  */
 
   private loadTrafficData(): void {
     console.log('=== loadTrafficData called ===');
@@ -380,6 +404,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     
     // Prepare params for API
     const params: any = {
+      eventCategory: 'TRAFFIC',
       fromUtc: fromUtc,
       toUtc: toUtc
     };
@@ -390,8 +415,8 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     }
     
     if (this.selectedArea) {
-      params.area = this.selectedArea;
-      console.log('Adding area filter:', this.selectedArea);
+      params.location = this.selectedArea;
+      console.log('Adding location filter:', this.selectedArea);
     }
     
     // Determine which API to use based on date range
@@ -447,6 +472,290 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
           this.generateMockTrafficData();
         }
       });
+
+    // Call stats API for GPS data
+    this.loadGpsData(params);
+  }
+
+  private loadGpsData(params: any): void {
+    console.log('🗺️ Loading GPS data from stats API with params:', params);
+    
+    this.http.get('/api/admin/events/traffic-volume/stats', { params }).subscribe({
+      next: (response: any) => {
+        console.log('🗺️ GPS stats response:', response);
+        if (response && response.success && response.data) {
+          this.updateMapWithGpsData(response.data);
+        } else {
+          console.warn('⚠️ No GPS data available');
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error loading GPS stats:', error);
+      }
+    });
+  }
+
+  private updateMapWithGpsData(data: any): void {
+    console.log('🗺️ Processing GPS data for map:', data);
+    console.log('🗺️ Raw data structure:', JSON.stringify(data, null, 2));
+    
+    const locations = data.locations || [];
+    
+    if (locations && Array.isArray(locations) && locations.length > 0) {
+      console.log('🗺️ Found', locations.length, 'location groups from API');
+      
+      // Flatten all cameraInfo from all locations
+      const allCameras: any[] = [];
+      locations.forEach((location: any, locIndex: number) => {
+        console.log(`🗺️ [${locIndex}] Processing location:`, location.location, 'with', location.cameraInfo?.length || 0, 'cameras');
+        
+        if (location.cameraInfo && Array.isArray(location.cameraInfo)) {
+          location.cameraInfo.forEach((camera: any, camIndex: number) => {
+            // More robust coordinate parsing
+            let lat: number;
+            let lng: number;
+            
+            if (typeof camera.latitude === 'number') {
+              lat = camera.latitude;
+            } else if (typeof camera.latitude === 'string') {
+              lat = parseFloat(camera.latitude);
+            } else {
+              console.warn(`🗺️ Invalid latitude type for camera ${camera.cameraSn}:`, typeof camera.latitude, camera.latitude);
+              return; // Skip this camera
+            }
+            
+            if (typeof camera.longitude === 'number') {
+              lng = camera.longitude;
+            } else if (typeof camera.longitude === 'string') {
+              lng = parseFloat(camera.longitude);
+            } else {
+              console.warn(`🗺️ Invalid longitude type for camera ${camera.cameraSn}:`, typeof camera.longitude, camera.longitude);
+              return; // Skip this camera
+            }
+            
+            // Validate coordinates are finite numbers
+            if (!isFinite(lat) || isNaN(lat)) {
+              console.warn(`🗺️ ❌ Invalid latitude for camera ${camera.cameraSn}: ${lat} (type: ${typeof lat})`);
+              return; // Skip this camera
+            }
+            
+            if (!isFinite(lng) || isNaN(lng)) {
+              console.warn(`🗺️ ❌ Invalid longitude for camera ${camera.cameraSn}: ${lng} (type: ${typeof lng})`);
+              return; // Skip this camera
+            }
+            
+            // Check valid range
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+              console.warn(`🗺️ ❌ Coordinates out of valid range for camera ${camera.cameraSn}: lat=${lat}, lng=${lng}`);
+              return; // Skip this camera
+            }
+            
+            console.log(`🗺️  ✅ [${locIndex}.${camIndex}] Camera:`, camera.cameraSn, 
+              `| Lat: ${lat.toFixed(6)} | Lng: ${lng.toFixed(6)} | Total: ${camera.total || 0}`);
+            
+            allCameras.push({
+              ...camera,
+              locationName: location.location,
+              lat: lat,
+              lng: lng
+            });
+          });
+        } else {
+          console.warn(`🗺️ [${locIndex}] Location "${location.location}" has no valid cameraInfo array`);
+        }
+      });
+      
+      console.log('🗺️ Total cameras after flattening:', allCameras.length);
+      console.log('🗺️ All cameras details:', allCameras.map(c => ({ 
+        sn: c.cameraSn, 
+        lat: c.lat, 
+        lng: c.lng, 
+        total: c.total 
+      })));
+      
+      // Build map markers directly from cameras
+      const validCameras: any[] = [];
+      
+      allCameras.forEach((camera: any, index: number) => {
+        // Skip invalid coordinates (0,0 might be valid in some edge cases, but usually indicates missing data)
+        const hasInvalidCoords = isNaN(camera.lat) || isNaN(camera.lng) || 
+                                 (camera.lat === 0 && camera.lng === 0) ||
+                                 camera.lat < -90 || camera.lat > 90 ||
+                                 camera.lng < -180 || camera.lng > 180;
+        
+        if (hasInvalidCoords) {
+          console.warn(`🗺️ [${index}] Skipping camera with invalid coordinates:`, {
+            sn: camera.cameraSn,
+            lat: camera.lat,
+            lng: camera.lng,
+            reason: isNaN(camera.lat) || isNaN(camera.lng) ? 'NaN' : 
+                    (camera.lat === 0 && camera.lng === 0) ? 'Zero coordinates' : 
+                    'Out of valid range'
+          });
+          return;
+        }
+        
+        validCameras.push({
+          cameraSn: camera.cameraSn,
+          lat: camera.lat,
+          lng: camera.lng,
+          total: camera.total || 0,
+          locationName: camera.locationName
+        });
+        
+        console.log(`🗺️ ✅ [${index}] Valid camera:`, {
+          sn: camera.cameraSn,
+          lat: camera.lat.toFixed(6),
+          lng: camera.lng.toFixed(6),
+          total: camera.total || 0
+        });
+      });
+      
+      console.log('🗺️ Valid cameras for mapping:', validCameras.length);
+      console.log('🗺️ Valid camera list:', validCameras.map(c => ({ 
+        sn: c.cameraSn, 
+        coords: `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, 
+        total: c.total 
+      })));
+      
+      // Group cameras by exact coordinates to cluster markers at same position
+      const coordGroups: { [key: string]: any[] } = {};
+      
+      validCameras.forEach((camera: any, index: number) => {
+        // Create key with 6 decimal precision (approx 10cm accuracy)
+        const coordKey = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`;
+        
+        if (!coordGroups[coordKey]) {
+          coordGroups[coordKey] = [];
+          console.log(`🗺️ 📍 New coordinate group created: ${coordKey}`);
+        }
+        
+        coordGroups[coordKey].push(camera);
+        console.log(`🗺️ [${index}] Added camera ${camera.cameraSn} to group ${coordKey}`);
+      });
+      
+      const groupCount = Object.keys(coordGroups).length;
+      console.log(`🗺️ Coordinate groups (clustered by position): ${groupCount}`);
+      console.log('🗺️ Group details:', Object.entries(coordGroups).map(([key, cams]) => ({
+        coord: key,
+        cameras: cams.length,
+        total: cams.reduce((sum, c) => sum + c.total, 0)
+      })));
+      
+      // Convert groups to map locations format
+      this.cameraLocations = Object.entries(coordGroups).map(([coordKey, cameras], groupIndex) => {
+        const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
+        const locationNames = [...new Set(cameras.map(c => c.locationName))].join(', ');
+        
+        // Use first camera's coordinates (all should be the same in this group)
+        const mainCamera = cameras[0];
+        
+        const markerData = {
+          lat: mainCamera.lat,
+          lng: mainCamera.lng,
+          name: locationNames,
+          count: totalCount,
+          cameraCode: cameras.length === 1 ? mainCamera.cameraSn : `${cameras.length} cameras`,
+          cameras: cameras.map(c => c.cameraSn),
+          individualCameras: cameras
+        };
+        
+        console.log(`🗺️ 🎯 Marker[${groupIndex}] created at ${coordKey}:`, {
+          cameras: cameras.length,
+          total: totalCount,
+          locations: locationNames,
+          coords: { lat: mainCamera.lat, lng: mainCamera.lng }
+        });
+        
+        return markerData;
+      });
+      
+      console.log('🗺️ ✅ Final camera locations (markers):', this.cameraLocations.length);
+      console.log('🗺️ 🗺️ Complete markers list:', this.cameraLocations.map((loc, i) => ({ 
+        index: i,
+        lat: loc.lat.toFixed(6), 
+        lng: loc.lng.toFixed(6), 
+        count: loc.count,
+        name: loc.name
+      })));
+      
+      // Auto-adjust map center and zoom based on locations
+      if (this.cameraLocations.length > 0) {
+        // Calculate bounds from all camera locations
+        const lats = this.cameraLocations.map(loc => loc.lat);
+        const lngs = this.cameraLocations.map(loc => loc.lng);
+        
+        const minLat = Math.min(...lats);
+        const maxLat = Math.max(...lats);
+        const minLng = Math.min(...lngs);
+        const maxLng = Math.max(...lngs);
+        
+        // Calculate center from bounds (more accurate than simple average)
+        const centerLat = (minLat + maxLat) / 2;
+        const centerLng = (minLng + maxLng) / 2;
+        
+        this.mapCenter = { lat: centerLat, lng: centerLng };
+        
+        // Calculate spread
+        const latSpread = maxLat - minLat;
+        const lngSpread = maxLng - minLng;
+        const maxSpread = Math.max(latSpread, lngSpread);
+        
+        console.log('🗺️ Bounds - Lat: [', minLat.toFixed(6), ',', maxLat.toFixed(6), '] Lng: [', minLng.toFixed(6), ',', maxLng.toFixed(6), ']');
+        console.log('🗺️ Spread - Lat:', latSpread.toFixed(6), 'Lng:', lngSpread.toFixed(6), 'Max:', maxSpread.toFixed(6));
+        
+        // Determine zoom level with better thresholds
+        let calculatedZoom: number;
+        
+        if (this.cameraLocations.length === 1) {
+          calculatedZoom = 15;
+        } else if (maxSpread === 0) {
+          calculatedZoom = 15;
+        } else if (maxSpread >= 10) {
+          calculatedZoom = 5;
+        } else if (maxSpread >= 5) {
+          calculatedZoom = 6;
+        } else if (maxSpread >= 1) {
+          calculatedZoom = 8;
+        } else if (maxSpread >= 0.5) {
+          calculatedZoom = 9;
+        } else if (maxSpread >= 0.2) {
+          calculatedZoom = 10;
+        } else if (maxSpread >= 0.1) {
+          calculatedZoom = 11;
+        } else if (maxSpread >= 0.05) {
+          calculatedZoom = 12;
+        } else if (maxSpread >= 0.02) {
+          calculatedZoom = 13;
+        } else if (maxSpread >= 0.01) {
+          calculatedZoom = 14;
+        } else if (maxSpread >= 0.005) {
+          calculatedZoom = 15;
+        } else if (maxSpread >= 0.001) {
+          calculatedZoom = 16;
+        } else {
+          calculatedZoom = 17;
+        }
+        
+        // Apply zoom with slight zoom out for better visibility
+        this.mapZoom = this.cameraLocations.length > 1 ? Math.max(calculatedZoom - 1, 5) : calculatedZoom;
+        
+        console.log('🗺️ Map center:', this.mapCenter, 'Calculated Zoom:', calculatedZoom, 'Final Zoom:', this.mapZoom, 'Locations:', this.cameraLocations.length);
+        
+        // Only trigger change detection once after all updates
+        this.cdr.detectChanges();
+      }
+    } else {
+      // Reset map when no GPS data - only if currently has data
+      if (this.cameraLocations.length > 0) {
+        console.log('⚠️ No GPS data - resetting map');
+        this.cameraLocations = [];
+        // Reset to default Vietnam overview
+        this.mapCenter = { lat: 14.0583, lng: 108.2772 };
+        this.mapZoom = 5;
+        this.cdr.detectChanges();
+      }
+    }
   }
 
   private loadTrafficVolumeByDay(): void {
@@ -503,10 +812,16 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   }
 
   private processTrafficVolumeByDayData(data: any, isSingleDay: boolean = false): void {
+    console.log('🔴 processTrafficVolumeByDayData CALLED', { data, isSingleDay });
+    
     // Extract data from API response
     const apiData = data.data || data;
+    
+    console.log('🔴 apiData extracted:', apiData);
+    console.log('🔴 Will call:', isSingleDay ? 'processSingleDayData' : 'processMultipleDaysData');
 
     if (!apiData) {
+      console.error('🔴 No apiData - using mock');
       this.generateMockTrafficData();
       return;
     }
@@ -522,11 +837,30 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
 
   private processSingleDayData(apiData: any): void {
     // Process data for single day view (by-hour-of-day API)
-    // Data structure: { hourlyBreakdown: [{ hour, vehicles: {Bus, Motor, Car, Truck}, total }] }
+    // Support two data structures:
+    // 1. New format: { hourlyData: { "0": {}, "1": {Motor: 5}, ... } }
+    // 2. Old format: { hourlyBreakdown: [{ hour, vehicles: {Bus, Motor, Car, Truck}, total }] }
 
-    const hourlyBreakdown = apiData.hourlyBreakdown || [];
+    let hourlyBreakdown: any[] = [];
+
+    // Check for new format (hourlyData object)
+    if (apiData.hourlyData && typeof apiData.hourlyData === 'object') {
+      console.log('📊 Processing hourlyData (new format)');
+      // Convert object to array format
+      hourlyBreakdown = Object.entries(apiData.hourlyData).map(([hour, vehicles]: [string, any]) => ({
+        hour: parseInt(hour),
+        vehicles: vehicles || {},
+        total: vehicles ? Object.values(vehicles).reduce((sum: number, count: any) => sum + (count || 0), 0) : 0
+      }));
+      console.log('📊 Converted hourlyData to array:', hourlyBreakdown.slice(0, 3));
+    } else if (apiData.hourlyBreakdown && Array.isArray(apiData.hourlyBreakdown)) {
+      // Old format
+      console.log('📊 Processing hourlyBreakdown (old format)');
+      hourlyBreakdown = apiData.hourlyBreakdown;
+    }
 
     if (!Array.isArray(hourlyBreakdown) || hourlyBreakdown.length === 0) {
+      console.warn('⚠️ No hourly data available');
       this.generateMockTrafficData();
       return;
     }
@@ -549,18 +883,27 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       borderRadius: 2
     }));
 
+    console.log('📊 Single day datasets created:', datasets.map(d => ({ label: d.label, total: d.data.reduce((a: number, b: number) => a + b, 0) })));
+
     this.rawBarChartData = datasets;
     this.barChartLabels = hours;
     this.applyBarChartFilter();
   }
 
   private processMultipleDaysData(apiData: any): void {
+    console.log('🔵 processMultipleDaysData CALLED with:', apiData);
+    
     // Process data for multiple days view (by-day API)
     // Data structure: { dailyBreakdown: [{ day, vehicles: {Bus, Motor, Car, Truck}, total }] }
 
     const dailyBreakdown = apiData.dailyBreakdown || [];
+    
+    console.log('🔵 dailyBreakdown extracted:', dailyBreakdown);
+    console.log('🔵 dailyBreakdown length:', dailyBreakdown.length);
+    console.log('🔵 Is array?', Array.isArray(dailyBreakdown));
 
     if (!Array.isArray(dailyBreakdown) || dailyBreakdown.length === 0) {
+      console.error('❌ dailyBreakdown is empty or not array - falling back to mock data');
       this.generateMockTrafficData();
       return;
     }
@@ -594,28 +937,33 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus'];
     const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA'];
 
-    // Create a map for quick lookup of data by day
-    const dataByDay = new Map<number, any>();
-    dailyBreakdown.forEach((dayData: any) => {
-      dataByDay.set(dayData.day, dayData);
-    });
-
-    console.log('📊 Data by day map:', Array.from(dataByDay.entries()).map(([day, data]) => ({ 
-      day, 
-      total: data.total, 
-      vehicles: data.vehicles 
+    // IMPORTANT: API returns day as 1-based sequential index (day 1 = first day in range, NOT calendar day)
+    // Example: If searching 18/12 to 24/12, day:1 means 18/12, day:7 means 24/12
+    console.log('📊 Daily breakdown data:', dailyBreakdown.map((d: any) => ({ 
+      day: d.day, 
+      total: d.total, 
+      vehicles: d.vehicles 
     })));
+    
+    // CRITICAL FIX: Find which API day corresponds to our fromDate
+    // If fromDate is 17/12, we need to find which 'day' number that is in the API response
+    const fromDay = fromDate.getUTCDate(); // e.g., 17 for 17/12
+    console.log('📊 From date day number:', fromDay, '(calendar day of month)');
 
     const datasets = vehicleTypes.map((type, index) => {
       const data = labels.map((label, labelIndex) => {
-        // Calculate the actual date for this label
+        // Calculate the calendar day for this label
         const labelDate = new Date(fromDate);
         labelDate.setUTCDate(fromDate.getUTCDate() + labelIndex);
-        const dayNumber = labelDate.getUTCDate();
-
-        // Get data for this day from the API response
-        const dayData = dataByDay.get(dayNumber);
+        const calendarDay = labelDate.getUTCDate(); // Actual day of month
+        
+        // Find the matching day in API response
+        const dayData = dailyBreakdown.find((d: any) => d.day === calendarDay);
         const value = dayData?.vehicles?.[type] || 0;
+        
+        if (labelIndex < 3 || value > 0) {
+          console.log(`📊 [${type}] Label "${label}" (${calendarDay}/${labelDate.getUTCMonth()+1}) → API day ${calendarDay} → value: ${value}`);
+        }
         
         return value;
       });
@@ -623,7 +971,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       console.log(`🚗 Dataset for ${type}:`, {
         type,
         label: this.getVehicleTypeLabel(type.toLowerCase()),
-        data,
+        totalCount: data.reduce((sum, v) => sum + v, 0),
         nonZeroCount: data.filter(v => v > 0).length
       });
 
@@ -641,16 +989,28 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       dataLength: ds.data.length,
       totalCount: ds.data.reduce((sum, v) => sum + v, 0)
     })));
+    
+    console.log('✅✅✅ SETTING rawBarChartData and barChartLabels');
+    console.log('  - rawBarChartData will have', datasets.length, 'datasets');
+    console.log('  - barChartLabels will have', labels.length, 'labels');
 
     this.rawBarChartData = datasets;
     this.barChartLabels = labels;
     
+    console.log('✅✅✅ AFTER ASSIGNMENT:');
+    console.log('  - this.rawBarChartData:', this.rawBarChartData?.length);
+    console.log('  - this.barChartLabels:', this.barChartLabels?.length);
+    
     console.log('✅ Chart data prepared:', {
       labelsCount: this.barChartLabels.length,
-      datasetsCount: this.rawBarChartData.length
+      datasetsCount: this.rawBarChartData.length,
+      rawBarChartData: this.rawBarChartData,
+      barChartLabels: this.barChartLabels
     });
     
+    console.log('🔵 BEFORE applyBarChartFilter - barChartData:', JSON.stringify(this.barChartData, null, 2));
     this.applyBarChartFilter();
+    console.log('🔵 AFTER applyBarChartFilter - barChartData:', JSON.stringify(this.barChartData, null, 2));
   }
 
   private processTrafficVolumeStatsData(data: any): void {
@@ -701,7 +1061,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   }
 
   private updateStatsData(data: any): void {
-    console.log('Updating stats data from traffic volume API:', data);
+    console.log('📊 Updating stats data from traffic volume API:', data);
 
     if (!data) {
       this.initializeFallbackData();
@@ -711,23 +1071,31 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     // Extract data from the new API format
     const apiData = data.data || data;
 
-    // Use API provided values directly - they already have the correct totals
+    // Use API provided values - support both new and old formats
     const totalVehicles = apiData.totalVehicles || 0;
-    const mostCommonVehicleClass = apiData.mostCommonVehicleClass || 'Car';
-    const mostCommonVehicleClassCount = apiData.mostCommonVehicleClassCount || 0;
+    
+    // Most common vehicle type
+    const mostCommonVehicleType = apiData.mostCommonVehicleType || apiData.mostCommonVehicleClass || 'Motor';
+    const mostCommonVehicleCount = apiData.mostCommonVehicleCount || apiData.mostCommonVehicleClassCount || 0;
+    
+    // Peak hour/day
+    const peakHour = apiData.peakHour;
+    const peakHourCount = apiData.peakHourCount || 0;
     const peakDay = apiData.peakDay || 0;
     const peakDayCount = apiData.peakDayCount || 0;
 
     // Determine if this is hourly or daily data
-    const isHourlyData = apiData.hourlyBreakdown && Array.isArray(apiData.hourlyBreakdown);
+    const isHourlyData = apiData.hourlyData || apiData.hourlyBreakdown;
 
-    console.log('Stats calculation:', {
+    console.log('📊 Stats extracted:', {
       totalVehicles,
-      mostCommonVehicleClass,
-      mostCommonVehicleClassCount,
+      mostCommonVehicleType,
+      mostCommonVehicleCount,
+      peakHour,
+      peakHourCount,
       peakDay,
       peakDayCount,
-      isHourlyData
+      isHourlyData: !!isHourlyData
     });
 
     // Process summary cards data
@@ -735,27 +1103,29 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       {
         title: 'Tổng số phương tiện',
         value: totalVehicles,
-        change: 0, // API doesn't provide change data
+        change: 0,
         isPositive: true,
         color: 'blue'
       },
       {
         title: 'Phương tiện chiếm tỉ lệ cao nhất',
-        value: mostCommonVehicleClassCount,
+        value: mostCommonVehicleCount,
         change: 0,
         isPositive: true,
-        subtitle: this.getVehicleTypeLabel(mostCommonVehicleClass.toLowerCase()) || 'Xe máy',
+        subtitle: this.getVehicleTypeLabel(mostCommonVehicleType.toLowerCase()) || 'Xe máy',
         color: 'green'
       },
       {
         title: isHourlyData ? 'Giờ cao điểm giao thông' : 'Ngày cao điểm giao thông',
-        value: peakDayCount,
+        value: isHourlyData ? peakHourCount : peakDayCount,
         change: 0,
         isPositive: true,
-        subtitle: isHourlyData ? `${peakDay}:00-${peakDay + 1}:00` : `Ngày ${peakDay}`,
+        subtitle: isHourlyData ? (peakHour !== undefined ? `${peakHour}:00` : 'N/A') : (peakDay ? `Ngày ${peakDay}` : 'N/A'),
         color: 'purple'
       }
     ];
+
+    console.log('✅ Summary cards updated:', this.summaryCards);
 
     // Process camera locations from API if available
     const locations = apiData.locations || [];
@@ -825,8 +1195,8 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       
       console.log('🗺️ [LuuLuongGiaoThong] Final camera locations for map:', this.cameraLocations.length, 'locations');
     } else {
-      // Fallback: load from camera list API if locations not in stats
-      this.loadCameraLocations();
+      // NO FALLBACK - GPS data already loaded from separate stats API call
+      console.log('🗺️ [LuuLuongGiaoThong] No locations in chart API response - GPS data loaded separately from stats API');
     }
 
     console.log('✅ Stats data updated:', this.summaryCards);
@@ -939,21 +1309,34 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
 
     this.barChartData.labels = [...this.barChartLabels];
     
+    // CRITICAL: Create new object reference to trigger Angular change detection
+    this.barChartData = {
+      labels: [...this.barChartLabels],
+      datasets: [...this.barChartData.datasets]
+    };
+    
     console.log('Bar chart updated:', {
       labels: this.barChartData.labels,
+      labelsLength: this.barChartData.labels?.length || 0,
       datasets: this.barChartData.datasets.map(ds => ({
         label: ds.label,
         dataLength: ds.data.length,
-        sampleData: ds.data.slice(0, 5)
+        sampleData: ds.data.slice(0, 5),
+        totalSum: ds.data.reduce((a: number, b: any) => (a || 0) + (typeof b === 'number' ? b : 0), 0)
       }))
     });
 
-    // Force chart update
-    if (this.chart) {
-      this.chart.update();
-    }
-    
+    // Force chart update with timeout to ensure chart is initialized
     this.cdr.detectChanges();
+    
+    setTimeout(() => {
+      if (this.chart?.chart) {
+        console.log('🔄 Updating chart instance');
+        this.chart.chart.update('active');
+      } else {
+        console.warn('⚠️ Chart instance not available yet');
+      }
+    }, 100);
   }
 
   private updateLineChartData(): void {

@@ -21,8 +21,10 @@
       [actions]="['view']" 
       [hasError]="hasError"
       [errorMessage]="errorMessage"
+      [selectedEventId]="selectedEventId"
       (view)="handleViewClick($event)"
       (imageClick)="handleImageClick($event)"
+      (rowClick)="handleRowClick($event)"
       (refresh)="onRetry()"
       (clearFilterData)="onClearFilterData()">
     </app-base-table>
@@ -40,7 +42,8 @@
   <div class="map-section" *ngIf="isTrackingMode">
     <app-tracking-map 
       [locations]="trackingLocations"
-      [trackingTarget]="trackingTarget">
+      [trackingTarget]="trackingTarget"
+      [selectedEventId]="selectedEventId">
     </app-tracking-map>
   </div>
 </div>

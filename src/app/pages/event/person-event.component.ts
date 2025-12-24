@@ -206,6 +206,7 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
   trackingTarget = ''; // Person ID or identifier
   trackingLocations: TrackingLocation[] = [];
   trackingLoading = false;
+  selectedEventId: string = '';
 
   constructor(
     private fb: FormBuilder,
@@ -538,6 +539,23 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     this.showEventDetailPopup = true;
   }
   
+  handleRowClick(row: any) {
+    console.log('📄 Row clicked:', row);
+    console.log('🔍 isTrackingMode:', this.isTrackingMode);
+    
+    // Only handle row click in tracking mode
+    if (this.isTrackingMode) {
+      console.log('📄 Row clicked in tracking mode');
+      const eventId = row.eventId || row.id;
+      console.log('🆔 Event ID from row:', eventId);
+      console.log('🆔 Setting selectedEventId to:', eventId);
+      this.selectedEventId = eventId;
+      console.log('✅ selectedEventId after set:', this.selectedEventId);
+    } else {
+      console.log('⚠️ Row clicked but not in tracking mode');
+    }
+  }
+  
   popupImageViewerOpen = false;
   
   onPopupImageViewerChange(isOpen: boolean) {
@@ -773,6 +791,19 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     // Map search params to API query format
     this.queryFormModel = [];
     
+    // Check if this is an image search
+    if (searchParams.imageList && searchParams.imageList.length > 0) {
+      console.log('📸 Image search detected with images:', searchParams.imageList);
+      // Use dedicated image search API
+      this.searchByImageList(searchParams.imageList, searchParams);
+      return;
+    }
+    
+    // Not image search - disable tracking mode
+    this.isTrackingMode = false;
+    this.trackingLocations = [];
+    this.trackingTarget = '';
+    
     // Person-specific filters
     if (searchParams.gender) {
       this.queryFormModel.push({ key: 'gender', value: searchParams.gender });
@@ -784,16 +815,6 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     
     if (searchParams.cameraSn) {
       this.queryFormModel.push({ key: 'cameraSn', value: searchParams.cameraSn });
-    }
-    
-    // Image list for face search
-    if (searchParams.imageList && searchParams.imageList.length > 0) {
-      console.log('📸 Searching with images:', searchParams.imageList);
-      // Send images as comma-separated string or array depending on API
-      this.queryFormModel.push({ 
-        key: 'imageList', 
-        value: searchParams.imageList.join(',') 
-      });
     }
     
     if (searchParams.searchText) {
@@ -813,6 +834,107 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     
     this.pageNumber = 0;
     this.loadTableData();
+  }
+
+  /**
+   * Search events by uploaded image(s)
+   * @param imageFiles Array of File objects from upload
+   * @param additionalParams Additional search parameters
+   */
+  private searchByImageList(imageFiles: File[], additionalParams?: any): void {
+    console.log('🖼️ Searching by image with', imageFiles.length, 'files');
+    this.loading = true;
+
+    this.eventService.searchByImage(imageFiles).subscribe({
+      next: (response) => {
+        console.log('🎯 Image search response:', response);
+        
+        // Parse nested structure: data.data.data[] or data.data[]
+        const results = response?.data?.data?.data || response?.data?.data || [];
+        
+        if (results && results.length > 0) {
+          // Map data từ backend
+          this.allData = results.map((item: any) => ({
+            ...item,
+            image: this.getImagePath(item),
+            status: this.mapEventStatus(item.status),
+            startTime: item.startTime || item.eventTime,
+            cameraName: item.cameraName || item.cameraSn || 'N/A',
+            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : 'N/A'),
+            clipPath: item.clipPath || []
+          }));
+          
+          // Prepare tracking locations from GPS data
+          this.trackingLocations = results
+            .filter((item: any) => item.latitude && item.longitude)
+            .map((item: any) => ({
+              lat: item.latitude,
+              lng: item.longitude,
+              eventId: item.eventId,
+              timestamp: item.eventTime || item.startTime,
+              cameraName: item.cameraName || item.cameraSn,
+              address: item.location,
+              thumbnailUrl: this.getImagePath(item)
+            }));
+          
+          // Client-side pagination setup
+          this.totalItems = this.allData.length;
+          this.totalPages = Math.ceil(this.totalItems / this.pageSize);
+          this.total = this.totalItems;
+          this.pageNumber = 0;
+          this.pageIndex = 0;
+          
+          // Update table data
+          this.updateTableDataForCurrentPage();
+          
+          // Enable tracking mode if we have GPS data
+          if (this.trackingLocations.length > 0) {
+            this.isTrackingMode = true;
+            this.trackingTarget = `Tìm thấy ${this.totalItems} đối tượng`;
+          }
+          
+          console.log('✅ Image search completed:', {
+            totalResults: this.totalItems,
+            displayedResults: this.tableData.length,
+            trackingLocations: this.trackingLocations.length
+          });
+        } else {
+          console.warn('No results from image search');
+          this.allData = [];
+          this.tableData = [];
+          this.total = 0;
+          this.totalItems = 0;
+          this.trackingLocations = [];
+          this.isTrackingMode = false;
+        }
+        
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Image search error:', error);
+        
+        // Report error to ErrorHandlerService
+        this.errorHandler.reportError(
+          'Lỗi khi tìm kiếm bằng ảnh. Vui lòng thử lại.',
+          'server',
+          false
+        );
+        
+        this.loading = false;
+        this.allData = [];
+        this.tableData = [];
+        this.total = 0;
+        this.totalItems = 0;
+        
+        this.snackBar.open(
+          'Lỗi khi tìm kiếm bằng ảnh. Vui lòng thử lại.',
+          'Đóng',
+          { duration: 5000 }
+        );
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   // Advanced search handler

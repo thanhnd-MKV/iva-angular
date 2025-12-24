@@ -18,6 +18,7 @@ export interface UploadedImage {
   fileSize: number;
   uploadedAt: string;
   thumbnailUrl?: string;
+  file?: File; // Original File object for upload
 }
 
 @Injectable({
