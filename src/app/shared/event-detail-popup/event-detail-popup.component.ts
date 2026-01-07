@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { GoogleMapComponent } from '../components/google-map/google-map.component';
 import { ImageViewerComponent } from '../image-viewer/image-viewer.component';
+import { EventCategoryPipe } from '../pipes/event-category.pipe';
 
 @Component({
   selector: 'app-event-detail-popup',
@@ -13,7 +14,8 @@ import { ImageViewerComponent } from '../image-viewer/image-viewer.component';
     MatIconModule, 
     MatTooltipModule, 
     GoogleMapComponent,
-    ImageViewerComponent
+    ImageViewerComponent,
+    EventCategoryPipe
   ],
   templateUrl: './event-detail-popup.component.html',
   styleUrls: ['./event-detail-popup.component.css']

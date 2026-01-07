@@ -344,6 +344,21 @@
     font-weight: 700;
     color: #1f2937;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    
+    ::ng-deep .digit {
+      display: inline-block;
+      min-width: 18px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      height: 1em;
+      line-height: 1em;
+    }
   }
   
   .summary-change {

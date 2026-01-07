@@ -159,6 +159,7 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     location: {
       label: 'Vị trí',
       type: 'link',
+      width: '120px',
       fontSize: '11px',
       fontWeight: '400',
       headerFontSize: '11px'

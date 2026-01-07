@@ -91,6 +91,14 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
     }
   ];
   
+  // Search field options for dropdown
+  searchFieldOptions = [
+    { label: 'ID', value: 'eventId' },
+    { label: 'Biển số xe', value: 'plateNumber' },
+    { label: 'Camera', value: 'cameraName' },
+    { label: 'Khu vực', value: 'location' }
+  ];
+  
   queryFormModel: any = [];
 
   // Columns theo design và data structure thực
@@ -157,7 +165,8 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
     location: {
       label: 'Vị trí',
       type: 'link',
-      fontSize: '11px',
+      width: '120px',
+      fontSize: '11px', 
       fontWeight: '400',
       headerFontSize: '11px'
     }

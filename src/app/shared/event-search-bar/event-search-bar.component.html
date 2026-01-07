@@ -29,8 +29,29 @@
         </div>
       </div>
 
+      <!-- Search Field Dropdown (nếu có searchFieldOptions) -->
+      <div class="filter-dropdown search-field-selector" *ngIf="showSearchInput && searchFieldOptions.length > 0" (clickOutside)="showSearchFieldDropdown = false">
+        <button class="dropdown-trigger" (click)="toggleSearchFieldDropdown()">
+          <span class="trigger-label">{{ getSearchFieldLabel() }}</span>
+          <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+        <div class="dropdown-menu" *ngIf="showSearchFieldDropdown">
+          <div *ngFor="let option of searchFieldOptions" 
+               class="dropdown-item"
+               [class.selected]="selectedSearchField === option.value"
+               (click)="selectSearchField(option)">
+            <span class="item-label">{{ option.label }}</span>
+            <svg *ngIf="selectedSearchField === option.value" class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
       <!-- Search Input -->
-      <div class="search-input-wrapper">
+      <div class="search-input-wrapper" *ngIf="showSearchInput">
         <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.35-4.35"/>
@@ -38,7 +59,7 @@
         <input 
           type="text" 
           class="search-input" 
-          [placeholder]="searchInputPlaceholder"
+          [placeholder]="'Nhập ' + getSearchFieldLabel().toLowerCase()"
           [(ngModel)]="searchValue"
           (keypress)="onSearchKeyPress($event)">
       </div>

@@ -291,21 +291,29 @@
   &.summary-card-blue {
     background: #dff0ff;
     .summary-value {
-      color: #175cd3;
+      color: #0066CC; // Màu xanh đậm hơn
+      font-weight: 800;
     }
   }
   
   &.summary-card-green {
-    background: #eafff1;
+    background: #d1fae5;
     .summary-value {
-      color: #009a33;
+      color: #047857; // Màu xanh lá đậm hơn
+      font-weight: 800;
+      
+      &.text-value {
+        color: #DC2626; // Màu đỏ cho "Vượt đèn đỏ"
+        font-weight: 700;
+      }
     }
   }
   
   &.summary-card-purple {
-    background: #efebff;
+    background: #e9d5ff;
     .summary-value {
-      color: #2C15AF;
+      color: #6B21A8; // Màu tím đậm hơn
+      font-weight: 800;
     }
   }
   
@@ -322,22 +330,90 @@
   
   .summary-body {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: 8px;
     margin-top: auto;
+    width: 100%;
+  }
+  
+  .summary-content-wrapper {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .camera-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(0, 102, 204, 0.1);
+    border-radius: 4px;
+    width: fit-content;
+    border-radius: 10px;
+    
+    .camera-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #0066CC;
+    }
+    
+    .camera-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0066CC;
+      line-height: 1;
+    }
   }
   
   .summary-value {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     color: #1f2937;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    
+    // Container for digit animation
+    .digit {
+      display: inline-block;
+      min-width: 15px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      height: 1em;
+      line-height: 1em;
+    }
+    
+    // Container for mixed content (number + text) in card 1
+    .digit-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      margin-right: 8px;
+      font-size: 24px;
+      font-weight: 700;
+    }
     
     // For text values (non-numeric)
     &.text-value {
       font-size: 18px;
-      font-weight: 600;
-      line-height: 1.2;
+      font-weight: 700;
+      line-height: 1.3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      word-break: break-word;
+    }
+    
+    // For camera value (formatted numbers like 3.2k)
+    &.camera-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
     }
   }
   
@@ -377,49 +453,50 @@
   gap: 16px;
   flex: 1;
   min-height: 270px;
-  max-height: 400px; // Limit max height to prevent stretching
+  max-height: 400px;
   width: 100%;
   overflow: visible;
 }
 
 .donut-chart-section {
+  flex: 1;
+  min-width: 400px;
   min-height: 270px;
   max-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: visible;
-  width: 100%;
 }
 
 .donut-chart-card {
   flex: 1;
-  min-height: 270px;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
   overflow: visible;
   
   .chart-header {
     flex-shrink: 0;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
   
   .donut-content {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 16px;
-    padding: 8px;
+    gap: 24px;
+    padding: 12px 20px;
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    justify-content: space-evenly;
+    justify-content: center;
   }
   
   .donut-chart-wrapper {
     position: relative;
     flex: 0 0 auto;
-    width: clamp(120px, 15vw, 200px);
-    height: clamp(120px, 15vw, 200px);
+    width: 240px;
+    height: 240px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -438,8 +515,8 @@
     text-align: center;
     background: white;
     border-radius: 50%;
-    width: 70px;
-    height: 70px;
+    width: 90px;
+    height: 90px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -447,13 +524,14 @@
     pointer-events: none;
     
     .total-label {
-      font-size: 10px;
+      font-size: 12px;
       color: #6b7280;
       font-weight: 500;
+      margin-bottom: 2px;
     }
     
     .total-value {
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 700;
       color: #1f2937;
       line-height: 1;
@@ -461,38 +539,63 @@
   }
   
   .donut-legend {
-    display: grid;
-    gap: 8px 16px;
-    align-content: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-content: flex-start;
+    flex: 1;
     max-height: 100%;
     overflow-y: auto;
+    padding-right: 8px;
+    max-width: 200px;
     
     .legend-item {
-      display: flex;
+      display: grid;
+      grid-template-columns: 14px 1fr auto;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      white-space: nowrap;
+      gap: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 4px 6px;
+      border-radius: 4px;
+      min-height: 24px;
+      
+      &:hover {
+        background: #f9fafb;
+      }
+      
+      &.legend-hidden {
+        opacity: 0.4;
+        
+        .legend-text {
+          text-decoration: line-through;
+        }
+      }
       
       .legend-dot {
-        width: 10px;
-        height: 10px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         flex-shrink: 0;
       }
       
       .legend-text {
-        color: #374151;
-        flex: 1;
-        min-width: 0;
+        color: #4b5563;
+        font-weight: 400;
+        font-size: 13px;
+        line-height: 1.4;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
       
       .legend-value {
-        color: #6b7280;
-        font-weight: 500;
-        margin-left: auto;
+        color: #111827;
+        font-weight: 600;
+        font-size: 14px;
+        text-align: right;
+        min-width: 30px;
       }
     }
   }
@@ -502,7 +605,7 @@
   flex: 1;
   min-width: 300px;
   min-height: 270px;
-  max-height: 400px; // Match with charts-row max-height
+  max-height: 400px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -624,6 +727,7 @@
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   pointer-events: none;
+  z-index: 1;
 }
 
 .total-label {

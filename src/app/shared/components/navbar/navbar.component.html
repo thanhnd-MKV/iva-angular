@@ -1,9 +1,5 @@
-<mat-sidenav-container class="sidenav-container">
-  <mat-sidenav [mode]="'side'" [opened]="true" 
-    [ngClass]="{ 'close': !isSidebarOpened }" 
-    id="sidebar"
-    [fixedInViewport]="true" 
-    [autoFocus]="false">
+<div class="sidebar-wrapper">
+  <nav class="sidebar" [class.close]="!isSidebarOpened" id="sidebar">
     
     <ul>
       <li class="header-navbar">
@@ -28,7 +24,7 @@
       
       <li>
         <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-          <mat-icon>dashboard</mat-icon>
+          <img src="assets/icon/Home-icon.svg" alt="Dashboard" class="menu-icon">
           <span>Trang chủ</span>
         </a>
       </li>
@@ -40,7 +36,7 @@
                 class="dropdown-btn" 
                 [class.rotate]="cameraSubMenuOpen"
                 [class.active]="isCameraRouteActive()">
-          <mat-icon>videocam</mat-icon>
+          <img src="assets/icon/id-icon.svg" alt="Camera" class="menu-icon">
           <span>Camera</span>
           <mat-icon>keyboard_arrow_down</mat-icon>
         </button>
@@ -49,12 +45,12 @@
             (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
           <div>
             <li>
-              <a routerLink="/camera/list" routerLinkActive="active" (click)="closeCameraMenu()">
+              <a routerLink="/camera/list" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Danh sách Camera
               </a>
             </li>
             <li>
-              <a routerLink="/camera/setting" routerLinkActive="active" (click)="closeCameraMenu()">
+              <a routerLink="/camera/setting" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Cài đặt Camera
               </a>
             </li>
@@ -69,7 +65,7 @@
                 class="dropdown-btn" 
                 [class.rotate]="eventSubMenuOpen"
                 [class.active]="isEventRouteActive()">
-          <mat-icon>event_note</mat-icon>
+          <img src="assets/icon/Note-icon.svg" alt="Event" class="menu-icon">
           <span>Quản lý sự kiện</span>
           <mat-icon>keyboard_arrow_down</mat-icon>
         </button>
@@ -78,22 +74,22 @@
             (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
           <div>
             <li>
-              <a routerLink="/event/all" routerLinkActive="active" (click)="closeEventMenu()">
+              <a routerLink="/event/all" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Tất cả sự kiện
               </a>
             </li>
             <li>
-              <a routerLink="/event/person" routerLinkActive="active" (click)="closeEventMenu()">
+              <a routerLink="/event/person" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Đối tượng người
               </a>
             </li>
             <li>
-              <a routerLink="/event/traffic" routerLinkActive="active" (click)="closeEventMenu()">
+              <a routerLink="/event/traffic" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Giao thông
               </a>
             </li>
             <li>
-              <a routerLink="/event/photo-gallery" routerLinkActive="active" (click)="closeEventMenu()">
+              <a routerLink="/event/photo-gallery" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Thư viện ảnh
               </a>
             </li>
@@ -108,7 +104,7 @@
                 class="dropdown-btn" 
                 [class.rotate]="statsSubMenuOpen"
                 [class.active]="isStatsRouteActive()">
-          <mat-icon>analytics</mat-icon>
+          <img src="assets/icon/chart-icon.svg" alt="Statistics" class="menu-icon">
           <span>Thống kê sự kiện</span>
           <mat-icon>keyboard_arrow_down</mat-icon>
         </button>
@@ -117,22 +113,22 @@
             (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
           <div>
             <li>
-              <a routerLink="/thong-ke/doi-tuong-nhan-dien" routerLinkActive="active" (click)="closeStatsMenu()">
+              <a routerLink="/thong-ke/doi-tuong-nhan-dien" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Đối tượng nhận diện
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/luu-luong-ra-vao" routerLinkActive="active" (click)="closeStatsMenu()">
+              <a routerLink="/thong-ke/luu-luong-ra-vao" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Lưu lượng ra vào
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/luu-luong-giao-thong" routerLinkActive="active" (click)="closeStatsMenu()">
+              <a routerLink="/thong-ke/luu-luong-giao-thong" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Lưu lượng giao thông
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/vi-pham-giao-thong" routerLinkActive="active" (click)="closeStatsMenu()">
+              <a routerLink="/thong-ke/vi-pham-giao-thong" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Vi phạm giao thông
               </a>
             </li>
@@ -145,8 +141,9 @@
       <app-user *ngIf="isSidebarOpened"></app-user>
       <app-usermini *ngIf="!isSidebarOpened"></app-usermini>
     </div>
-  </mat-sidenav>
+  </nav>
 
-  <mat-sidenav-content class="content">
-  </mat-sidenav-content>
-</mat-sidenav-container>
+  <div class="content">
+    <ng-content></ng-content>
+  </div>
+</div>

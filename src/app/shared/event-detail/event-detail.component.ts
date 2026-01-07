@@ -8,6 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ImageViewerComponent } from '../image-viewer/image-viewer.component';
 import { GoogleMapComponent } from '../components/google-map/google-map.component';
 import { NotificationService } from '../components/notification/notification.service';
+import { EventCategoryPipe } from '../pipes/event-category.pipe';
 
 @Component({
   selector: 'app-event-detail',
@@ -19,7 +20,8 @@ import { NotificationService } from '../components/notification/notification.ser
     MatButtonModule,
     MatProgressSpinnerModule, 
     ImageViewerComponent,
-    GoogleMapComponent
+    GoogleMapComponent,
+    EventCategoryPipe
   ],
   templateUrl: './event-detail.component.html',
   styleUrls: ['./event-detail.component.css']

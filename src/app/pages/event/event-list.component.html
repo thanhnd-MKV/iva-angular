@@ -1,7 +1,7 @@
 <app-event-search-bar 
   [filters]="eventFilters"
+  [searchFieldOptions]="searchFieldOptions"
   [showSearchInput]="true"
-  [searchInputPlaceholder]="'biển số xe'"
   [showAdvancedSearch]="true"
   (searchTriggered)="handleSearch($event)"
   (advancedSearchTriggered)="handleAdvancedSearch()">

@@ -184,9 +184,15 @@ export class EventService {
     });
     
     console.log('📡 Making HTTP POST request to:', this.apiUrl + '/search-by-image');
+    
+    // Don't set Content-Type header manually for FormData - browser will set it with boundary
+    // But ensure credentials are included for CORS
     return this.http.post<any>(
       this.apiUrl + '/search-by-image',
-      formData
+      formData,
+      {
+        withCredentials: false // Try without credentials first for CORS
+      }
     );
   }
 }

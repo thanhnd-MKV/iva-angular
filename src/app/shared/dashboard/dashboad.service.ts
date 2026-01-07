@@ -158,6 +158,16 @@ export class DashboardService {
     }).pipe(delay(300));
   }
 
+  /**
+   * Get homepage statistics including person/traffic detection and camera locations
+   */
+  getHomepageStats(params?: { fromUtc?: string; toUtc?: string }): Observable<any> {
+    console.log('🔥 DashboardService.getHomepageStats() called');
+    console.log('🔥 API URL:', `${this.apiEvents}/stats/homepage`);
+    console.log('🔥 Params:', params);
+    return this.http.get<any>(`${this.apiEvents}/stats/homepage`, { params });
+  }
+
   getCameraViolations(params: {
     year?: number,
     month?: number,

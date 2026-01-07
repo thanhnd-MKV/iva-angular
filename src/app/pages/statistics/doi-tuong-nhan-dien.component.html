@@ -82,12 +82,22 @@
 <div class="left-section">
         <!-- Summary Cards Section -->
   <div class="summary-cards-section">
-    <div class="summary-card" [ngClass]="'summary-card-' + card.color" *ngFor="let card of summaryCards">
+    <div class="summary-card" [ngClass]="'summary-card-' + card.color" *ngFor="let card of summaryCards; let i = index; trackBy: trackByCardIndex">
       <div class="summary-header">
         <span class="summary-title">{{ card.title }}</span>
       </div>
       <div class="summary-body">
-        <span class="summary-value">{{ card.value }}</span>
+        <span class="summary-value" *ngIf="typeof card.value === 'number'">
+          <span 
+            #digitSpan
+            *ngFor="let digitObj of getCardDigits(i); trackBy: trackByDigit; let digitIndex = index"
+            class="digit"
+            [class.digit-animate]="digitObj.animate"
+            [attr.data-trigger]="animationTrigger"
+            [attr.data-animate]="digitObj.animate"
+          >{{ digitObj.digit }}</span>
+        </span>
+        <span class="summary-value" *ngIf="typeof card.value === 'string'">{{ card.value }}</span>
         <span class="summary-change" [class.positive]="card.isPositive" [class.negative]="!card.isPositive">
           <mat-icon class="change-icon">{{ card.isPositive ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
           {{ card.change }}%
@@ -104,7 +114,7 @@
         </div>
         <div class="donut-content">
           <div class="donut-chart">
-            <canvas baseChart 
+            <canvas #donutChart baseChart 
               [data]="donutChartData" 
               [options]="donutChartOptions" 
               type="doughnut">
@@ -147,7 +157,7 @@
         <div *ngIf="isBarChartLoading" class="loading-overlay">
           <mat-spinner diameter="40"></mat-spinner>
         </div>
-        <canvas baseChart 
+        <canvas #barChart baseChart 
           [data]="barChartData" 
           [options]="barChartOptions" 
           type="bar">
@@ -167,7 +177,7 @@
         <div *ngIf="isLineChartLoading" class="loading-overlay">
           <mat-spinner diameter="40"></mat-spinner>
         </div>
-        <canvas baseChart 
+        <canvas #lineChart baseChart 
           [data]="lineChartData" 
           [options]="lineChartOptions" 
           type="line">

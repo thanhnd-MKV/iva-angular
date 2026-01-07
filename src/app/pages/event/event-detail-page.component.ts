@@ -606,8 +606,9 @@ export class EventDetailPageComponent implements OnInit {
   isTrafficEvent(): boolean {
     if (!this.eventDetail?.eventType && !this.eventDetail?.eventCategory) return false;
     
-    // Check eventCategory first
-    if (this.eventDetail.eventCategory?.toUpperCase() === 'VEHICLE') {
+    // Check eventCategory first - support both VEHICLE and TRAFFIC
+    if (this.eventDetail.eventCategory?.toUpperCase() === 'VEHICLE' || 
+        this.eventDetail.eventCategory?.toUpperCase() === 'TRAFFIC') {
       return true;
     }
     

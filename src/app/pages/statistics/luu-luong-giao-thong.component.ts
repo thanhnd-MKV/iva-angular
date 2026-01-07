@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,7 +10,11 @@ import { TrafficFlowMapComponent } from './traffic-flow-map.component';
 import { HttpClient } from '@angular/common/http';
 import { SidebarService } from '../../shared/services/sidebar.service';
 import { CameraService } from '../camera/camera.service';
+import { LocationService } from '../../shared/services/location.service';
+import { SSEService } from '../../core/services/sse.service';
+import { Router, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-luu-luong-giao-thong',
@@ -25,7 +29,8 @@ import { Subscription } from 'rxjs';
     TrafficFlowMapComponent
   ],
   templateUrl: './luu-luong-giao-thong.component.html',
-  styleUrls: ['./luu-luong-giao-thong.component.scss']
+  styleUrls: ['./luu-luong-giao-thong.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
@@ -33,18 +38,24 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   private sidebarSubscription?: Subscription;
   isSidebarOpened = true;
   
+  // SSE for real-time traffic volume updates
+  private sseSubscription?: Subscription;
+  private routerSubscription?: Subscription;
+  private readonly SSE_CHANNEL = 'trafficVolume';
+  private isPageActive = false;
+  
   // Filter state
   searchText = '';
   showTimeDropdown = false;
   showCameraDropdown = false;
-  showAreaDropdown = false;
+  showLocationDropdown = false;
   selectedTimeRange = 'today'; // Default to today
   selectedCamera = '';
-  selectedArea = '';
+  selectedLocation = '';
   
   // Chart filter state
-  lineChartFilter: 'all' | 'car' | 'motorbike' | 'truck' = 'all';
-  barChartFilter: 'all' | 'car' | 'motorbike' | 'truck' | 'bus' = 'all';
+  lineChartFilter: 'all' | 'car' | 'motor' | 'truck' = 'all';
+  barChartFilter: 'all' | 'car' | 'motor' | 'truck' | 'bus' = 'all';
   showChartLegend = false; // Toggle for legend visibility
   
   // Store raw data for filtering
@@ -69,9 +80,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     { label: 'Tất cả Camera', value: '' }
   ];
 
-  areaOptions: { label: string; value: string }[] = [
-    { label: 'Tất cả khu vực', value: '' }
-  ];
+  locationOptions: { label: string; value: string }[] = [];
   
   // Loading states
   isLineChartLoading = false;
@@ -192,13 +201,22 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private sidebarService: SidebarService,
-    private cameraService: CameraService
+    private cameraService: CameraService,
+    private locationService: LocationService,
+    private sseService: SSEService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
+    console.log('🚀 Lưu lượng giao thông initialized');
+    this.isPageActive = true;
+    
     this.loadCameraOptions();
-    this.loadAreaOptions();
+    this.loadLocationOptions();
     this.loadTrafficData();
+    
+    // Connect SSE for real-time updates
+    this.connectSSE();
     
     // Subscribe to sidebar state changes
     this.sidebarSubscription = this.sidebarService.sidebarOpened$.subscribe(
@@ -207,12 +225,39 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }
     );
+    
+    // Listen to route changes to disconnect SSE when leaving
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        const isTrafficVolumePage = event.url.includes('/thong-ke/luu-luong-giao-thong');
+        
+        if (!isTrafficVolumePage && this.isPageActive) {
+          console.log('🚪 Leaving traffic volume page, disconnecting SSE...');
+          this.isPageActive = false;
+          this.disconnectSSE();
+        } else if (isTrafficVolumePage && !this.isPageActive) {
+          console.log('🏠 Returning to traffic volume page, reconnecting SSE...');
+          this.isPageActive = true;
+          this.connectSSE();
+        }
+      });
   }
 
   ngOnDestroy(): void {
+    console.log('🧹 Lưu lượng giao thông destroying - cleaning up...');
+    this.isPageActive = false;
+    
     if (this.sidebarSubscription) {
       this.sidebarSubscription.unsubscribe();
     }
+    
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
+    
+    // Disconnect SSE
+    this.disconnectSSE();
   }
 
   private loadCameraOptions(): void {
@@ -229,32 +274,15 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     });
   }
   
-  private loadAreaOptions(): void {
-    console.log('Loading area options from API...');
-    this.http.get<any>('/api/admin/camera/list').subscribe({
-      next: (response) => {
-        const cameras = response.data || response || [];
-        const locationSet = new Set<string>();
-        cameras.forEach((camera: any) => {
-          if (camera.location && camera.location.trim()) {
-            locationSet.add(camera.location.trim());
-          }
-        });
-        
-        const dynamicAreaOptions = Array.from(locationSet)
-          .sort()
-          .map(location => ({
-            label: location,
-            value: location.toLowerCase().replace(/\\s+/g, '-')
-          }));
-        
-        this.areaOptions = [
-          { label: 'Tất cả khu vực', value: '' },
-          ...dynamicAreaOptions
-        ];
+  private loadLocationOptions(): void {
+    console.log('Loading location options from service...');
+    this.locationService.getLocations().subscribe({
+      next: (locations) => {
+        this.locationOptions = locations;
+        console.log('✅ Location options loaded:', this.locationOptions.length);
       },
       error: (error) => {
-        console.error('Error loading area options:', error);
+        console.error('Error loading location options:', error);
       }
     });
   }
@@ -263,17 +291,17 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   toggleTimeDropdown(): void {
     this.showTimeDropdown = !this.showTimeDropdown;
     this.showCameraDropdown = false;
-    this.showAreaDropdown = false;
+    this.showLocationDropdown = false;
   }
   
   toggleCameraDropdown(): void {
     this.showCameraDropdown = !this.showCameraDropdown;
     this.showTimeDropdown = false;
-    this.showAreaDropdown = false;
+    this.showLocationDropdown = false;
   }
   
-  toggleAreaDropdown(): void {
-    this.showAreaDropdown = !this.showAreaDropdown;
+  toggleLocationDropdown(): void {
+    this.showLocationDropdown = !this.showLocationDropdown;
     this.showTimeDropdown = false;
     this.showCameraDropdown = false;
   }
@@ -294,9 +322,9 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     this.loadTrafficData();
   }
   
-  selectArea(value: string): void {
-    this.selectedArea = value;
-    this.showAreaDropdown = false;
+  selectLocation(value: string): void {
+    this.selectedLocation = value;
+    this.showLocationDropdown = false;
     this.loadTrafficData();
   }
   
@@ -319,13 +347,13 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     this.searchText = '';
     this.selectedTimeRange = 'today';
     this.selectedCamera = '';
-    this.selectedArea = '';
+    this.selectedLocation = '';
     this.customDateRange = { start: null, end: null };
     this.loadTrafficData();
   }
   
   get hasActiveFilters(): boolean {
-    return this.searchText !== '' || this.selectedCamera !== '' || this.selectedArea !== '' || this.selectedTimeRange !== 'today';
+    return this.searchText !== '' || this.selectedCamera !== '' || this.selectedLocation !== '' || this.selectedTimeRange !== 'today';
   }
   
   getTimeRangeLabel(): string {
@@ -341,8 +369,8 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     return option ? option.label : 'Tất cả Camera';
   }
   
-  getAreaLabel(): string {
-    const option = this.areaOptions.find(opt => opt.value === this.selectedArea);
+  getLocationLabel(): string {
+    const option = this.locationOptions.find(opt => opt.value === this.selectedLocation);
     return option ? option.label : 'Tất cả khu vực';
   }
   
@@ -414,9 +442,9 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       console.log('Adding camera filter:', this.selectedCamera);
     }
     
-    if (this.selectedArea) {
-      params.location = this.selectedArea;
-      console.log('Adding location filter:', this.selectedArea);
+    if (this.selectedLocation) {
+      params.location = this.selectedLocation;
+      console.log('Adding location filter:', this.selectedLocation);
     }
     
     // Determine which API to use based on date range
@@ -866,11 +894,11 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     }
 
     // Prepare datasets for chart
-    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus'];
-    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA'];
+    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus', 'Unknown'];
+    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#9CA3AF'];
 
     // Get all hours for labels (0-23)
-    const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
+    const hours = Array.from({length: 24}, (_, i) => `${i}`);
 
     const datasets = vehicleTypes.map((type, index) => ({
       label: this.getVehicleTypeLabel(type.toLowerCase()),
@@ -934,8 +962,8 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     console.log('📅 Generated labels:', labels);
 
     // Prepare datasets for chart
-    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus'];
-    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA'];
+    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus', 'Unknown'];
+    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#9CA3AF'];
 
     // IMPORTANT: API returns day as 1-based sequential index (day 1 = first day in range, NOT calendar day)
     // Example: If searching 18/12 to 24/12, day:1 means 18/12, day:7 means 24/12
@@ -1277,12 +1305,12 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   }
 
   // Chart filter methods
-  setLineChartFilter(filter: 'all' | 'car' | 'motorbike' | 'truck'): void {
+  setLineChartFilter(filter: 'all' | 'car' | 'motor' | 'truck'): void {
     this.lineChartFilter = filter;
     this.updateLineChartData();
   }
 
-  setBarChartFilter(filter: 'all' | 'car' | 'motorbike' | 'truck' | 'bus'): void {
+  setBarChartFilter(filter: 'all' | 'car' | 'motor' | 'truck' | 'bus'): void {
     this.barChartFilter = filter;
     this.applyBarChartFilter();
   }
@@ -1347,10 +1375,10 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   private getVehicleTypeLabel(type: string): string {
     const labels: { [key: string]: string } = {
       'car': 'Ô tô',
-      'motorbike': 'Xe máy',
+      'motor': 'Xe máy',
       'truck': 'Xe tải',
       'bus': 'Xe buýt',
-      'other': 'Khác'
+      'unknown': 'Khác'
     };
     return labels[type] || type;
   }
@@ -1520,5 +1548,115 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
 
     console.log('🚗 Fallback camera locations:', this.cameraLocations);
     console.log('📊 Fallback summary cards:', this.summaryCards);
+  }
+  
+  // SSE Methods
+  private connectSSE(): void {
+    if (!this.isPageActive) {
+      console.log('⏸️ Page not active, skipping SSE connection');
+      return;
+    }
+    
+    console.log(`🔌 Connecting to SSE: ${this.SSE_CHANNEL}`);
+    
+    // Disconnect any existing connection first
+    this.disconnectSSE();
+    
+    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+      next: (message) => {
+        console.log(`📨 SSE Data [${this.SSE_CHANNEL}]:`, message);
+        this.handleSSEUpdate(message.data || message);
+      },
+      error: (error) => {
+        console.error(`❌ SSE Error [${this.SSE_CHANNEL}]:`, error);
+        // Auto reconnect after 5 seconds if page is still active
+        if (this.isPageActive) {
+          setTimeout(() => {
+            console.log(`🔄 Reconnecting to ${this.SSE_CHANNEL}...`);
+            this.connectSSE();
+          }, 5000);
+        }
+      },
+      complete: () => {
+        console.log(`🔌 SSE Connection completed [${this.SSE_CHANNEL}]`);
+      }
+    });
+  }
+  
+  private disconnectSSE(): void {
+    if (this.sseSubscription) {
+      console.log(`🔌 Disconnecting SSE: ${this.SSE_CHANNEL}`);
+      this.sseSubscription.unsubscribe();
+      this.sseSubscription = undefined;
+    }
+    this.sseService.disconnect(this.SSE_CHANNEL);
+  }
+  
+  private handleSSEUpdate(data: any): void {
+    console.log('🔄 Processing SSE update for traffic volume:', data);
+    
+    // Handle dataChanges format: {"dataChanges":{"cameraSn":{"vehicleType":count}}}
+    if (data.dataChanges) {
+      console.log('📊 DataChanges detected:', data.dataChanges);
+      
+      // Iterate through each camera
+      Object.keys(data.dataChanges).forEach(cameraSn => {
+        const trafficData = data.dataChanges[cameraSn];
+        console.log(`📷 Camera ${cameraSn} traffic:`, trafficData);
+        
+        // Calculate total vehicles for this camera
+        let cameraTrafficCount = 0;
+        Object.keys(trafficData).forEach(vehicleType => {
+          const count = trafficData[vehicleType];
+          cameraTrafficCount += count;
+          console.log(`  🚗 ${vehicleType}: +${count}`);
+        });
+        
+        // Update camera location on map
+        const location = this.cameraLocations.find(loc => 
+          loc.cameraCode === cameraSn || loc.cameraSn === cameraSn
+        );
+        if (location) {
+          location.count = (location.count || 0) + cameraTrafficCount;
+          console.log(`📍 Updated camera ${cameraSn} count to ${location.count}`);
+        }
+      });
+      
+      // Update total vehicles in summary card
+      const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
+      if (totalCard) {
+        // Calculate total from all cameras
+        const totalVehicles = Object.values(data.dataChanges).reduce((sum: number, vehicles: any) => {
+          return sum + Object.values(vehicles).reduce((s: number, count: any) => s + count, 0);
+        }, 0);
+        totalCard.value = (totalCard.value || 0) + totalVehicles;
+        console.log(`📊 Updated total vehicles to ${totalCard.value}`);
+      }
+      
+      this.cdr.markForCheck();
+    }
+    
+    // Handle direct format (legacy)
+    if (data.totalVehicles !== undefined) {
+      const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
+      if (totalCard) {
+        totalCard.value = data.totalVehicles;
+        this.cdr.markForCheck();
+      }
+    }
+    
+    if (data.cameraSn && data.totalTrafficDetected !== undefined) {
+      const location = this.cameraLocations.find(loc => loc.cameraCode === data.cameraSn);
+      if (location) {
+        location.count = data.totalTrafficDetected;
+        this.cdr.markForCheck();
+      }
+    }
+    
+    // Reload chart data if significant changes
+    if (data.shouldReloadCharts) {
+      console.log('🔄 Reloading charts due to SSE update');
+      this.loadTrafficData();
+    }
   }
 }

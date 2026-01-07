@@ -42,16 +42,16 @@
     </div>
 
     <div class="filter-btn-wrapper">
-      <button class="filter-btn area-btn" [class.active]="showAreaDropdown || selectedArea !== ''"
-        (click)="toggleAreaDropdown()">
+      <button class="filter-btn area-btn" [class.active]="showLocationDropdown || selectedLocation !== ''"
+        (click)="toggleLocationDropdown()">
         <mat-icon class="btn-icon">location_on</mat-icon>
-        <span>{{ getAreaLabel() }}</span>
+        <span>{{ getLocationLabel() }}</span>
         <mat-icon class="dropdown-icon">expand_more</mat-icon>
       </button>
 
-      <div class="dropdown-menu area-dropdown" *ngIf="showAreaDropdown">
-        <div class="dropdown-item" *ngFor="let option of areaOptions"
-          [class.selected]="selectedArea === option.value" (click)="selectArea(option.value)">
+      <div class="dropdown-menu area-dropdown" *ngIf="showLocationDropdown">
+        <div class="dropdown-item" *ngFor="let option of locationOptions"
+          [class.selected]="selectedLocation === option.value" (click)="selectLocation(option.value)">
           {{ option.label }}
         </div>
       </div>
@@ -118,8 +118,8 @@
                 <span class="legend-text">Ô tô</span>
               </div>
               <div class="legend-item"
-                   [class.inactive]="barChartFilter !== 'motorbike' && barChartFilter !== 'all'"
-                   (click)="setBarChartFilter(barChartFilter === 'motorbike' ? 'all' : 'motorbike')">
+                   [class.inactive]="barChartFilter !== 'motor' && barChartFilter !== 'all'"
+                   (click)="setBarChartFilter(barChartFilter === 'motor' ? 'all' : 'motor')">
                 <span class="legend-dot" style="background-color: #10b981;"></span>
                 <span class="legend-text">Xe máy</span>
               </div>

@@ -155,7 +155,7 @@
 
             <!-- ID with Category Layout (2 lines) -->
             <ng-container *ngSwitchCase="$any(columnDefs[column]?.type) === 'id-category'">
-              <div class="id-category-cell clickable" (click)="onColumnClick(column, row)">
+              <div class="id-category-cell clickable" (click)="onColumnClick(column, row); $event.stopPropagation()">
                 <div class="id-number">{{ row.id || 'N/A' }}</div>
                 <div class="category-label" [ngClass]="getCategoryClass(row.eventCategory)">
                   {{ getCategoryLabel(row.eventCategory) }}
@@ -232,7 +232,7 @@
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
-          (click)="onRowClick(row)" 
+          (click)="onRowClick(row, $event)" 
           class="clickable-row"
           [class.highlighted-row]="isHighlighted(row)"></tr>
     </table>

@@ -1,4 +1,4 @@
-import { Component, Input, ViewChild, OnInit, OnChanges, Inject, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { Component, Input, ViewChild, OnInit, OnChanges, Inject, SimpleChanges, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatSort, MatSortModule } from '@angular/material/sort';
@@ -85,7 +85,8 @@ export class BaseTableComponent implements OnInit, OnChanges {
 
   constructor(
     private datePipe: DatePipe,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) { }
 
   copySuccess: { [key: string]: boolean } = {};
@@ -179,6 +180,16 @@ export class BaseTableComponent implements OnInit, OnChanges {
       setTimeout(() => {
         this.isTableLoading = false;
       }, 500);
+    }
+
+    // Debug selectedEventId changes
+    if (changes['selectedEventId']) {
+      console.log('🔄 BaseTable: selectedEventId changed:', {
+        previous: changes['selectedEventId'].previousValue,
+        current: changes['selectedEventId'].currentValue
+      });
+      // Force change detection for class binding
+      this.cdr.markForCheck();
     }
 
     // Thêm đoạn này để cập nhật displayedColumns khi actions thay đổi
@@ -326,7 +337,9 @@ export class BaseTableComponent implements OnInit, OnChanges {
     }
   }
 
-  onRowClick(row: any) {
+  onRowClick(row: any, event?: MouseEvent) {
+    // Don't stop propagation - let document handler detect row clicks
+    // The document handler will check if click is inside table
     this.rowClick.emit(row);
   }
 
@@ -344,7 +357,17 @@ export class BaseTableComponent implements OnInit, OnChanges {
   // Check if row is highlighted by selectedEventId
   isHighlighted(row: any): boolean {
     if (!this.selectedEventId) return false;
-    return row.eventId === this.selectedEventId || row.id === this.selectedEventId;
+    // Convert both to strings for comparison to handle type mismatch
+    const selectedId = String(this.selectedEventId);
+    const rowEventId = String(row.eventId || row.id);
+    const isHighlighted = rowEventId === selectedId;
+    
+    // Debug logging (only log when highlighted)
+    if (isHighlighted) {
+      console.log('✅ BaseTable: Row is highlighted', { rowEventId, selectedId });
+    }
+    
+    return isHighlighted;
   }
 
   toggleSelection(row: any, event: any): void {
@@ -380,7 +403,8 @@ export class BaseTableComponent implements OnInit, OnChanges {
   getCategoryLabel(category: string): string {
     const labels: { [key: string]: string } = {
       'PERSON': 'Đối tượng người',
-      'VEHICLE': 'Giao thông'
+      'VEHICLE': 'Giao thông',
+      'TRAFFIC': 'Giao thông'
     };
     return labels[category] || category || 'N/A';
   }
@@ -388,7 +412,8 @@ export class BaseTableComponent implements OnInit, OnChanges {
   getCategoryClass(category: string): string {
     const classes: { [key: string]: string } = {
       'PERSON': 'category-person',
-      'VEHICLE': 'category-vehicle'
+      'VEHICLE': 'category-vehicle',
+      'TRAFFIC': 'category-vehicle'
     };
     return classes[category] || 'category-default';
   }
@@ -467,8 +492,8 @@ export class BaseTableComponent implements OnInit, OnChanges {
         };
         parts.push(colorMap[attrs.bottomColor] || attrs.bottomColor);
       }
-    } else if (row.eventCategory === 'VEHICLE') {
-      // Vehicle event: show plateNumber
+    } else if (row.eventCategory === 'VEHICLE' || row.eventCategory === 'TRAFFIC') {
+      // Vehicle/Traffic event: show plateNumber
       if (attrs.plateNumber) {
         parts.push(`Biển số: ${attrs.plateNumber}`);
       }

@@ -3,7 +3,7 @@
 // ==========================================
 // export const environment = {
 //     production: false,
-//     apiUrl: 'https://192.168.6.1:3290',
+//     apiUrl: 'http://localhost:4200',
 //     SSO_SERVER: 'https://sso-demo.mkvision.com',
 //     SSO_SERVER_URL_PREFIX: '/ssoServer',
 //     APP_SERVER: 'http://localhost:4200',

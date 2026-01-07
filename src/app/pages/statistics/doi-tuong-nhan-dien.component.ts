@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, ViewChildren, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef, QueryList } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartConfiguration } from 'chart.js';
@@ -8,6 +8,8 @@ import { FormsModule } from '@angular/forms';
 import { DateRangePickerComponent } from '../../shared/date-picker-ranger/date-range-picker.component';
 import { CameraService } from '../camera/camera.service';
 import { HttpClient } from '@angular/common/http';
+import { SSEService } from '../../core/services/sse.service';
+import { Subscription } from 'rxjs';
 
 // Interface for new BE data structure
 interface BeDataResponse {
@@ -26,9 +28,10 @@ interface BeDataResponse {
   standalone: true,
   imports: [CommonModule, BaseChartDirective, MatProgressSpinnerModule, MatIconModule, FormsModule, DateRangePickerComponent],
   templateUrl: './doi-tuong-nhan-dien.component.html',
-  styleUrls: ['./doi-tuong-nhan-dien.component.scss']
+  styleUrls: ['./doi-tuong-nhan-dien.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DoiTuongNhanDienComponent implements OnInit {
+export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
   // Filter properties
   searchText = '';
   selectedTimeRange = 'custom';
@@ -41,15 +44,34 @@ export class DoiTuongNhanDienComponent implements OnInit {
   customStartDate: Date | null = null;
   customEndDate: Date | null = null;
 
+  // ViewChild references to chart instances
+  @ViewChild('lineChart') lineChart?: BaseChartDirective;
+  @ViewChild('barChart') barChart?: BaseChartDirective;
+  @ViewChild('donutChart') donutChart?: BaseChartDirective;
+  @ViewChildren('summaryValue') summaryValueElements?: any;
+  @ViewChildren('digitSpan', { read: ElementRef }) digitSpans?: QueryList<ElementRef>;
+
   constructor(
     private cameraService: CameraService,
-    private http: HttpClient
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef,
+    private sseService: SSEService
   ) {}
   
   // Responsive dimensions
   barChartHeight = '180px';
   lineChartHeight = '100%'; // Line chart luôn chiếm 100%
   private resizeTimeout: any;
+
+  // SSE for real-time updates
+  private sseSubscription: Subscription | null = null;
+  private readonly SSE_CHANNEL = 'objectRecognition';
+  private baseData: BeDataResponse['data'] | null = null;
+  
+  // Data storage for incremental SSE updates
+  private genderData: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } } = {};
+  private complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } } = {};
+  private ageRangeData: { [key: string]: number } = {};
 
   // Helper function để format số lớn
   private formatLargeNumber(num: number): string {
@@ -102,6 +124,15 @@ export class DoiTuongNhanDienComponent implements OnInit {
     { title: 'Nhóm độ tuổi chiếm ưu thế', value: '20t-29t', change: 0, isPositive: true, color: 'purple' }
   ];
   
+  // Display values for animation (only for numeric cards)
+  summaryDisplayValues: number[] = [0, 0, 0];
+  
+  // Store digit arrays for each card
+  cardDigits: { digit: string; animate: boolean; key: number }[][] = [[], [], []];
+  
+  // Trigger key to force re-render
+  animationTrigger = 0;
+  
   get hasActiveFilters(): boolean {
     return this.searchText !== '' || this.selectedCamera !== '' || this.selectedArea !== '';
   }
@@ -127,6 +158,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
   public barChartOptions: ChartConfiguration['options'] = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // Disable animation for smooth real-time updates
     scales: {
       x: { 
         stacked: true,
@@ -165,6 +197,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
   public donutChartOptions: ChartConfiguration['options'] = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // Disable all animations for smooth real-time updates
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -246,33 +279,6 @@ export class DoiTuongNhanDienComponent implements OnInit {
           this.toggleAgeGroup(label);
         }
       }
-    },
-    animation: {
-      onComplete: function(animation) {
-        const chart = animation.chart;
-        const ctx = chart.ctx;
-        
-        chart.data.datasets.forEach((dataset: any, i: number) => {
-          const meta = chart.getDatasetMeta(i);
-          const total = dataset.data.reduce((sum: number, val: number) => sum + val, 0);
-          
-          meta.data.forEach((element: any, index: number) => {
-            const value = dataset.data[index];
-            const percentage = (value / total) * 100;
-            
-            // Only show number if value > 0 and percentage >= 3%
-            if (value > 0 && percentage >= 3) {
-              const centerPoint = element.getCenterPoint();
-              
-              ctx.fillStyle = '#fff';
-              ctx.font = 'bold 12x Arial'; // Giảm từ 12px xuống 8px
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(value, centerPoint.x, centerPoint.y);
-            }
-          });
-        });
-      }
     }
   };
 
@@ -316,6 +322,7 @@ export class DoiTuongNhanDienComponent implements OnInit {
   public lineChartOptions: ChartConfiguration['options'] = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // Disable animation for smooth real-time updates
     scales: {
       x: { 
         grid: { display: false },
@@ -374,6 +381,9 @@ export class DoiTuongNhanDienComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    // Initialize digit arrays for each card
+    this.initializeCardDigits();
+    
     // Load initial data
     this.loadCameraOptions();
     this.loadCameraLocations();
@@ -382,6 +392,133 @@ export class DoiTuongNhanDienComponent implements OnInit {
     // Set default time range to today and load data
     this.selectedTimeRange = 'today';
     this.loadHumanStatistics();
+
+    // Start SSE connection for real-time updates (non-blocking)
+    // SSE runs independently and doesn't block initial data rendering
+    setTimeout(() => this.connectSSE(), 100);
+  }
+  
+  // Initialize digit arrays from initial card values
+  private initializeCardDigits(): void {
+    for (let i = 0; i < this.summaryCards.length; i++) {
+      const value = this.summaryCards[i].value;
+      if (typeof value === 'number') {
+        const digits = value.toString().split('');
+        this.cardDigits[i] = digits.map((d, idx) => ({ digit: d, animate: false, key: idx }));
+        this.summaryDisplayValues[i] = value;
+      }
+    }
+  }
+
+  // Helper method to update individual summary card values with animation
+  private updateSummaryCardValue(index: number, newValue: string | number): void {
+    console.log(`📊 Updating summary card ${index}:`, { 
+      oldValue: this.summaryCards[index]?.value, 
+      newValue,
+      changed: this.summaryCards[index]?.value !== newValue 
+    });
+    
+    if (this.summaryCards[index] && this.summaryCards[index].value !== newValue) {
+      const oldValue = this.summaryCards[index].value;
+      
+      // Update value
+      this.summaryCards[index].value = newValue;
+      this.cdr.markForCheck();
+      
+      // Animate if it's a number
+      if (typeof newValue === 'number' && typeof oldValue === 'number') {
+        this.animateNumberDigits(index, oldValue, newValue);
+      }
+      
+      console.log('✅ Card updated');
+    }
+  }
+
+  // Animate number change by individual digits
+  private animateNumberDigits(cardIndex: number, oldValue: number, newValue: number): void {
+    console.log('🎯 animateNumberDigits:', { cardIndex, oldValue, newValue });
+    
+    const oldDigits = oldValue.toString().split('');
+    const newDigits = newValue.toString().split('');
+    
+    console.log('📊 Original digits:', { oldDigits, newDigits });
+    
+    // Build digit array with animation flags (no padding with zeros)
+    const digitArray: { digit: string; animate: boolean }[] = [];
+    let hasChanges = false;
+    
+    // Compare from right to left (most significant digits)
+    const maxLength = Math.max(oldDigits.length, newDigits.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const oldDigit = oldDigits[i] || '';
+      const newDigit = newDigits[i] || '';
+      const shouldAnimate = oldDigit !== newDigit;
+      
+      if (shouldAnimate) {
+        hasChanges = true;
+        console.log(`🔄 Digit ${i} changed: "${oldDigit}" → "${newDigit}"`);
+      }
+      
+      digitArray.push({
+        digit: newDigit,
+        animate: shouldAnimate
+      });
+    }
+    
+    console.log('📊 Final digit array:', JSON.stringify(digitArray));
+    console.log('🎬 Has changes?', hasChanges);
+    
+    // Update display with unique keys to force element recreation
+    this.summaryDisplayValues[cardIndex] = newValue;
+    this.animationTrigger++;
+    
+    const digitArrayWithKeys = digitArray.map((d, idx) => ({
+      ...d,
+      key: d.animate ? this.animationTrigger * 1000 + idx : idx
+    }));
+    
+    this.cardDigits[cardIndex] = digitArrayWithKeys;
+    this.cdr.detectChanges();
+    
+    console.log('✅ Animation started with keys:', JSON.stringify(digitArrayWithKeys));
+    
+    // Check actual DOM elements after change detection
+    setTimeout(() => {
+      const spans = this.digitSpans?.toArray() || [];
+      console.log('🔍 Total digit spans in DOM:', spans.length);
+      spans.forEach((span, idx) => {
+        const el = span.nativeElement;
+        console.log(`  Digit ${idx}: "${el.textContent}" | Classes: "${el.className}" | data-animate: "${el.getAttribute('data-animate')}"`);
+      });
+    }, 20);
+    
+    // Remove animation flags after animation completes
+    if (hasChanges) {
+      setTimeout(() => {
+        this.cardDigits[cardIndex] = digitArrayWithKeys.map(d => ({ 
+          ...d, 
+          animate: false,
+          key: d.key
+        }));
+        this.cdr.detectChanges();
+      }, 550);
+    }
+  }
+
+  // TrackBy function for summary cards to prevent unnecessary re-renders
+  trackByCardIndex(index: number, card: any): number {
+    return index;
+  }
+  
+  // Get digits array for rendering individual digits
+  getCardDigits(cardIndex: number): { digit: string; animate: boolean }[] {
+    return this.cardDigits[cardIndex] || [];
+  }
+  
+  // Track by for digit rendering - use key to force recreation when animating
+  trackByDigit(index: number, item: any): any {
+    return item.key || index;
   }
 
   private loadCameraOptions(): void {
@@ -537,24 +674,47 @@ export class DoiTuongNhanDienComponent implements OnInit {
   }
 
   private updateChartsWithApiData(apiResponse: any, isDayView: boolean = false): void {
+    console.log('📊 updateChartsWithApiData called with:', { apiResponse, isDayView });
+    
     if (apiResponse && apiResponse.success && apiResponse.data) {
       const data = apiResponse.data;
+      console.log('📊 API data structure:', { 
+        hasAgeRange: !!data.age_range, 
+        hasGender: !!data.gender, 
+        hasComplexion: !!data.complexion,
+        ageRangeKeys: data.age_range ? Object.keys(data.age_range) : [],
+        genderKeys: data.gender ? Object.keys(data.gender) : [],
+        complexionKeys: data.complexion ? Object.keys(data.complexion) : []
+      });
       
       // Check if data has new structure (age_range, gender, complexion)
       if (data.age_range && data.gender && data.complexion) {
+        console.log('✅ Using new BE data structure');
         this.processNewBeData(data, isDayView);
       } else {
+        console.log('⚠️ Using old data structure fallback');
         // Fallback to old structure
         this.updateLineChartFromApi(data);
         this.updateOtherChartsFromApi(data);
       }
     } else {
       // No data available - keep charts empty
-      console.log('No API data available, keeping charts empty');
+      console.log('❌ No API data available, keeping charts empty');
     }
   }
 
   private processNewBeData(data: BeDataResponse['data'], isDayView: boolean = false): void {
+    // Store base data from API (deep copy to avoid reference issues)
+    this.genderData = JSON.parse(JSON.stringify(data.gender));
+    this.complexionData = JSON.parse(JSON.stringify(data.complexion));
+    this.ageRangeData = { ...data.age_range };
+    
+    console.log('📦 Stored base data from API:', {
+      genderHours: Object.keys(this.genderData).length,
+      complexionHours: Object.keys(this.complexionData).length,
+      ageRanges: Object.keys(this.ageRangeData).length
+    });
+    
     // Process age range data for donut chart
     this.updateDonutChartFromAgeRange(data.age_range);
     
@@ -571,6 +731,9 @@ export class DoiTuongNhanDienComponent implements OnInit {
     
     // Update summary cards
     this.updateSummaryCardsFromNewData(data, isDayView);
+    
+    // Trigger change detection to ensure charts render
+    this.cdr.detectChanges();
   }
 
   private updateDonutChartFromAgeRange(ageRange: { [key: string]: number }): void {
@@ -611,15 +774,28 @@ export class DoiTuongNhanDienComponent implements OnInit {
     
     this.totalPeopleCount = totalCount;
     
-    this.donutChartData = {
-      labels: sortedLabels,
-      datasets: [{
-        data: sortedValues,
-        backgroundColor: sortedColors,
-        hoverBackgroundColor: sortedHoverColors,
-        borderWidth: 0
-      }]
-    };
+    // Update directly via chart instance for smooth updates
+    if (this.donutChart?.chart) {
+      console.log('✅ Donut chart instance found, updating...');
+      this.donutChart.chart.data.labels = sortedLabels;
+      this.donutChart.chart.data.datasets[0].data = sortedValues;
+      this.donutChart.chart.data.datasets[0].backgroundColor = sortedColors;
+      this.donutChart.chart.data.datasets[0].hoverBackgroundColor = sortedHoverColors;
+      this.donutChart.chart.update('none'); // 'none' = no animation
+      this.cdr.markForCheck(); // Trigger change detection for totalPeopleCount
+    } else {
+      console.log('⚠️ Donut chart instance not found, using fallback');
+      // Fallback: initial data setup
+      this.donutChartData = {
+        labels: sortedLabels,
+        datasets: [{
+          data: sortedValues,
+          backgroundColor: sortedColors,
+          hoverBackgroundColor: sortedHoverColors,
+          borderWidth: 0
+        }]
+      };
+    }
   }
 
   private updateLineChartFromGenderData(genderData: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
@@ -634,50 +810,61 @@ export class DoiTuongNhanDienComponent implements OnInit {
     console.log('🔍 unknownData array:', unknownData);
     console.log('🔍 Total unknown:', unknownData.reduce((a, b) => a + b, 0));
     
-    this.lineChartData = {
-      labels: hours,
-      datasets: [
-        { 
-          data: maleData,
-          label: 'Nam', 
-          borderColor: '#10b981', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          pointBackgroundColor: '#10b981',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        },
-        { 
-          data: femaleData,
-          label: 'Nữ', 
-          borderColor: '#8b5cf6', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          pointBackgroundColor: '#8b5cf6',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        },
-        { 
-          data: unknownData,
-          label: 'Khác', 
-          borderColor: '#f59e0b', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          pointBackgroundColor: '#f59e0b',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }
-      ]
-    };
+    // Update directly via chart instance for smooth updates
+    if (this.lineChart?.chart) {
+      console.log('✅ Line chart instance found, updating...');
+      this.lineChart.chart.data.datasets[0].data = maleData;
+      this.lineChart.chart.data.datasets[1].data = femaleData;
+      this.lineChart.chart.data.datasets[2].data = unknownData;
+      this.lineChart.chart.update('none'); // 'none' = no animation
+    } else {
+      console.log('⚠️ Line chart instance not found, using fallback');
+      // Fallback: initial data setup
+      this.lineChartData = {
+        labels: hours,
+        datasets: [
+          { 
+            data: maleData,
+            label: 'Nam', 
+            borderColor: '#10b981', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          },
+          { 
+            data: femaleData,
+            label: 'Nữ', 
+            borderColor: '#8b5cf6', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#8b5cf6',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          },
+          { 
+            data: unknownData,
+            label: 'Khác', 
+            borderColor: '#f59e0b', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#f59e0b',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          }
+        ]
+      };
+    }
   }
 
   private updateBarChartFromComplexionData(complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
@@ -697,18 +884,31 @@ export class DoiTuongNhanDienComponent implements OnInit {
     console.log('🔍 unknownData for complexion:', unknownData);
     console.log('🔍 Total unknown complexion:', unknownData.reduce((a, b) => a + b, 0));
     
-    this.barChartData = {
-      labels: hours,
-      datasets: [
-        { data: asianData, label: 'Châu Á', backgroundColor: '#ec4899', hoverBackgroundColor: '#db2777', borderRadius: 4, barThickness: 8 },
-        { data: whiteData, label: 'Da Trắng', backgroundColor: '#3b82f6', hoverBackgroundColor: '#2563eb', borderRadius: 4, barThickness: 8 },
-        { data: indianData, label: 'Ấn Độ', backgroundColor: '#8b5cf6', hoverBackgroundColor: '#7c3aed', borderRadius: 4, barThickness: 8 },
-        { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 8 },
-        { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 8 },
-        { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 8 },
-        { data: unknownData, label: 'Khác', backgroundColor: '#9ca3af', hoverBackgroundColor: '#6b7280', borderRadius: 4, barThickness: 8 },
-      ]
-    };
+    // Update directly via chart instance for smooth updates
+    if (this.barChart?.chart) {
+      console.log('✅ Bar chart instance found, updating...');
+      this.barChart.chart.data.datasets[0].data = asianData;
+      this.barChart.chart.data.datasets[1].data = whiteData;
+      this.barChart.chart.data.datasets[2].data = indianData;
+      this.barChart.chart.data.datasets[3].data = middleEasternData;
+      this.barChart.chart.data.datasets[4].data = blackData;
+      this.barChart.chart.data.datasets[5].data = latinoData;
+      this.barChart.chart.update('none'); // 'none' = no animation
+    } else {
+      console.log('⚠️ Bar chart instance not found, using fallback');
+      // Fallback: initial data setup
+      this.barChartData = {
+        labels: hours,
+        datasets: [
+          { data: asianData, label: 'Châu Á', backgroundColor: '#ec4899', hoverBackgroundColor: '#db2777', borderRadius: 4, barThickness: 8 },
+          { data: whiteData, label: 'Da Trắng', backgroundColor: '#3b82f6', hoverBackgroundColor: '#2563eb', borderRadius: 4, barThickness: 8 },
+          { data: indianData, label: 'Ấn Độ', backgroundColor: '#8b5cf6', hoverBackgroundColor: '#7c3aed', borderRadius: 4, barThickness: 8 },
+          { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 8 },
+          { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 8 },
+          { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 8 },
+        ]
+      };
+    }
   }
 
   private updateLineChartFromGenderDataByDay(genderData: { [day: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
@@ -731,50 +931,60 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const femaleData = days.map(day => genderData[day]?.Female || 0);
     const unknownData = days.map(day => genderData[day]?.Unknown || 0);
     
-    this.lineChartData = {
-      labels: dayLabels,
-      datasets: [
-        { 
-          data: maleData,
-          label: 'Nam', 
-          borderColor: '#10b981', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#10b981',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        },
-        { 
-          data: femaleData,
-          label: 'Nữ', 
-          borderColor: '#8b5cf6', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#8b5cf6',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        },
-        { 
-          data: unknownData,
-          label: 'Khác', 
-          borderColor: '#f59e0b', 
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#f59e0b',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }
-      ]
-    };
+    // Update directly via chart instance for smooth updates
+    if (this.lineChart?.chart) {
+      this.lineChart.chart.data.labels = dayLabels;
+      this.lineChart.chart.data.datasets[0].data = maleData;
+      this.lineChart.chart.data.datasets[1].data = femaleData;
+      this.lineChart.chart.data.datasets[2].data = unknownData;
+      this.lineChart.chart.update('none'); // 'none' = no animation
+    } else {
+      // Fallback: initial data setup
+      this.lineChartData = {
+        labels: dayLabels,
+        datasets: [
+          { 
+            data: maleData,
+            label: 'Nam', 
+            borderColor: '#10b981', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          },
+          { 
+            data: femaleData,
+            label: 'Nữ', 
+            borderColor: '#8b5cf6', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#8b5cf6',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          },
+          { 
+            data: unknownData,
+            label: 'Khác', 
+            borderColor: '#f59e0b', 
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#f59e0b',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          }
+        ]
+      };
+    }
   }
 
   private updateBarChartFromComplexionDataByDay(complexionData: { [day: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
@@ -801,18 +1011,30 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const latinoData = days.map(day => complexionData[day]?.Latino || 0);
     const unknownData = days.map(day => complexionData[day]?.Unknown || 0);
     
-    this.barChartData = {
-      labels: dayLabels,
-      datasets: [
-        { data: asianData, label: 'Châu Á', backgroundColor: '#ec4899', hoverBackgroundColor: '#db2777', borderRadius: 4, barThickness: 12 },
-        { data: whiteData, label: 'Da Trắng', backgroundColor: '#3b82f6', hoverBackgroundColor: '#2563eb', borderRadius: 4, barThickness: 12 },
-        { data: indianData, label: 'Ấn Độ', backgroundColor: '#8b5cf6', hoverBackgroundColor: '#7c3aed', borderRadius: 4, barThickness: 12 },
-        { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 12 },
-        { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 12 },
-        { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 12 },
-        { data: unknownData, label: 'Khác', backgroundColor: '#9ca3af', hoverBackgroundColor: '#6b7280', borderRadius: 4, barThickness: 12 },
-      ]
-    };
+    // Update directly via chart instance for smooth updates
+    if (this.barChart?.chart) {
+      this.barChart.chart.data.labels = dayLabels;
+      this.barChart.chart.data.datasets[0].data = asianData;
+      this.barChart.chart.data.datasets[1].data = whiteData;
+      this.barChart.chart.data.datasets[2].data = indianData;
+      this.barChart.chart.data.datasets[3].data = middleEasternData;
+      this.barChart.chart.data.datasets[4].data = blackData;
+      this.barChart.chart.data.datasets[5].data = latinoData;
+      this.barChart.chart.update('none'); // 'none' = no animation
+    } else {
+      // Fallback: initial data setup
+      this.barChartData = {
+        labels: dayLabels,
+        datasets: [
+          { data: asianData, label: 'Châu Á', backgroundColor: '#ec4899', hoverBackgroundColor: '#db2777', borderRadius: 4, barThickness: 12 },
+          { data: whiteData, label: 'Da Trắng', backgroundColor: '#3b82f6', hoverBackgroundColor: '#2563eb', borderRadius: 4, barThickness: 12 },
+          { data: indianData, label: 'Ấn Độ', backgroundColor: '#8b5cf6', hoverBackgroundColor: '#7c3aed', borderRadius: 4, barThickness: 12 },
+          { data: middleEasternData, label: 'Trung Đông', backgroundColor: '#f59e0b', hoverBackgroundColor: '#d97706', borderRadius: 4, barThickness: 12 },
+          { data: blackData, label: 'Da đen', backgroundColor: '#10b981', hoverBackgroundColor: '#059669', borderRadius: 4, barThickness: 12 },
+          { data: latinoData, label: 'Mỹ - Latin', backgroundColor: '#06b6d4', hoverBackgroundColor: '#0891b2', borderRadius: 4, barThickness: 12 },
+        ]
+      };
+    }
   }
 
   private updateSummaryCardsFromNewData(data: BeDataResponse['data'], isDayView: boolean = false): void {
@@ -872,11 +1094,10 @@ export class DoiTuongNhanDienComponent implements OnInit {
       }
     });
     
-    this.summaryCards = [
-      { title: 'Tổng số lượt xuất hiện', value: totalCount, change: 0, isPositive: true, color: 'blue' },
-      { title: 'Lượt xuất hiện cao nhất trong ngày', value: maxCount, change: 0, isPositive: true, color: 'green' },
-      { title: 'Nhóm độ tuổi chiếm ưu thế', value: dominantAgeGroup, change: 0, isPositive: true, color: 'purple' }
-    ];
+    // Update only changed values to avoid unnecessary animations
+    this.updateSummaryCardValue(0, totalCount);
+    this.updateSummaryCardValue(1, maxCount);
+    this.updateSummaryCardValue(2, dominantAgeGroup);
   }
 
   private updateLineChartFromApi(data: any): void {
@@ -1048,30 +1269,10 @@ export class DoiTuongNhanDienComponent implements OnInit {
     const allHourlyCounts = [...maleCount, ...femaleCount];
     const maxHourlyCount = Math.max(...allHourlyCounts);
 
-    // Update summary cards with real data only (no fake percentages)
-    this.summaryCards = [
-      { 
-        title: 'Tổng số lượt xuất hiện', 
-        value: totalAll, 
-        change: 0, 
-        isPositive: true,
-        color: 'blue'
-      },
-      { 
-        title: 'Lượt xuất hiện cao nhất trong ngày', 
-        value: maxHourlyCount, 
-        change: 0, 
-        isPositive: true,
-        color: 'green'
-      },
-      { 
-        title: 'Nhóm độ tuổi chiếm ưu thế', 
-        value: dominantAgeGroup, 
-        change: 0, 
-        isPositive: true,
-        color: 'purple'
-      }
-    ];
+    // Update only changed values to avoid unnecessary animations
+    this.updateSummaryCardValue(0, totalAll);
+    this.updateSummaryCardValue(1, maxHourlyCount);
+    this.updateSummaryCardValue(2, dominantAgeGroup);
   }
 
   // Toggle age group visibility
@@ -1393,6 +1594,91 @@ export class DoiTuongNhanDienComponent implements OnInit {
     // TODO: Implement export functionality
   }
 
+  /**
+   * Update charts from real-time data (SSE, WebSocket, polling, etc.)
+   * This method updates charts directly via chart instances for smooth updates without re-rendering
+   * @param newData - New data in the same format as BE API response
+   */
+  public updateChartsFromRealTimeData(newData: BeDataResponse['data']): void {
+    // Determine if this is day view or hour view based on data keys
+    const genderKeys = Object.keys(newData.gender);
+    const isDayView = genderKeys.length > 24 || genderKeys.some(key => key.includes('-'));
+    
+    // Update donut chart (age range)
+    this.updateDonutChartFromAgeRange(newData.age_range);
+    
+    // Update line chart (gender)
+    if (isDayView) {
+      this.updateLineChartFromGenderDataByDay(newData.gender);
+    } else {
+      this.updateLineChartFromGenderData(newData.gender);
+    }
+    
+    // Update bar chart (complexion)
+    if (isDayView) {
+      this.updateBarChartFromComplexionDataByDay(newData.complexion);
+    } else {
+      this.updateBarChartFromComplexionData(newData.complexion);
+    }
+    
+    // Update summary cards
+    this.updateSummaryCardsFromNewData(newData, isDayView);
+    
+    // Trigger change detection for OnPush strategy
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * DEMO: Test real-time updates with random data
+   * Call this from browser console: 
+   * const comp = ng.getComponent(document.querySelector('app-doi-tuong-nhan-dien'));
+   * comp.testRealTimeUpdate();
+   */
+  public testRealTimeUpdate(): void {
+    console.log('🎬 Testing real-time chart update...');
+    
+    // Generate random data for demo
+    const testData: BeDataResponse['data'] = {
+      age_range: {
+        '0-2': Math.floor(Math.random() * 100),
+        '3-9': Math.floor(Math.random() * 200),
+        '10-19': Math.floor(Math.random() * 300),
+        '20-29': Math.floor(Math.random() * 500),
+        '30-39': Math.floor(Math.random() * 400),
+        '40-49': Math.floor(Math.random() * 300),
+        '50-59': Math.floor(Math.random() * 200),
+        '60-69': Math.floor(Math.random() * 150),
+        '70-100': Math.floor(Math.random() * 100),
+        'Unknown': Math.floor(Math.random() * 50)
+      },
+      gender: {},
+      complexion: {}
+    };
+    
+    // Generate gender data for 24 hours
+    for (let i = 0; i < 24; i++) {
+      testData.gender[i.toString()] = {
+        Male: Math.floor(Math.random() * 200),
+        Female: Math.floor(Math.random() * 200),
+        Unknown: Math.floor(Math.random() * 50)
+      };
+      
+      testData.complexion[i.toString()] = {
+        Asian: Math.floor(Math.random() * 300),
+        White: Math.floor(Math.random() * 100),
+        Black: Math.floor(Math.random() * 50),
+        Indian: Math.floor(Math.random() * 80),
+        MiddleEastern: Math.floor(Math.random() * 60),
+        Latino: Math.floor(Math.random() * 70),
+        Unknown: Math.floor(Math.random() * 40)
+      };
+    }
+    
+    // Update charts with test data
+    this.updateChartsFromRealTimeData(testData);
+    console.log('✅ Charts updated with random data');
+  }
+
   private loadStatisticsData(): void {
     console.log('Loading statistics data with filters:', {
       timeRange: this.selectedTimeRange,
@@ -1403,6 +1689,175 @@ export class DoiTuongNhanDienComponent implements OnInit {
     
     // Reload human statistics with current filters
     this.loadHumanStatistics();
+    
+    // Reconnect SSE with new filters
+    this.reconnectSSEWithFilters();
+  }
+
+  /**
+   * Connect to SSE endpoint for real-time updates
+   */
+  private connectSSE(): void {
+    // Disconnect existing connection first
+    this.disconnectSSE();
+    
+    // Subscribe to SSE channel
+    console.log(`🔌 Connecting to SSE channel: ${this.SSE_CHANNEL}`);
+    
+    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+      next: (data) => {
+        this.handleSSEData(data);
+      },
+      error: (error) => {
+        console.error('❌ SSE Connection Error:', error);
+        // SSEService handles auto-reconnection
+      },
+      complete: () => {
+        console.log('🔌 SSE Connection Closed');
+      }
+    });
+  }
+
+  /**
+   * Disconnect SSE connection
+   */
+  private disconnectSSE(): void {
+    if (this.sseSubscription) {
+      this.sseSubscription.unsubscribe();
+      this.sseSubscription = null;
+      this.sseService.disconnect(this.SSE_CHANNEL);
+    }
+  }
+
+  /**
+   * Handle data received from SSE
+   */
+  private handleSSEData(message: any): void {
+    console.log('📨 SSE Message received:', message);
+    
+    // Extract event type and data
+    const eventType = message.event || 'message';
+    const data = message.data || message;
+    
+    console.log(`📌 Event type: ${eventType}`, data);
+    
+    // Handle dataChanges event
+    if (data.dataChanges) {
+      console.log('✅ Processing dataChanges:', data.dataChanges);
+      this.processDataChanges(data.dataChanges);
+    } 
+    // Handle full data format (old format)
+    else if (data.age_range || data.gender || data.complexion) {
+      console.log('📊 Processing full data:', data);
+      this.updateChartsFromRealTimeData(data);
+    }
+    else {
+      console.warn('⚠️ Unknown SSE data format:', data);
+    }
+  }
+
+  /**
+   * Process incremental data changes from SSE
+   * Format: {"gender":{"Male":1},"complexion":{"Asian":1},"age":{"10-19":1}}
+   */
+  private processDataChanges(changes: any): void {
+    console.log('🔄 Processing incremental changes:', changes);
+    
+    let needsUpdate = false;
+    
+    // Update gender data
+    if (changes.gender) {
+      needsUpdate = true;
+      const currentHour = new Date().getHours().toString();
+      
+      if (!this.genderData[currentHour]) {
+        this.genderData[currentHour] = { Male: 0, Female: 0, Unknown: 0 };
+      }
+      
+      Object.keys(changes.gender).forEach(genderType => {
+        const count = changes.gender[genderType];
+        const key = genderType as 'Male' | 'Female' | 'Unknown';
+        this.genderData[currentHour][key] = 
+          (this.genderData[currentHour][key] || 0) + count;
+      });
+      
+      console.log(`✅ Updated gender for hour ${currentHour}:`, this.genderData[currentHour]);
+    }
+    
+    // Update complexion data
+    if (changes.complexion) {
+      needsUpdate = true;
+      const currentHour = new Date().getHours().toString();
+      
+      if (!this.complexionData[currentHour]) {
+        this.complexionData[currentHour] = { 
+          Asian: 0, White: 0, Black: 0, Indian: 0, 
+          MiddleEastern: 0, Latino: 0, Unknown: 0 
+        };
+      }
+      
+      Object.keys(changes.complexion).forEach(complexionType => {
+        const count = changes.complexion[complexionType];
+        const key = complexionType as 'Asian' | 'White' | 'Black' | 'Indian' | 'MiddleEastern' | 'Latino' | 'Unknown';
+        this.complexionData[currentHour][key] = 
+          (this.complexionData[currentHour][key] || 0) + count;
+      });
+      
+      console.log(`✅ Updated complexion for hour ${currentHour}:`, this.complexionData[currentHour]);
+    }
+    
+    // Update age range data
+    if (changes.age) {
+      needsUpdate = true;
+      
+      Object.keys(changes.age).forEach(ageRange => {
+        const count = changes.age[ageRange];
+        this.ageRangeData[ageRange] = (this.ageRangeData[ageRange] || 0) + count;
+      });
+      
+      console.log('✅ Updated age range:', this.ageRangeData);
+    }
+    
+    // Update charts if any data changed
+    if (needsUpdate) {
+      console.log('🎨 Updating charts with new incremental data...');
+      
+      // Update donut chart (age range)
+      this.updateDonutChartFromAgeRange(this.ageRangeData);
+      
+      // Update line chart (gender)
+      this.updateLineChartFromGenderData(this.genderData);
+      
+      // Update bar chart (complexion)
+      this.updateBarChartFromComplexionData(this.complexionData);
+      
+      // Update summary cards
+      this.updateSummaryCardsFromNewData({
+        age_range: this.ageRangeData,
+        gender: this.genderData,
+        complexion: this.complexionData
+      }, false);
+      
+      // Trigger change detection
+      this.cdr.markForCheck();
+      
+      console.log('✅ Charts updated successfully');
+    }
+  }
+
+  /**
+   * Reconnect SSE when filters change
+   */
+  private reconnectSSEWithFilters(): void {
+    // Note: SSE currently uses a single channel for all statistics
+    // Filter-specific data will be handled by loadHumanStatistics()
+    // Uncomment below if backend supports filter-specific SSE channels:
+    // this.connectSSE();
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup SSE subscription
+    this.disconnectSSE();
   }
 
   @HostListener('document:click', ['$event'])

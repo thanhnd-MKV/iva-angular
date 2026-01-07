@@ -6,7 +6,8 @@ import { GoogleMapComponent } from '../google-map/google-map.component';
 export interface TrackingLocation {
   lat: number;
   lng: number;
-  eventId: string;
+  id: string | number; // Event ID number
+  eventId: string; // For matching with selectedEventId
   timestamp: string;
   cameraName: string;
   address?: string;
@@ -98,8 +99,9 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
   private polyline: google.maps.Polyline | null = null;
   private animationInterval: any = null;
   private eventMarkers: google.maps.Marker[] = [];
-  private highlightMarker: google.maps.Marker | null = null;
   private customInfoWindow: HTMLElement | null = null;
+  private previousSelectedMarker: google.maps.Marker | null = null;
+  private previousSelectedMarkerOriginalIcon: any = null;
 
   constructor() {}
 
@@ -113,10 +115,23 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     }
 
     // Handle selectedEventId changes
-    if (changes['selectedEventId'] && this.selectedEventId) {
-      setTimeout(() => {
-        this.highlightSelectedEvent();
-      }, 100);
+    if (changes['selectedEventId']) {
+      if (this.selectedEventId) {
+        // Event selected - highlight it
+        setTimeout(() => {
+          this.highlightSelectedEvent();
+        }, 100);
+      } else {
+        // Event deselected - restore marker size and clear info window
+        console.log('🔴 selectedEventId cleared - restoring marker and closing info window');
+        if (this.previousSelectedMarker && this.previousSelectedMarkerOriginalIcon) {
+          this.previousSelectedMarker.setIcon(this.previousSelectedMarkerOriginalIcon);
+          this.previousSelectedMarker.setZIndex(this.previousSelectedMarker === this.eventMarkers[0] || this.previousSelectedMarker === this.eventMarkers[this.eventMarkers.length - 1] ? 100 : 50);
+          this.previousSelectedMarker = null;
+          this.previousSelectedMarkerOriginalIcon = null;
+        }
+        this.closeCustomInfoWindow();
+      }
     }
   }
 
@@ -140,6 +155,18 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     googleMap.addListener('idle', () => {
       // Map is ready
     });
+  }
+
+  // Close custom info window
+  private closeCustomInfoWindow(): void {
+    if (this.customInfoWindow) {
+      if ((this.customInfoWindow as any)._boundsListener) {
+        google.maps.event.removeListener((this.customInfoWindow as any)._boundsListener);
+      }
+      this.customInfoWindow.remove();
+      this.customInfoWindow = null;
+      console.log('✅ Custom info window closed');
+    }
   }
 
   calculateOptimalZoom(): void {
@@ -267,29 +294,36 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     this.eventMarkers.forEach(marker => marker.setMap(null));
     this.eventMarkers = [];
 
-    // Create markers for each event location - ALL locations with numbered markers
+    // Create markers for each event location using custom SVG icons
     this.locations.forEach((location, index) => {
       const isFirst = index === 0;
       const isLast = index === this.locations.length - 1;
       
-      // Create numbered label marker
+      // Determine which icon to use
+      let iconUrl: string;
+      let iconSize: google.maps.Size;
+      
+      if (isFirst) {
+        iconUrl = 'assets/icon/event-start-map.svg';
+        iconSize = new google.maps.Size(40, 40);
+      } else if (isLast) {
+        iconUrl = 'assets/icon/event-end-map.svg';
+        iconSize = new google.maps.Size(40, 40);
+      } else {
+        iconUrl = 'assets/icon/event-base-map.svg';
+        iconSize = new google.maps.Size(32, 32);
+      }
+      
+      // Create marker with custom SVG icon
       const marker = new google.maps.Marker({
         position: new google.maps.LatLng(location.lat, location.lng),
         map: googleMap,
-        label: {
-          text: String(index + 1),
-          color: 'white',
-          fontSize: '12px',
-          fontWeight: 'bold'
-        },
         icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isFirst ? 10 : (isLast ? 10 : 14),
-          fillColor: isFirst ? '#4CAF50' : (isLast ? '#FF9800' : '#667eea'),
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 2
+          url: iconUrl,
+          scaledSize: iconSize,
+          anchor: new google.maps.Point(iconSize.width / 2, iconSize.height / 2)
         },
+        title: `${location.cameraName} - ${location.timestamp}`,
         zIndex: isFirst || isLast ? 100 : 50
       });
 
@@ -302,7 +336,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
       this.eventMarkers.push(marker);
     });
 
-    console.log(`✅ Created ${this.eventMarkers.length} markers with click listeners`);
+    console.log(`✅ Created ${this.eventMarkers.length} markers with custom SVG icons`);
   }
 
   private showInfoWindow(marker: google.maps.Marker, location: TrackingLocation, markerNumber: number): void {
@@ -324,13 +358,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     }
 
     // Close previous custom info window
-    if (this.customInfoWindow) {
-      if ((this.customInfoWindow as any)._boundsListener) {
-        google.maps.event.removeListener((this.customInfoWindow as any)._boundsListener);
-      }
-      this.customInfoWindow.remove();
-      this.customInfoWindow = null;
-    }
+    this.closeCustomInfoWindow();
 
     // Create custom HTML overlay
     this.customInfoWindow = document.createElement('div');
@@ -354,7 +382,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
         color: #1E3A8A;
         margin-bottom: 12px;
         letter-spacing: -0.3px;">
-        ID: ${location.cameraName}
+        ID: ${location.id}
       </div>
       
       <div style="
@@ -457,26 +485,48 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     // Find the index of selected location
     const selectedIndex = this.locations.findIndex(loc => loc.eventId === this.selectedEventId);
 
-    // Clear previous highlight marker
-    if (this.highlightMarker) {
-      this.highlightMarker.setMap(null);
+    // Restore previous selected marker to original size
+    if (this.previousSelectedMarker && this.previousSelectedMarkerOriginalIcon) {
+      this.previousSelectedMarker.setIcon(this.previousSelectedMarkerOriginalIcon);
+      this.previousSelectedMarker = null;
+      this.previousSelectedMarkerOriginalIcon = null;
     }
 
-    // Create pulsing highlight marker overlay
-    this.highlightMarker = new google.maps.Marker({
-      position: new google.maps.LatLng(selectedLocation.lat, selectedLocation.lng),
-      map: googleMap,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 20,
-        fillColor: '#FF0000',
-        fillOpacity: 0.3,
-        strokeColor: '#FF0000',
-        strokeWeight: 2
-      },
-      zIndex: 199,
-      animation: google.maps.Animation.BOUNCE
+    // Get the target marker
+    const targetMarker = this.eventMarkers[selectedIndex];
+    if (!targetMarker) {
+      console.error('❌ Could not find marker at index:', selectedIndex);
+      return;
+    }
+
+    // Save current icon before scaling
+    const currentIcon = targetMarker.getIcon();
+    this.previousSelectedMarkerOriginalIcon = currentIcon;
+    this.previousSelectedMarker = targetMarker;
+
+    // Scale up the marker (increase size by 50%)
+    const isFirst = selectedIndex === 0;
+    const isLast = selectedIndex === this.locations.length - 1;
+    const baseSize = (isFirst || isLast) ? 40 : 32;
+    const scaledSize = Math.floor(baseSize * 1.5); // 50% larger
+    
+    let iconUrl: string;
+    if (isFirst) {
+      iconUrl = 'assets/icon/event-start-map.svg';
+    } else if (isLast) {
+      iconUrl = 'assets/icon/event-end-map.svg';
+    } else {
+      iconUrl = 'assets/icon/event-base-map.svg';
+    }
+
+    targetMarker.setIcon({
+      url: iconUrl,
+      scaledSize: new google.maps.Size(scaledSize, scaledSize),
+      anchor: new google.maps.Point(scaledSize / 2, scaledSize / 2)
     });
+    
+    // Increase zIndex to bring to front
+    targetMarker.setZIndex(999);
 
     // Pan to selected location and adjust zoom if needed
     googleMap.panTo(new google.maps.LatLng(selectedLocation.lat, selectedLocation.lng));
@@ -489,22 +539,11 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     console.log('📍 Showing custom InfoWindow for selected event...');
     
     // Close previous info window
-    if (this.customInfoWindow) {
-      this.customInfoWindow.remove();
-      this.customInfoWindow = null;
-    }
+    this.closeCustomInfoWindow();
 
     // Wait for map to finish panning, then show InfoWindow
     setTimeout(() => {
-      // Get the corresponding numbered marker to anchor InfoWindow
-      const targetMarker = this.eventMarkers[selectedIndex];
-      
-      if (!targetMarker) {
-        console.error('❌ Could not find marker at index:', selectedIndex);
-        return;
-      }
-
-      console.log('✅ Found target marker at index:', selectedIndex);
+      console.log('✅ Using scaled marker at index:', selectedIndex);
 
       // Create custom HTML InfoWindow overlay
       this.customInfoWindow = document.createElement('div');
@@ -528,7 +567,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
           color: #1E3A8A;
           margin-bottom: 12px;
           letter-spacing: -0.3px;">
-          ID: ${selectedLocation.cameraName}
+          ID: ${selectedLocation.id}
         </div>
         
         <div style="
@@ -613,16 +652,11 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
     if (this.polyline) {
       this.polyline.setMap(null);
     }
-    if (this.highlightMarker) {
-      this.highlightMarker.setMap(null);
+    // Restore marker size before cleanup
+    if (this.previousSelectedMarker && this.previousSelectedMarkerOriginalIcon) {
+      this.previousSelectedMarker.setIcon(this.previousSelectedMarkerOriginalIcon);
     }
-    if (this.customInfoWindow) {
-      // Remove bounds listener if exists
-      if ((this.customInfoWindow as any)._boundsListener) {
-        google.maps.event.removeListener((this.customInfoWindow as any)._boundsListener);
-      }
-      this.customInfoWindow.remove();
-    }
+    this.closeCustomInfoWindow();
     this.eventMarkers.forEach(marker => marker.setMap(null));
   }
 }

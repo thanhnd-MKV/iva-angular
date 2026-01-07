@@ -39,6 +39,7 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   @Input() showAdvancedSearch: boolean = true;
   @Input() showImageUpload: boolean = false;  // Hiển thị upload ảnh
   @Input() showThresholdSlider: boolean = false;  // Hiển thị ngưỡng nhận diện
+  @Input() searchFieldOptions: FilterOption[] = []; // Options for search field dropdown
   
   @ViewChild('dateRangePicker') dateRangePicker!: DateRangePickerComponent;
 
@@ -66,6 +67,8 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   selectedTimeRange: string = '';
   selectedFilters: { [key: string]: string } = {};
   searchValue: string = ''; // Internal value, emitted with key from searchFieldName
+  selectedSearchField: string = ''; // Selected search field
+  showSearchFieldDropdown: boolean = false;
   
   // Date range
   startDate: Date | null = null;
@@ -101,6 +104,13 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       this.dropdownStates[filter.key] = false;
       this.selectedFilters[filter.key] = filter.defaultValue || '';
     });
+    
+    // Initialize search field with first option or searchFieldName
+    if (this.searchFieldOptions.length > 0) {
+      this.selectedSearchField = this.searchFieldOptions[0].value || this.searchFieldName;
+    } else {
+      this.selectedSearchField = this.searchFieldName;
+    }
   }
 
   ngOnDestroy() {
@@ -145,6 +155,11 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     this.closeAllDropdowns('threshold');
   }
 
+  toggleSearchFieldDropdown() {
+    this.showSearchFieldDropdown = !this.showSearchFieldDropdown;
+    this.closeAllDropdowns('searchField');
+  }
+
   toggleAdvancedFilters() {
     this.showAdvancedFilters = !this.showAdvancedFilters;
   }
@@ -153,6 +168,7 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     if (except !== 'time') this.showTimeDropdown = false;
     if (except !== 'imageUpload') this.showImageUploadDropdown = false;
     if (except !== 'threshold') this.showThresholdDropdown = false;
+    if (except !== 'searchField') this.showSearchFieldDropdown = false;
     Object.keys(this.dropdownStates).forEach(key => {
       if (key !== except) {
         this.dropdownStates[key] = false;
@@ -197,6 +213,21 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
     const selectedValue = this.selectedFilters[filterKey];
     const option = filter.options.find(o => o.value === selectedValue);
     return option?.label || filter.options[0]?.label || filter.label;
+  }
+
+  getSearchFieldLabel(): string {
+    if (this.searchFieldOptions.length === 0) {
+      return this.searchInputPlaceholder;
+    }
+    const selected = this.searchFieldOptions.find(o => o.value === this.selectedSearchField);
+    return selected?.label || this.searchFieldOptions[0]?.label || this.searchInputPlaceholder;
+  }
+
+  selectSearchField(option: FilterOption) {
+    this.selectedSearchField = option.value;
+    this.showSearchFieldDropdown = false;
+    // Clear search value when changing field
+    this.searchValue = '';
   }
 
   getImageUploadLabel(): string {
@@ -248,9 +279,10 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       timeRange: this.selectedTimeRange
     };
     
-    // Add search value with dynamic field name
+    // Add search value with dynamic field name (from selected search field or default)
     if (this.searchValue) {
-      searchParams[this.searchFieldName] = this.searchValue;
+      const fieldName = this.selectedSearchField || this.searchFieldName;
+      searchParams[fieldName] = this.searchValue;
     }
     
     // Add dynamic filter values

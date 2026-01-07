@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ViewChildren, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, QueryList } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,6 +10,8 @@ import { TrafficFlowMapComponent } from './traffic-flow-map.component';
 import { HttpClient } from '@angular/common/http';
 import { SidebarService } from '../../shared/services/sidebar.service';
 import { CameraService } from '../camera/camera.service';
+import { LocationService } from '../../shared/services/location.service';
+import { SSEService } from '../../core/services/sse.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -25,14 +27,25 @@ import { Subscription } from 'rxjs';
     TrafficFlowMapComponent
   ],
   templateUrl: './luu-luong-ra-vao.component.html',
-  styleUrls: ['./luu-luong-ra-vao.component.scss']
+  styleUrls: ['./luu-luong-ra-vao.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   @ViewChild('lineChart') lineChart?: BaseChartDirective;
   @ViewChild('barChart') barChart?: BaseChartDirective;
+  @ViewChildren('digitSpan', { read: ElementRef }) digitSpans?: QueryList<ElementRef>;
   
   private sidebarSubscription?: Subscription;
   isSidebarOpened = true;
+  
+  // SSE for real-time updates
+  private sseSubscription: Subscription | null = null;
+  private readonly SSE_CHANNEL = 'pedestrianTraffic';
+  
+  // Animation properties
+  summaryDisplayValues: number[] = [0, 0, 0];
+  cardDigits: { digit: string; animate: boolean; key: number }[][] = [[], [], []];
+  animationTrigger = 0;
   
   // Filter state
   searchText = '';
@@ -69,12 +82,7 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   ];
   
   areaOptions: { label: string; value: string }[] = [
-    { label: 'Tất cả khu vực', value: '' },
-    { label: 'Hà Nội', value: 'hanoi' },
-    { label: 'TP.HCM', value: 'hcm' },
-    { label: 'Đà Nẵng', value: 'danang' },
-    { label: 'Cần Thơ', value: 'cantho' },
-    { label: 'Hải Phòng', value: 'haiphong' }
+    { label: 'Tất cả khu vực', value: '' }
   ];
   
   // Loading states - chỉ hiển thị khi user thực hiện action
@@ -85,6 +93,11 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   
   // Chart animation - tắt animation khi auto-refresh để mượt hơn
   private shouldAnimate = true;
+
+  // Fake data for testing real-time updates
+  public useFakeData = true;
+  private fakeDataInterval: any;
+  private baseData: { in: number[], out: number[] } | null = null;
 
   // Map data
   mapCenter = { lat: 15.6, lng: 107.0 }; // Centered between Hanoi and Phu Quoc
@@ -107,6 +120,7 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   lineChartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
     plugins: {
       legend: {
         display: false
@@ -158,6 +172,7 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   barChartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
     plugins: {
       legend: {
         display: false
@@ -202,15 +217,18 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   };
   
   ngOnInit(): void {
+    // Initialize animation
+    this.initializeCardDigits();
+    
     // Load camera options from API
     this.loadCameraOptions();
     
     // Load area options from API
     this.loadAreaOptions();
     
-    // Initialize data with loading indicator (first load)
-    this.isUserAction = true;
-    this.shouldAnimate = true;
+    // Initialize data (no loading spinner on first load)
+    this.isUserAction = false; // Không hiển thị loading spinner
+    this.shouldAnimate = false; // Không animate lần đầu
     this.loadChartData();
     
     // Subscribe to sidebar state changes
@@ -222,12 +240,28 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
         this.resizeCharts();
       }, 300);
     });
+
+    // Connect SSE for real-time updates (replace fake data)
+    setTimeout(() => this.connectSSE(), 100);
   }
   
   ngOnDestroy(): void {
+    // Disconnect SSE
+    if (this.sseSubscription) {
+      this.sseSubscription.unsubscribe();
+      this.sseSubscription = null;
+    }
+    this.sseService.disconnect(this.SSE_CHANNEL);
+    console.log('🔌 SSE Disconnected:', this.SSE_CHANNEL);
+    
     // Cleanup subscriptions
     if (this.sidebarSubscription) {
       this.sidebarSubscription.unsubscribe();
+    }
+    // Cleanup fake data interval
+    if (this.fakeDataInterval) {
+      clearInterval(this.fakeDataInterval);
+      console.log('🛑 Lưu lượng ra vào: Stopped fake data stream');
     }
   }
   
@@ -241,11 +275,209 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     }
   }
   
+  // ============ Animation Methods ============
+  trackByCardIndex(index: number, card: any): number {
+    return index;
+  }
+
+  getCardDigits(cardIndex: number): { digit: string; animate: boolean; key: number }[] {
+    return this.cardDigits[cardIndex] || [];
+  }
+
+  trackByDigit(index: number, item: any): any {
+    return item.key || index;
+  }
+
+  private initializeCardDigits(): void {
+    for (let i = 0; i < this.summaryCards.length; i++) {
+      const value = this.summaryCards[i].value;
+      if (typeof value === 'number') {
+        const digits = value.toString().split('');
+        this.cardDigits[i] = digits.map((d, idx) => ({ digit: d, animate: false, key: idx }));
+        this.summaryDisplayValues[i] = value;
+      }
+    }
+  }
+
+  private updateSummaryCardValue(cardIndex: number, newValue: number): void {
+    const oldValue = this.summaryCards[cardIndex].value;
+    
+    if (oldValue !== newValue && typeof oldValue === 'number') {
+      this.summaryCards[cardIndex].value = newValue;
+      this.animateNumberDigits(cardIndex, oldValue, newValue);
+      this.cdr.detectChanges();
+    }
+  }
+
+  private animateNumberDigits(cardIndex: number, oldValue: number, newValue: number): void {
+    const oldDigits = oldValue.toString().split('');
+    const newDigits = newValue.toString().split('');
+    
+    const digitArray: { digit: string; animate: boolean }[] = [];
+    const maxLength = Math.max(oldDigits.length, newDigits.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const oldDigit = oldDigits[i] || '';
+      const newDigit = newDigits[i] || '';
+      const shouldAnimate = oldDigit !== newDigit;
+      
+      digitArray.push({
+        digit: newDigit,
+        animate: shouldAnimate
+      });
+    }
+    
+    this.summaryDisplayValues[cardIndex] = newValue;
+    this.animationTrigger++;
+    
+    const digitArrayWithKeys = digitArray.map((d, idx) => ({
+      ...d,
+      key: d.animate ? this.animationTrigger * 1000 + idx : idx
+    }));
+    
+    this.cardDigits[cardIndex] = digitArrayWithKeys;
+    this.cdr.detectChanges();
+    
+    setTimeout(() => {
+      this.cardDigits[cardIndex] = digitArrayWithKeys.map(d => ({ 
+        ...d, 
+        animate: false,
+        key: d.key
+      }));
+      this.cdr.detectChanges();
+    }, 450);
+  }
+  
+  // ============ SSE Methods ============
+  private connectSSE(): void {
+    console.log('🔌 Connecting to SSE:', this.SSE_CHANNEL);
+    
+    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+      next: (message) => {
+        console.log('📨 SSE Message received:', message);
+        
+        if (message.event === 'dataChanges' && message.data) {
+          this.handleSSEDataUpdate(message.data);
+        }
+      },
+      error: (error) => {
+        console.error('❌ SSE Error:', error);
+        // Auto-retry connection
+        setTimeout(() => this.connectSSE(), 5000);
+      }
+    });
+  }
+
+  private handleSSEDataUpdate(data: any): void {
+    console.log('🔄 Processing SSE update:', data);
+    
+    // Parse SSE data structure: {"dataChanges":{"outTotal":1,"inTotal":5, "hour": 14, "location": "Khu A"}}
+    // SSE data là incremental - phải cộng thêm vào giá trị hiện tại
+    if (data.dataChanges) {
+      const inDelta = data.dataChanges.inTotal || 0;
+      const outDelta = data.dataChanges.outTotal || 0;
+      
+      // ========== Cập nhật Summary Cards ==========
+      const currentTotal = this.summaryCards[0].value as number;
+      const currentIn = this.summaryCards[1].value as number;
+      const currentOut = this.summaryCards[2].value as number;
+      
+      const newTotal = currentTotal + inDelta + outDelta;
+      const newIn = currentIn + inDelta;
+      const newOut = currentOut + outDelta;
+      
+      console.log('📊 SSE incremental update:', { 
+        delta: { in: inDelta, out: outDelta },
+        old: { total: currentTotal, in: currentIn, out: currentOut },
+        new: { total: newTotal, in: newIn, out: newOut }
+      });
+      
+      this.updateSummaryCardValue(0, newTotal);  // Tổng lưu lượng
+      this.updateSummaryCardValue(1, newIn);     // Lượt đến
+      this.updateSummaryCardValue(2, newOut);    // Lượt đi
+      
+      // ========== Cập nhật Line Chart (theo giờ) ==========
+      const hour = data.dataChanges.hour;
+      if (hour !== undefined && this.lineChart?.chart) {
+        const chart = this.lineChart.chart;
+        const hourLabel = this.isSingleDayView ? hour.toString() : this.formatDate(new Date());
+        
+        // Tìm index của giờ trong labels
+        const hourIndex = chart.data.labels?.indexOf(hourLabel);
+        
+        if (hourIndex !== undefined && hourIndex !== -1) {
+          // Cập nhật data cho giờ này
+          chart.data.datasets.forEach((dataset, datasetIndex) => {
+            if (dataset.label === 'Lượt đến' && inDelta > 0) {
+              const currentValue = (dataset.data[hourIndex] as number) || 0;
+              dataset.data[hourIndex] = currentValue + inDelta;
+            } else if (dataset.label === 'Lượt đi' && outDelta > 0) {
+              const currentValue = (dataset.data[hourIndex] as number) || 0;
+              dataset.data[hourIndex] = currentValue + outDelta;
+            }
+          });
+          
+          console.log('📈 Line chart updated for hour:', hourLabel);
+          chart.update('none'); // Update without animation
+        }
+      }
+      
+      // ========== Cập nhật Bar Chart (theo location) ==========
+      const location = data.dataChanges.location;
+      if (location && this.barChart?.chart) {
+        const chart = this.barChart.chart;
+        
+        // Tìm index của location trong labels
+        const locationIndex = chart.data.labels?.indexOf(location);
+        
+        if (locationIndex !== undefined && locationIndex !== -1) {
+          // Cập nhật data cho location này
+          chart.data.datasets.forEach((dataset, datasetIndex) => {
+            if (dataset.label === 'Lượt đến' && inDelta > 0) {
+              const currentValue = (dataset.data[locationIndex] as number) || 0;
+              dataset.data[locationIndex] = currentValue + inDelta;
+            } else if (dataset.label === 'Lượt đi' && outDelta > 0) {
+              const currentValue = (dataset.data[locationIndex] as number) || 0;
+              dataset.data[locationIndex] = currentValue + outDelta;
+            }
+          });
+          
+          console.log('📊 Bar chart updated for location:', location);
+          chart.update('none'); // Update without animation
+        } else if (location) {
+          // Location chưa có trong chart - thêm mới
+          console.log('➕ Adding new location to bar chart:', location);
+          chart.data.labels = [...(chart.data.labels || []), location];
+          
+          chart.data.datasets.forEach((dataset, datasetIndex) => {
+            if (dataset.label === 'Lượt đến') {
+              dataset.data = [...dataset.data, inDelta];
+            } else if (dataset.label === 'Lượt đi') {
+              dataset.data = [...dataset.data, outDelta];
+            }
+          });
+          
+          chart.update('none');
+        }
+      }
+    }
+    
+    this.cdr.detectChanges();
+  }
+  
+  private formatDate(date: Date): string {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    return `${day}/${month}`;
+  }
+  
   constructor(
     private http: HttpClient,
     private sidebarService: SidebarService,
     private cameraService: CameraService,
-    private cdr: ChangeDetectorRef
+    private locationService: LocationService,
+    private cdr: ChangeDetectorRef,
+    private sseService: SSEService
   ) {}
   
   // Filter methods
@@ -339,42 +571,14 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   }
   
   private loadAreaOptions(): void {
-    console.log('Loading area options from API...');
-    // Call API to get list of cameras with location info
-    this.http.get<any>('/api/admin/camera/list').subscribe({
-      next: (response) => {
-        console.log('✅ Area API response:', response);
-        
-        // Extract data from response
-        const cameras = response.data || response || [];
-        
-        // Extract unique locations from cameras
-        const locationSet = new Set<string>();
-        cameras.forEach((camera: any) => {
-          if (camera.location && camera.location.trim()) {
-            locationSet.add(camera.location.trim());
-          }
-        });
-        
-        // Convert to options format
-        const dynamicAreaOptions = Array.from(locationSet)
-          .sort()
-          .map(location => ({
-            label: location,
-            value: location.toLowerCase().replace(/\s+/g, '-')
-          }));
-        
-        console.log('✅ Area options loaded:', dynamicAreaOptions);
-        
-        // Update areaOptions with dynamic data
-        this.areaOptions = [
-          { label: 'Tất cả khu vực', value: '' },
-          ...dynamicAreaOptions
-        ];
+    console.log('Loading location options from service...');
+    this.locationService.getLocations().subscribe({
+      next: (locations) => {
+        this.areaOptions = locations;
+        console.log('✅ Location options loaded:', this.areaOptions.length);
       },
       error: (error) => {
-        console.error('❌ Error loading area options:', error);
-        // Keep default hardcoded options if API fails
+        console.error('Error loading location options:', error);
       }
     });
   }
@@ -433,8 +637,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     }
     
     if (this.selectedArea) {
-      params.area = this.selectedArea;
-      console.log('Adding area filter:', this.selectedArea);
+      params.location = this.selectedArea;
+      console.log('Adding location filter:', this.selectedArea);
     }
     
     // Call API for stats (summary cards and map data)
@@ -1012,6 +1216,128 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   getAreaLabel(): string {
     const option = this.areaOptions.find(opt => opt.value === this.selectedArea);
     return option ? option.label : 'Tất cả khu vực';
+  }
+
+  // ===== FAKE DATA METHODS =====
+  
+  private generateFakeData(): { in: number[], out: number[] } {
+    if (!this.baseData) {
+      // Initial data generation
+      this.baseData = {
+        in: Array.from({ length: 24 }, (_, hour) => {
+          const multiplier = this.getTimeMultiplier(hour);
+          return Math.floor((200 + Math.random() * 300) * multiplier);
+        }),
+        out: Array.from({ length: 24 }, (_, hour) => {
+          const multiplier = this.getTimeMultiplier(hour);
+          return Math.floor((180 + Math.random() * 280) * multiplier);
+        })
+      };
+    }
+
+    // Generate variations (±10%)
+    const updatedData = {
+      in: this.baseData.in.map(val => Math.max(0, val + Math.floor(val * 0.1 * (Math.random() - 0.5) * 2))),
+      out: this.baseData.out.map(val => Math.max(0, val + Math.floor(val * 0.1 * (Math.random() - 0.5) * 2)))
+    };
+
+    this.baseData = updatedData;
+    return updatedData;
+  }
+
+  private getTimeMultiplier(hour: number): number {
+    if (hour >= 0 && hour < 6) return 0.3;
+    if (hour >= 6 && hour < 9) return 1.3;
+    if (hour >= 9 && hour < 17) return 1.0;
+    if (hour >= 17 && hour < 20) return 1.4;
+    return 0.7;
+  }
+
+  private startFakeDataStream(): void {
+    const fakeData = this.generateFakeData();
+    this.updateChartsWithFakeData(fakeData);
+    console.log('📊 Lưu lượng ra vào: Initial fake data loaded');
+
+    this.fakeDataInterval = setInterval(() => {
+      const newData = this.generateFakeData();
+      this.updateChartsWithFakeData(newData);
+      console.log('🔄 Lưu lượng ra vào: Charts updated at', new Date().toLocaleTimeString());
+    }, 2000);
+  }
+
+  private updateChartsWithFakeData(data: { in: number[], out: number[] }): void {
+    const labels = Array.from({ length: 24 }, (_, i) => i.toString());
+
+    // Update line chart
+    if (this.lineChart?.chart) {
+      this.lineChart.chart.data.labels = labels;
+      this.lineChart.chart.data.datasets[0].data = data.in;
+      this.lineChart.chart.data.datasets[1].data = data.out;
+      this.lineChart.chart.update('none');
+    } else {
+      this.lineChartData = {
+        labels,
+        datasets: [
+          { 
+            data: data.in, 
+            label: 'Lượt đến', 
+            borderColor: '#10b981',
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2
+          },
+          { 
+            data: data.out, 
+            label: 'Lượt đi', 
+            borderColor: '#ef4444',
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2
+          }
+        ]
+      };
+    }
+
+    // Update bar chart (grouped by time range)
+    if (this.barChart?.chart) {
+      const morningIn = data.in.slice(6, 12).reduce((a, b) => a + b, 0);
+      const morningOut = data.out.slice(6, 12).reduce((a, b) => a + b, 0);
+      const afternoonIn = data.in.slice(12, 18).reduce((a, b) => a + b, 0);
+      const afternoonOut = data.out.slice(12, 18).reduce((a, b) => a + b, 0);
+      const eveningIn = data.in.slice(18, 24).reduce((a, b) => a + b, 0);
+      const eveningOut = data.out.slice(18, 24).reduce((a, b) => a + b, 0);
+
+      this.barChart.chart.data.labels = ['Sáng (6-12h)', 'Chiều (12-18h)', 'Tối (18-24h)'];
+      this.barChart.chart.data.datasets[0].data = [morningIn, afternoonIn, eveningIn];
+      this.barChart.chart.data.datasets[1].data = [morningOut, afternoonOut, eveningOut];
+      this.barChart.chart.update('none');
+    }
+
+    // Update summary cards
+    const totalIn = data.in.reduce((a, b) => a + b, 0);
+    const totalOut = data.out.reduce((a, b) => a + b, 0);
+    this.summaryCards[0].value = totalIn + totalOut;
+    this.summaryCards[1].value = totalIn;
+    this.summaryCards[2].value = totalOut;
+
+    this.cdr.markForCheck();
+  }
+
+  public stopFakeDataStream(): void {
+    if (this.fakeDataInterval) {
+      clearInterval(this.fakeDataInterval);
+      this.fakeDataInterval = null;
+      this.useFakeData = false;
+      console.log('🛑 Lưu lượng ra vào: Fake data stream stopped');
+    }
+  }
+
+  public startFakeDataStreamManually(): void {
+    if (!this.fakeDataInterval) {
+      this.useFakeData = true;
+      this.startFakeDataStream();
+      console.log('▶️ Lưu lượng ra vào: Fake data stream started manually');
+    }
   }
 }
 

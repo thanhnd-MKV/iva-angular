@@ -13,6 +13,14 @@ export class CameraService {
     return this.http.get(`${this.apiUrl}/page`, { params });
   }
 
+  /**
+   * Get all cameras without pagination
+   * Returns full camera list from /api/admin/camera/list
+   */
+  getAllCameras(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/list`);
+  }
+
   // Get simple camera list for dropdowns (no pagination)
   getCameraOptions(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/list`).pipe(
@@ -33,6 +41,13 @@ export class CameraService {
 
   updateCamera(data: any): Observable<any> {
     return this.http.put(`${this.apiUrl}/${data.id}`, data);
+  }
+
+  /**
+   * Update camera connection status (toggle ON/OFF)
+   */
+  updateCameraStatus(id: number, status: number): Observable<any> {
+    return this.http.put(`${this.apiUrl}/${id}`, { connectionStatus: status });
   }
 
   deleteCameras(ids: number[]): Observable<any> {

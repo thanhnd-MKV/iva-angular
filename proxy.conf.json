@@ -9,6 +9,13 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/sse": {
+    "target": "https://iva-demo.mkvision.com",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true,
+    "logLevel": "debug"
+  },
   "/api": {
     "target": "https://iva-demo.mkvision.com",
     "secure": false,

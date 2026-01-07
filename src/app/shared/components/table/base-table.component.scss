@@ -349,8 +349,9 @@ table {
 .image-cell {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     padding: 0 !important;
+    // padding-left: 8px !important;
     height: 34px !important;
 }
 
@@ -530,13 +531,21 @@ table {
     cursor: pointer;
 }
 
-// Highlighted row style
-::ng-deep .mat-row.highlighted-row {
+// Highlighted row style - CRITICAL: Use highest specificity
+::ng-deep .mat-mdc-table .mat-mdc-row.highlighted-row,
+::ng-deep .mat-table .mat-row.highlighted-row,
+::ng-deep tr.mat-row.highlighted-row,
+::ng-deep .highlighted-row {
     background-color: #e3f2fd !important; // Light blue background
     border-left: 4px solid #2196F3 !important; // Blue left border
     
     &:hover {
         background-color: #bbdefb !important; // Darker blue on hover
+    }
+    
+    // Force all child cells to inherit background
+    td, th, .mat-cell, .mat-mdc-cell {
+        background-color: inherit !important;
     }
 }
 
@@ -588,8 +597,9 @@ table {
     line-height: 1 !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     padding: 0 !important;
+    padding-left: 8px !important;
     margin: 0 !important;
 }
 

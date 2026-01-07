@@ -159,6 +159,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     location: {
       label: 'Vị trí',
       type: 'link',
+      width: '120px',
       fontSize: '11px',
       fontWeight: '400',
       headerFontSize: '11px'
@@ -235,6 +236,38 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
   @HostListener('window:resize', ['$event'])
   onResize(event: any) {
     this.calculatePageSize();
+  }
+
+  // Host listener để lắng nghe click outside table (để clear selection)
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    // Only handle in tracking mode and when there's a selection
+    if (!this.isTrackingMode || !this.selectedEventId) return;
+    
+    const target = event.target as HTMLElement;
+    
+    // Check if click is inside interactive elements that should NOT clear selection
+    const isClickInsideTable = target.closest('.mat-mdc-row') || 
+                                target.closest('.mat-row') || 
+                                target.closest('.mat-mdc-table') ||
+                                target.closest('.mat-table') || 
+                                target.closest('app-base-table') ||
+                                target.closest('.table-container') ||
+                                target.closest('.table-section');
+    const isClickInsideMap = target.closest('app-tracking-map') || 
+                             target.closest('.map-section') ||
+                             target.closest('.gm-style') || // Google Maps container
+                             target.closest('.gm-style-iw'); // Info window
+    
+    // Only clear selection if clicking outside both table and map
+    if (!isClickInsideTable && !isClickInsideMap) {
+      // Use setTimeout to avoid race condition with row click handler
+      setTimeout(() => {
+        console.log('🖱️ Click outside - clearing selection');
+        this.selectedEventId = '';
+        this.cdr.detectChanges();
+      }, 0);
+    }
   }
 
   // Hàm select option và focus vào input
@@ -536,11 +569,26 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     // Only handle row click in tracking mode
     if (this.isTrackingMode) {
       console.log('📄 Row clicked in tracking mode');
-      const eventId = row.eventId || row.id;
+      const eventId = String(row.eventId || row.id);
       console.log('🆔 Event ID from row:', eventId);
-      console.log('🆔 Setting selectedEventId to:', eventId);
-      this.selectedEventId = eventId;
-      console.log('✅ selectedEventId after set:', this.selectedEventId);
+      console.log('🆔 Current selectedEventId:', this.selectedEventId);
+      
+      // Toggle selection: if clicking same row, deselect it
+      if (this.selectedEventId === eventId) {
+        console.log('🔄 Clicking same row - deselecting');
+        this.selectedEventId = '';
+      } else {
+        console.log('✅ Selecting new row:', eventId);
+        this.selectedEventId = eventId;
+      }
+      
+      console.log('🆔 Final selectedEventId:', this.selectedEventId);
+      
+      // Force change detection explicitly
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+      
+      console.log('🔍 Force change detection completed');
     } else {
       console.log('⚠️ Row clicked but not in tracking mode');
     }
@@ -551,8 +599,22 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     
     // If clicking on eventId column (ID/Phân loại), show detail popup
     if (event.column === 'eventId') {
-      this.selectedEventDetail = this.transformEventData(event.row);
-      this.showEventDetailPopup = true;
+      // Clear selection in tracking mode when opening detail popup
+      if (this.isTrackingMode && this.selectedEventId) {
+        console.log('🔴 Clearing selection when opening detail popup');
+        this.selectedEventId = '';
+        this.cdr.detectChanges();
+        
+        // Wait for marker to restore before showing popup
+        setTimeout(() => {
+          this.selectedEventDetail = this.transformEventData(event.row);
+          this.showEventDetailPopup = true;
+        }, 100);
+      } else {
+        // Not in tracking mode or no selection, show popup immediately
+        this.selectedEventDetail = this.transformEventData(event.row);
+        this.showEventDetailPopup = true;
+      }
     }
   }
   
@@ -671,8 +733,8 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     
     const cleanedQuery = this.getCleanedQuery(this.queryFormModel);
     
-    // Force eventCategory to VEHICLE for this component
-    cleanedQuery['eventCategory'] = 'VEHICLE';
+    // Force eventCategory to TRAFFIC for this component
+    cleanedQuery['eventCategory'] = 'TRAFFIC';
     
     // Add pagination parameters for server-side pagination
     const apiParams = {
@@ -1001,6 +1063,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     this.trackingTarget = '';
     this.trackingLocations = [];
     this.trackingLoading = false;
+    this.selectedEventId = ''; // Clear selected event when exiting tracking mode
   }
 
   loadTrackingData(licensePlate: string): void {
@@ -1010,7 +1073,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     // Build query for tracking - search for specific license plate across all events
     const trackingQueryParams = {
       plateNumber: licensePlate,
-      eventCategory: 'VEHICLE'
+      eventCategory: 'TRAFFIC',
     };
 
     console.log('📍 Loading tracking data with query:', trackingQueryParams);
@@ -1026,7 +1089,8 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
             .map((event: any) => ({
               lat: parseFloat(event.latitude),
               lng: parseFloat(event.longitude),
-              eventId: event.eventId || event.id,
+              id: event.id, // Event ID number for display
+              eventId: event.eventId || event.id, // For matching with selectedEventId
               timestamp: event.eventTime,
               cameraName: event.cameraName || event.cameraSn || 'Unknown Camera',
               address: event.location || `${event.latitude}, ${event.longitude}`,
@@ -1051,7 +1115,7 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
             .map((item: any) => ({
               ...item,
               id: item.id,
-              eventId: item.eventId || item.id, // Ensure eventId is in tableData
+              eventId: String(item.eventId || item.id), // Ensure eventId is string and in tableData
               image: this.getImagePath(item),
               eventTime: item.eventTime,
               location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
@@ -1059,6 +1123,9 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
               status: this.mapEventStatus(item.status),
               clipPath: item.clipPath || []
             }));
+          
+          console.log('📋 Table data sample (first item):', this.tableData[0]);
+          console.log('📋 EventId types:', this.tableData.map(item => ({ id: item.id, eventId: item.eventId, type: typeof item.eventId })).slice(0, 3));
           this.allData = this.tableData;
           this.totalItems = this.tableData.length;
           this.totalPages = 1;

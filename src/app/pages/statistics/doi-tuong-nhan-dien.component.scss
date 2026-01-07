@@ -129,6 +129,15 @@
   height: 420px;
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .export-btn {
   display: flex;
   align-items: center;
@@ -697,6 +706,7 @@
     }
   }
 
+
   .export-btn {
     padding: 5px 10px;
     font-size: 12px;
@@ -734,6 +744,27 @@
     
     .summary-value {
       font-size: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      font-weight: 700;
+      color: #333;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      
+      ::ng-deep .digit {
+        display: inline-block;
+        min-width: 15px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        height: 1em;
+        line-height: 1em;
+      }
+      
+      ::ng-deep .digit-animate {
+        /* Animation defined in global styles.css */
+      }
     }
   }
 

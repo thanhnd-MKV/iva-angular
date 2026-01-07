@@ -49,10 +49,40 @@ export class NavbarComponent implements OnInit, AfterViewInit {
       : 'logoMK.svg';
   }
   
-  // Submenu state
-  public cameraSubMenuOpen = false;
-  public eventSubMenuOpen = false;
-  public statsSubMenuOpen = false;
+  // Submenu state with tracking
+  private _cameraSubMenuOpen = false;
+  private _eventSubMenuOpen = false;
+  private _statsSubMenuOpen = false;
+  
+  get cameraSubMenuOpen(): boolean {
+    return this._cameraSubMenuOpen;
+  }
+  set cameraSubMenuOpen(value: boolean) {
+    if (this._cameraSubMenuOpen !== value) {
+      console.log(`📷 Camera menu: ${this._cameraSubMenuOpen} → ${value}`);
+      this._cameraSubMenuOpen = value;
+    }
+  }
+  
+  get eventSubMenuOpen(): boolean {
+    return this._eventSubMenuOpen;
+  }
+  set eventSubMenuOpen(value: boolean) {
+    if (this._eventSubMenuOpen !== value) {
+      console.log(`📋 Event menu: ${this._eventSubMenuOpen} → ${value}`);
+      this._eventSubMenuOpen = value;
+    }
+  }
+  
+  get statsSubMenuOpen(): boolean {
+    return this._statsSubMenuOpen;
+  }
+  set statsSubMenuOpen(value: boolean) {
+    if (this._statsSubMenuOpen !== value) {
+      console.log(`📊 Stats menu: ${this._statsSubMenuOpen} → ${value}`);
+      this._statsSubMenuOpen = value;
+    }
+  }
   
   // Hover timers for closed sidebar
   private hoverTimer: any;
@@ -78,10 +108,11 @@ export class NavbarComponent implements OnInit, AfterViewInit {
     private sidebarService: SidebarService
   ) {
     // Force close all menus on init
+    console.log('🏗️ Constructor: Initializing navbar');
     this.cameraSubMenuOpen = false;
     this.eventSubMenuOpen = false;
     this.statsSubMenuOpen = false;
-    console.log('Constructor: Force closed all menus');
+    console.log('🔒 Constructor: All menus closed');
     
     // this.userData.userType = sessionStorage.getItem('userType') || '';
     // this.userData.provinceId = sessionStorage.getItem('provinceId') || '';
@@ -118,31 +149,42 @@ export class NavbarComponent implements OnInit, AfterViewInit {
     // Chỉ toggle khi sidebar đang mở
     if (this.isSidebarOpened) {
       const button = event.currentTarget as HTMLElement;
-      const iconText = button.querySelector('mat-icon')?.textContent?.trim();
+      const img = button.querySelector('img');
+      const iconAlt = img?.getAttribute('alt');
+      
+      console.log('🔄 toggleSubMenu clicked:', iconAlt);
       
       // Kiểm tra xem menu này có đang mở không
       let isCurrentlyOpen = false;
-      if (iconText === 'videocam') {
+      if (iconAlt === 'Camera') {
         isCurrentlyOpen = this.cameraSubMenuOpen;
-      } else if (iconText === 'event_note') {
+      } else if (iconAlt === 'Event') {
         isCurrentlyOpen = this.eventSubMenuOpen;
-      } else if (iconText === 'analytics') {
+      } else if (iconAlt === 'Statistics') {
         isCurrentlyOpen = this.statsSubMenuOpen;
       }
+      
+      console.log('📌 Current state before toggle:', isCurrentlyOpen);
       
       // Đóng tất cả menu trước
       this.closeAllSubMenus();
       
       // Nếu menu này đang đóng, thì mở nó
       if (!isCurrentlyOpen) {
-        if (iconText === 'videocam') {
+        if (iconAlt === 'Camera') {
           this.cameraSubMenuOpen = true;
-        } else if (iconText === 'event_note') {
+          console.log('✅ Opened Camera menu');
+        } else if (iconAlt === 'Event') {
           this.eventSubMenuOpen = true;
-        } else if (iconText === 'analytics') {
+          console.log('✅ Opened Event menu');
+        } else if (iconAlt === 'Statistics') {
           this.statsSubMenuOpen = true;
+          console.log('✅ Opened Statistics menu');
         }
       }
+      
+      // Trigger change detection
+      this.cdr.detectChanges();
     }
   }
 
@@ -150,7 +192,8 @@ export class NavbarComponent implements OnInit, AfterViewInit {
     // Chỉ xử lý hover khi sidebar đóng
     if (!this.isSidebarOpened) {
       const button = event.currentTarget as HTMLElement;
-      const iconText = button.querySelector('mat-icon')?.textContent?.trim();
+      const img = button.querySelector('img');
+      const iconAlt = img?.getAttribute('alt');
 
       if (this.hoverTimer) {
         clearTimeout(this.hoverTimer);
@@ -161,21 +204,21 @@ export class NavbarComponent implements OnInit, AfterViewInit {
         this.closeAllSubMenus();
         
         // Mở menu hiện tại
-        if (iconText === 'videocam') {
+        if (iconAlt === 'Camera') {
           this.cameraSubMenuOpen = true;
-        } else if (iconText === 'event_note') {
+        } else if (iconAlt === 'Event') {
           this.eventSubMenuOpen = true;
-        } else if (iconText === 'analytics') {
+        } else if (iconAlt === 'Statistics') {
           this.statsSubMenuOpen = true;
         }
       } else {
         // Đợi 300ms trước khi ẩn
         this.hoverTimer = setTimeout(() => {
-          if (iconText === 'videocam') {
+          if (iconAlt === 'Camera') {
             this.cameraSubMenuOpen = false;
-          } else if (iconText === 'event_note') {
+          } else if (iconAlt === 'Event') {
             this.eventSubMenuOpen = false;
-          } else if (iconText === 'analytics') {
+          } else if (iconAlt === 'Statistics') {
             this.statsSubMenuOpen = false;
           }
         }, 300);
@@ -219,9 +262,15 @@ export class NavbarComponent implements OnInit, AfterViewInit {
   }
 
   closeAllSubMenus() {
+    console.log('🔒 Closing all submenus');
     this.cameraSubMenuOpen = false;
     this.eventSubMenuOpen = false;
     this.statsSubMenuOpen = false;
+    console.log('📊 Menu states:', {
+      camera: this.cameraSubMenuOpen,
+      event: this.eventSubMenuOpen,
+      stats: this.statsSubMenuOpen
+    });
   }
 
   toggleMenu() {
@@ -247,24 +296,31 @@ export class NavbarComponent implements OnInit, AfterViewInit {
       filter((event): event is NavigationEnd => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       this.currentRoute = event.urlAfterRedirects;
+      console.log('🛣️ Route changed to:', this.currentRoute);
       
       // Tự động mở submenu nếu route hiện tại thuộc submenu đó (chỉ khi sidebar mở)
       if (this.isSidebarOpened) {
+        console.log('📂 Sidebar is open, checking which menu to open...');
+        // Đóng tất cả trước
+        this.closeAllSubMenus();
+        
+        // Mở menu tương ứng với route
         if (this.isCameraRouteActive()) {
+          console.log('📷 Opening Camera menu (route matches /camera)');
           this.cameraSubMenuOpen = true;
-          this.eventSubMenuOpen = false;
-          this.statsSubMenuOpen = false;
         } else if (this.isEventRouteActive()) {
+          console.log('📝 Opening Event menu (route matches /event)');
           this.eventSubMenuOpen = true;
-          this.cameraSubMenuOpen = false;
-          this.statsSubMenuOpen = false;
         } else if (this.isStatsRouteActive()) {
+          console.log('📊 Opening Stats menu (route matches /thong-ke)');
           this.statsSubMenuOpen = true;
-          this.cameraSubMenuOpen = false;
-          this.eventSubMenuOpen = false;
         } else {
-          this.closeAllSubMenus();
+          console.log('❌ No menu matches current route');
         }
+      } else {
+        console.log('📁 Sidebar is closed, closing all menus');
+        // Đóng tất cả khi sidebar đóng
+        this.closeAllSubMenus();
       }
       this.cdr.detectChanges();
     });
@@ -272,13 +328,25 @@ export class NavbarComponent implements OnInit, AfterViewInit {
     // Initial route check và mở submenu tương ứng - wrap in setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
     setTimeout(() => {
       this.currentRoute = this.router.url;
+      console.log('🎯 Initial route:', this.currentRoute);
+      console.log('🚪 Sidebar opened?', this.isSidebarOpened);
       if (this.isSidebarOpened) {
+        console.log('📂 Sidebar is open on init, checking which menu to open...');
+        // Đóng tất cả trước
+        this.closeAllSubMenus();
+        
+        // Mở menu tương ứng với route
         if (this.isCameraRouteActive()) {
+          console.log('📷 Opening Camera menu (initial route matches /camera)');
           this.cameraSubMenuOpen = true;
         } else if (this.isEventRouteActive()) {
+          console.log('📝 Opening Event menu (initial route matches /event)');
           this.eventSubMenuOpen = true;
         } else if (this.isStatsRouteActive()) {
+          console.log('📊 Opening Stats menu (initial route matches /thong-ke)');
           this.statsSubMenuOpen = true;
+        } else {
+          console.log('❌ No menu matches initial route');
         }
       }
       this.cdr.detectChanges();

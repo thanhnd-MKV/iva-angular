@@ -95,15 +95,37 @@
             <div class="summary-cards">
                 <div class="summary-card" [class.summary-card-blue]="card.color === 'blue'"
                     [class.summary-card-green]="card.color === 'green'"
-                    [class.summary-card-purple]="card.color === 'purple'" *ngFor="let card of summaryCards; let i = index">
+                    [class.summary-card-purple]="card.color === 'purple'" 
+                    *ngFor="let card of summaryCards; let i = index; trackBy: trackByCardIndex">
                     <div class="summary-header">
                         <span class="summary-title">{{ card.title }}</span>
                     </div>
                     <div style="display: flex;justify-content: space-between;">
                         <div class="summary-body">
-                            <!-- Card đầu tiên hiển thị số, các card còn lại hiển thị text -->
-                            <span class="summary-value" *ngIf="i === 0">{{ card.value }}</span>
-                            <span class="summary-value text-value" *ngIf="i !== 0">{{ card.subtitle || card.value }}</span>
+                            <!-- Card 0: Tổng số vi phạm - chỉ số -->
+                            <span class="summary-value" *ngIf="i === 0">
+                                <span 
+                                    #digitSpan
+                                    *ngFor="let digitObj of getCardDigits(i); trackBy: trackByDigit; let digitIndex = index"
+                                    class="digit"
+                                    [class.digit-animate]="digitObj.animate"
+                                    [attr.data-trigger]="animationTrigger"
+                                    [attr.data-animate]="digitObj.animate"
+                                >{{ digitObj.digit }}</span>
+                            </span>
+                            
+                            <!-- Card 1 và 2: Chỉ text -->
+                            <span class="summary-value text-value" *ngIf="i === 1 || i === 2">{{ card.subtitle || card.value }}</span>
+                            
+                            <!-- Card 3: Số format + Subtitle với icon camera -->
+                            <div class="summary-content-wrapper" *ngIf="i === 3">
+                                <span class="summary-value camera-value">{{ formatNumber(card.value) }}</span>
+                                <div class="camera-info" *ngIf="card.subtitle">
+                                    <mat-icon class="camera-icon">videocam</mat-icon>
+                                    <span class="camera-name">{{ card.subtitle }}</span>
+                                </div>
+                            </div>
+                            
                             <span class="summary-change" [class.positive]="card.isPositive"
                                 [class.negative]="!card.isPositive" *ngIf="card.change > 0">
                                 <mat-icon class="change-icon">{{ card.isPositive ? 'arrow_upward' : 'arrow_downward'
@@ -125,7 +147,7 @@
                         </div>
                         <div class="donut-content">
                             <div class="donut-chart-wrapper">
-                                <canvas baseChart [data]="donutChartData" [options]="donutChartOptions" type="doughnut">
+                                <canvas #donutChart baseChart [data]="donutChartData" [options]="donutChartOptions" type="doughnut">
                                 </canvas>
                                 <div class="donut-center">
                                     <span class="total-label">Tổng</span>
@@ -133,7 +155,10 @@
                                 </div>
                             </div>
                             <div class="donut-legend">
-                                <div class="legend-item" *ngFor="let label of donutChartData.labels; let i = index">
+                                <div class="legend-item" 
+                                     *ngFor="let label of donutChartData.labels; let i = index"
+                                     (click)="toggleDonutSegment(i)"
+                                     [class.legend-hidden]="isSegmentHidden(i)">
                                     <span class="legend-dot" [style.background-color]="getDonutLegendColor(i)"></span>
                                     <span class="legend-text">{{ label }}</span>
                                     <span class="legend-value">{{ donutChartData.datasets[0].data[i] }}</span>
@@ -166,7 +191,7 @@
                         <div *ngIf="isBarChartLoading" class="loading-overlay">
                             <mat-spinner diameter="40"></mat-spinner>
                         </div>
-                        <canvas baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
+                        <canvas #barChart baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
                         </canvas>
                     </div>
                 </div>

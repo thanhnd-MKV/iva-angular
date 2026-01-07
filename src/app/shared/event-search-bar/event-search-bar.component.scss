@@ -474,6 +474,48 @@
   max-width: 280px;
 }
 
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0 12px 0 38px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #374151;
+  background: #ffffff;
+  outline: none;
+  height: 28px;
+  transition: all 0.15s ease;
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+  
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+// Search Field Selector Dropdown
+.search-field-selector {
+  min-width: 130px;
+  
+  .dropdown-trigger {
+    min-width: 130px;
+  }
+}
+
 // Threshold Slider
 .threshold-slider-wrapper {
   display: flex;
@@ -567,38 +609,6 @@
 
 .custom-date-picker {
   margin-left: auto;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  pointer-events: none;
-  width: 18px;
-  height: 18px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0 8px 0 30px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #374151;
-  transition: all 0.15s ease;
-  height: 28px;
-  
-  &::placeholder {
-    color: #9ca3af;
-  }
-  
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-  }
 }
 
 // Search Buttons
