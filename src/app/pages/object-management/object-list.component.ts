@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -17,6 +17,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { ObjectManagementService, TrackingPersonData, ObjectSearchParams } from './object-management.service';
 import { CustomPaginatorComponent } from '../../shared/custom-paginator/custom-paginator.component';
 import { BaseErrorHandlerComponent } from '../../core/components/base-error-handler.component';
+import { ClickOutsideDirective } from '../../shared/directives/click-outside.directive';
 
 @Component({
   selector: 'app-object-list',
@@ -36,7 +37,8 @@ import { BaseErrorHandlerComponent } from '../../core/components/base-error-hand
     MatProgressSpinnerModule,
     MatDialogModule,
     MatSnackBarModule,
-    CustomPaginatorComponent
+    CustomPaginatorComponent,
+    ClickOutsideDirective
   ]
 })
 export class ObjectListComponent extends BaseErrorHandlerComponent implements OnInit {
@@ -165,6 +167,15 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
 
   override ngOnInit() {
     super.ngOnInit();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.filter-btn-wrapper')) {
+      this.showGroupTypeDropdown = false;
+      this.showDataSourceDropdown = false;
+    }
   }
 
   protected initializeComponent(): void {

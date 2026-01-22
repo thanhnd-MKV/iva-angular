@@ -94,9 +94,9 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   
   // Summary cards data - Different metrics for traffic flow (3 columns as per design)
   summaryCards = [
-    { title: 'Tổng số phương tiện', value: 8213, change: 12, isPositive: true, color: 'blue' },
-    { title: 'Phương tiện chiếm tỉ lệ cao nhất', value: 0, change: 8, isPositive: true, subtitle: 'Xe máy', color: 'green' },
-    { title: 'Giờ cao điểm giao thông', value: 0, change: -3, isPositive: false, subtitle: '7-9h', color: 'purple' }
+    { title: 'Tổng số phương tiện', value: 0, change: 0, isPositive: true, color: 'blue' },
+    { title: 'Phương tiện chiếm tỉ lệ cao nhất', value: 0, change: 0, isPositive: true, subtitle: 'Xe máy', color: 'green' },
+    { title: 'Giờ cao điểm giao thông', value: 0, change: 0, isPositive: false, subtitle: '7-9h', color: 'purple' }
   ];
   
   // Line Chart Data (Traffic flow by hour)
@@ -1493,7 +1493,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
     this.summaryCards = [
       { 
         title: 'Tổng số phương tiện', 
-        value: 8213, 
+        value: 0, 
         change: 0, 
         isPositive: true,
         color: 'blue'

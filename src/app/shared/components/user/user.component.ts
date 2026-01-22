@@ -1,8 +1,13 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../../core/services/auth.service';
 import { UnderDevelopmentService } from '../../services/under-development.service';
+import { NotificationPopupComponent } from '../notification-popup/notification-popup.component';
+import { SSEService } from '../../../core/services/sse.service';
 import { trigger, state, style, transition, animate } from '@angular/animations';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-user',
@@ -22,14 +27,20 @@ import { trigger, state, style, transition, animate } from '@angular/animations'
     ])
   ]
 })
-export class UserComponent implements OnInit {
+export class UserComponent implements OnInit, OnDestroy {
   avatarUrl: string = 'https://i.pravatar.cc/40';
   username: string = 'Unknown';
   userEmail: string = 'user@example.com';
   isMenuOpen = false;
-
+  isNotificationOpen = false;
+  notificationCount = 0;
+  private sseSubscription?: Subscription;
+  
   constructor(
     private authService: AuthService,
+    private router: Router,
+    private dialog: MatDialog,
+    private sseService: SSEService,
     public underDevService: UnderDevelopmentService
   ) {}
 
@@ -44,17 +55,79 @@ export class UserComponent implements OnInit {
         console.warn('Lỗi parse session user:', e);
       }
     }
+    
+    // Load initial notification count
+    this.updateNotificationCount();
+    
+    // Subscribe to SSE to update badge in real-time
+    this.subscribeToSSE();
+  }
+
+  ngOnDestroy(): void {
+    if (this.sseSubscription) {
+      this.sseSubscription.unsubscribe();
+    }
+  }
+
+  private subscribeToSSE(): void {
+    this.sseSubscription = this.sseService.getGlobalStream().subscribe({
+      next: () => {
+        // Update count when new notification arrives
+        this.updateNotificationCount();
+      }
+    });
+  }
+
+  private updateNotificationCount(): void {
+    const stored = localStorage.getItem('notifications');
+    if (stored) {
+      try {
+        const notifications = JSON.parse(stored);
+        this.notificationCount = notifications.filter((n: any) => !n.read).length;
+      } catch (e) {
+        this.notificationCount = 0;
+      }
+    } else {
+      this.notificationCount = 0;
+    }
   }
 
   toggleMenu() {
     this.isMenuOpen = !this.isMenuOpen;
+    if (this.isMenuOpen) {
+      this.isNotificationOpen = false;
+    }
   }
 
   closeMenu() {
     this.isMenuOpen = false;
   }
 
+  toggleNotifications() {
+    const dialogRef = this.dialog.open(NotificationPopupComponent, {
+      width: '480px',
+      maxWidth: '90vw',
+      height: 'auto',
+      maxHeight: '600px',
+      panelClass: 'notification-dialog',
+      hasBackdrop: true,
+      backdropClass: 'notification-backdrop'
+    });
+    
+    // Update count after dialog closes
+    dialogRef.afterClosed().subscribe(() => {
+      this.updateNotificationCount();
+    });
+  }
 
+  closeNotifications() {
+    this.isNotificationOpen = false;
+  }
+
+  viewAllNotifications() {
+    this.closeNotifications();
+    this.router.navigate(['/notification-test']);
+  }
 
   viewProfile() {
     this.underDevService.show({

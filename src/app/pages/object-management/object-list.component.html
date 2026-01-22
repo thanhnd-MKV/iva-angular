@@ -1,24 +1,65 @@
 <div class="object-list-container">
   <!-- Filter Bar -->
   <div class="filter-bar">
-    <div class="filter-left">
-      <div class="search-box">
-        <mat-icon class="search-icon">search</mat-icon>
-        <input type="text" placeholder="Tìm kiếm theo ID sự kiện, camera, vị trí" class="search-input"
-          [(ngModel)]="searchText" (keyup.enter)="onSearch()">
+    <!-- Row 1: Search Input + Clear Button -->
+    <div class="search-row-1">
+      <div class="left-section">
+        <!-- Search Input -->
+        <div class="search-input-wrapper">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" class="search-input" placeholder="Tìm kiếm"
+            [(ngModel)]="searchText" (keyup.enter)="onSearch()">
+        </div>
+
+        <!-- Group Type Dropdown -->
+        <div class="filter-dropdown" style="margin-left: 45px;" (clickOutside)="showGroupTypeDropdown = false">
+          <button class="dropdown-trigger" (click)="toggleGroupTypeDropdown()">
+            <span class="trigger-label">{{ getGroupTypeLabel() }}</span>
+            <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" *ngIf="showGroupTypeDropdown">
+            <div *ngFor="let option of groupTypeOptions" 
+                 class="dropdown-item"
+                 [class.selected]="selectedGroupType === option.value"
+                 (click)="selectGroupType(option.value)">
+              <span class="item-label">{{ option.label }}</span>
+              <svg *ngIf="selectedGroupType === option.value" class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Button -->
+        <button class="search-btn" (click)="onSearch()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span>Tìm kiếm</span>
+        </button>
       </div>
 
-      <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
-        <mat-icon class="btn-icon">close</mat-icon>
-        <span>Xóa bộ lọc</span>
-      </button>
-    </div>
+      <div class="right-section">
+        <!-- Clear Filter Button -->
+        <button class="clear-filter-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+          Xóa bộ lọc
+        </button>
 
-    <div class="filter-right">
-      <button class="add-btn" (click)="addNewObject()">
-        <mat-icon class="btn-icon">add</mat-icon>
-        <span>Thêm mới đối tượng</span>
-      </button>
+        <!-- Add Button -->
+        <button class="add-btn" (click)="addNewObject()">
+          <mat-icon class="btn-icon">add</mat-icon>
+          <span>Thêm mới đối tượng</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -35,6 +76,7 @@
         <tr>
           <th class="th-avatar">Ảnh đại diện</th>
           <th class="th-name">Tên gọi</th>
+          <th class="th-id">ID</th>
           <th class="th-group">Loại theo dõi</th>
           <th class="th-count">Số lần xuất hiện</th>
           <th class="th-updated">Cập nhật gần nhất</th>
@@ -48,6 +90,7 @@
               (error)="handleImageError($event)">
           </td>
           <td class="td-name">{{ item.fullName || 'N/A' }}</td>
+          <td class="td-id">{{ item.id }}</td>
           <td class="td-group">
             <span class="group-badge" [ngClass]="getGroupBadgeClass(item.trackingType)">
               {{ item.trackingType }}
@@ -84,7 +127,7 @@
 
         <!-- Empty State -->
         <tr *ngIf="tableData.length === 0">
-          <td colspan="6" class="empty-state">
+          <td colspan="7" class="empty-state">
             <div class="empty-content">
               <mat-icon class="empty-icon">person_off</mat-icon>
               <p class="empty-text">Không tìm thấy đối tượng nào</p>

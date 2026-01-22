@@ -433,10 +433,24 @@ export class ObjectManagementService {
   }
 
   /**
-   * Create new tracking person
+   * Create new tracking person with multipart/form-data
+   * @param data - Form data containing images (File[]) and person info
    */
-  createObject(data: any): Observable<any> {
-    return this.http.post(`${this.trackingPersonApiUrl.replace('/page', '')}`, data);
+  createObject(data: { images: File[], person: any }): Observable<any> {
+    const formData = new FormData();
+    
+    // Add images
+    if (data.images && data.images.length > 0) {
+      data.images.forEach((file: File) => {
+        formData.append('images', file);
+      });
+    }
+    
+    // Add person JSON
+    const personBlob = new Blob([JSON.stringify(data.person)], { type: 'application/json' });
+    formData.append('person', personBlob);
+    
+    return this.http.post(`${this.trackingPersonApiUrl.replace('/page', '')}`, formData);
   }
 
   /**

@@ -133,10 +133,10 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
   
   // Summary cards data - 4 metrics for violations
   summaryCards = [
-    { title: 'Tổng số vi phạm', value: 8213, change: 0, isPositive: false, color: 'blue' },
+    { title: 'Tổng số vi phạm', value: 0, change: 0, isPositive: false, color: 'blue' },
     { title: 'Vi phạm phổ biến nhất', value: 0, change: 0, isPositive: false, subtitle: 'Vượt đèn đỏ', color: 'green' },
     { title: 'Giờ cao điểm vi phạm', value: 0, change: 0, isPositive: true, subtitle: '16-19h', color: 'purple' },
-    { title: 'Camera ghi nhận nhiều vi phạm nhất', value: 3213, change: 0, isPositive: false, subtitle: 'Camera 04', color: 'blue' }
+    { title: 'Camera ghi nhận nhiều vi phạm nhất', value: 0, change: 0, isPositive: false, subtitle: 'Camera 04', color: 'blue' }
   ];
   
   // Chart filter state

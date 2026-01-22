@@ -125,9 +125,9 @@ import { CommonModule } from "@angular/common";
                       <div class="stats-card primary">
                         <div class="card-label">Tổng vi phạm</div>
                         <div class="card-data">
-                          <div class="value">8213</div>
+                          <div class="value">0</div>
                           <div class="trend">
-                            <div class="trend-value positive">+11.01%</div>
+                            <div class="trend-value positive">+0%</div>
                             <div class="trend-icon">
                               <img
                                 src="https://cdn.builder.io/api/v1/image/assets/41652414f93940e2931e10035fe3b479/66af1faa03d3fe2b924b25211624a90f9b31c2fa?placeholderIfAbsent=true"
@@ -143,9 +143,9 @@ import { CommonModule } from "@angular/common";
                         <div class="stats-card secondary">
                           <div class="card-label">Đã xl</div>
                           <div class="card-data">
-                            <div class="value">8213</div>
+                            <div class="value">0</div>
                             <div class="trend">
-                              <div class="trend-value positive">+11.01%</div>
+                              <div class="trend-value positive">+0%</div>
                               <div class="trend-icon">
                                 <img
                                   src="https://cdn.builder.io/api/v1/image/assets/41652414f93940e2931e10035fe3b479/66af1faa03d3fe2b924b25211624a90f9b31c2fa?placeholderIfAbsent=true"
@@ -158,9 +158,9 @@ import { CommonModule } from "@angular/common";
                         <div class="stats-card secondary">
                           <div class="card-label">Chờ xl</div>
                           <div class="card-data">
-                            <div class="value">8213</div>
+                            <div class="value">0</div>
                             <div class="trend">
-                              <div class="trend-value positive">+11.01%</div>
+                              <div class="trend-value positive">+0%</div>
                               <div class="trend-icon">
                                 <img
                                   src="https://cdn.builder.io/api/v1/image/assets/41652414f93940e2931e10035fe3b479/66af1faa03d3fe2b924b25211624a90f9b31c2fa?placeholderIfAbsent=true"

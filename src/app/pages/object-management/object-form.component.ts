@@ -38,12 +38,14 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
   isLoading = false;
   isSaving = false;
   objectId: string = '';
-  uploadedImages: string[] = [];
+  uploadedImages: string[] = []; // For preview (base64)
+  uploadedFiles: File[] = []; // For API upload
 
   groupTypes = [
-    { value: 'VIP', label: 'VIP' },
-    { value: 'Khach', label: 'Khách' },
-    { value: 'Blacklist', label: 'Blacklist' }
+    { value: 'Vip', label: 'VIP' },
+    { value: 'VeryVip', label: 'VIP cao cấp' },
+    { value: 'Criminal', label: 'Tội phạm' },
+    { value: 'Blacklist', label: 'Danh sách đen' }
   ];
 
   dataSources = [
@@ -62,15 +64,15 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
     
     this.objectForm = this.fb.group({
       name: ['', Validators.required],
-      objectId: ['', Validators.required],
+      objectId: [''], // Not required for create
       groupType: ['', Validators.required],
-      dataSource: ['', Validators.required],
+      dataSource: [''], // Not required for create
       cccdNumber: [''],
-      nationality: [''],
+      nationality: ['Việt Nam'],
       cccdIssueDate: [''],
       cccdIssuePlace: [''],
       dateOfBirth: [''],
-      gender: [''],
+      gender: ['male'], // Default to male
       origin: [''],
       residence: ['']
     });
@@ -118,20 +120,25 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
   onImageUpload(event: any) {
     const files = event.target.files;
     if (files && files.length > 0) {
-      // Handle image upload logic here
-      // For now, just simulate adding image URLs
       for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Store File object for API upload
+        this.uploadedFiles.push(file);
+        
+        // Create base64 preview
         const reader = new FileReader();
         reader.onload = (e: any) => {
           this.uploadedImages.push(e.target.result);
         };
-        reader.readAsDataURL(files[i]);
+        reader.readAsDataURL(file);
       }
     }
   }
 
   removeImage(index: number) {
     this.uploadedImages.splice(index, 1);
+    this.uploadedFiles.splice(index, 1);
   }
 
   triggerImageUpload() {
@@ -141,19 +148,55 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
 
   onSubmit() {
     if (this.objectForm.invalid) {
-      this.snackBar.open('Vui lòng điền đầy đủ thông tin bắt buộc', 'Đóng', { duration: 3000 });
+      // Find which required fields are missing
+      const missingFields = [];
+      if (this.objectForm.get('name')?.invalid) missingFields.push('Họ và tên');
+      if (this.objectForm.get('groupType')?.invalid) missingFields.push('Nhóm đối tượng');
+      
+      this.snackBar.open(
+        `Vui lòng điền: ${missingFields.join(', ')}`,
+        'Đóng',
+        { duration: 3000 }
+      );
+      return;
+    }
+    
+    // Validate images for create mode
+    if (!this.isEditMode && this.uploadedFiles.length === 0) {
+      this.snackBar.open('Vui lòng tải lên ít nhất 1 hình ảnh', 'Đóng', { duration: 3000 });
       return;
     }
 
     this.isSaving = true;
-    const formData = {
-      ...this.objectForm.value,
-      images: this.uploadedImages
-    };
-
-    const request = this.isEditMode
-      ? this.objectService.updateObject(this.objectId, formData)
-      : this.objectService.createObject(formData);
+    
+    if (!this.isEditMode) {
+      // Create mode - use multipart/form-data format
+      const personData = {
+        fullName: this.objectForm.value.name,
+        trackingType: this.objectForm.value.groupType,
+        gender: this.objectForm.value.gender || 'male',
+        // Optional fields
+        cccdNumber: this.objectForm.value.cccdNumber,
+        nationality: this.objectForm.value.nationality,
+        dateOfBirth: this.objectForm.value.dateOfBirth,
+        origin: this.objectForm.value.origin,
+        residence: this.objectForm.value.residence
+      };
+      
+      const apiData = {
+        images: this.uploadedFiles,
+        person: personData
+      };
+      
+      var request = this.objectService.createObject(apiData);
+    } else {
+      // Edit mode - use existing format
+      const formData = {
+        ...this.objectForm.value,
+        images: this.uploadedImages
+      };
+      var request = this.objectService.updateObject(this.objectId, formData);
+    }
 
     request.subscribe({
       next: () => {

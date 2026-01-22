@@ -91,36 +91,21 @@
 
 .notification-badge {
     position: absolute;
-    top: -10px;
-    right: -10px;
-    color: #1a1f3a;
-    font-size: 14px;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
     font-weight: 700;
-    min-width: 20px;
-    height: 20px;
-    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 4px;
-    animation: pulse-badge 2s ease-in-out infinite;
-}
-
-@keyframes pulse-badge {
-    0%, 100% {
-        transform: scale(1) rotate(0deg);
-        opacity: 1;
-    }
-    25% {
-        transform: scale(1.1) rotate(-3deg);
-    }
-    50% {
-        transform: scale(1.05) rotate(0deg);
-        opacity: 0.95;
-    }
-    75% {
-        transform: scale(1.1) rotate(3deg);
-    }
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .user-header:hover {
@@ -237,4 +222,15 @@
 
 .logout-item:hover .menu-icon {
     color: #b71c1c !important;
+}
+
+/* Dialog Styling */
+::ng-deep .notification-dialog {
+    padding: 0 !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+::ng-deep .notification-backdrop {
+    backdrop-filter: blur(4px);
 }
