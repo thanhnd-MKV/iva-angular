@@ -24,14 +24,14 @@ interface BeDataResponse {
 }
 
 @Component({
-  selector: 'app-doi-tuong-nhan-dien',
+  selector: 'app-person-recognition',
   standalone: true,
   imports: [CommonModule, BaseChartDirective, MatProgressSpinnerModule, MatIconModule, FormsModule, DateRangePickerComponent],
-  templateUrl: './doi-tuong-nhan-dien.component.html',
-  styleUrls: ['./doi-tuong-nhan-dien.component.scss'],
+  templateUrl: './person-recognition.component.html',
+  styleUrls: ['./person-recognition.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
+export class PersonRecognitionComponent implements OnInit, OnDestroy {
   // Filter properties
   searchText = '';
   selectedTimeRange = 'custom';
@@ -65,7 +65,7 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
 
   // SSE for real-time updates
   private sseSubscription: Subscription | null = null;
-  private readonly SSE_CHANNEL = 'objectRecognition';
+  private readonly SSE_CHANNEL = 'alarm';
   private baseData: BeDataResponse['data'] | null = null;
   
   // Data storage for incremental SSE updates
@@ -142,7 +142,7 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
   isDonutChartLoading = false;
   isLineChartLoading = false;
 
-  // Bar Chart - Thống kê nhận chủng học
+  // Bar Chart - Thống kê nhân chủng học
   public barChartLabels: string[] = Array.from({length: 24}, (_, i) => i.toString());
   public barChartData: ChartData<'bar'> = {
     labels: this.barChartLabels,
@@ -411,11 +411,12 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
   }
 
   // Helper method to update individual summary card values with animation
-  private updateSummaryCardValue(index: number, newValue: string | number): void {
+  private updateSummaryCardValue(index: number, newValue: string | number, skipAnimation: boolean = false): void {
     console.log(`📊 Updating summary card ${index}:`, { 
       oldValue: this.summaryCards[index]?.value, 
       newValue,
-      changed: this.summaryCards[index]?.value !== newValue 
+      changed: this.summaryCards[index]?.value !== newValue,
+      skipAnimation
     });
     
     if (this.summaryCards[index] && this.summaryCards[index].value !== newValue) {
@@ -425,12 +426,18 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
       this.summaryCards[index].value = newValue;
       this.cdr.markForCheck();
       
-      // Animate if it's a number
-      if (typeof newValue === 'number' && typeof oldValue === 'number') {
+      // Animate if it's a number (but skip if initial load)
+      if (!skipAnimation && typeof newValue === 'number' && typeof oldValue === 'number') {
         this.animateNumberDigits(index, oldValue, newValue);
+      } else if (skipAnimation && typeof newValue === 'number') {
+        // CRITICAL: Update cardDigits directly without animation
+        const digits = newValue.toString().split('');
+        this.cardDigits[index] = digits.map(digit => ({ digit, animate: false, key: 0 }));
+        this.summaryDisplayValues[index] = newValue;
+        console.log(`📊 Updated cardDigits[${index}] directly (no animation):`, this.cardDigits[index]);
       }
       
-      console.log('✅ Card updated');
+      console.log('✅ Card updated', skipAnimation ? '(no animation)' : '');
     }
   }
 
@@ -562,6 +569,12 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
   }
 
   private loadHumanStatistics(): void {
+    // Set all loading states to true
+    this.isBarChartLoading = true;
+    this.isDonutChartLoading = true;
+    this.isLineChartLoading = true;
+    this.cdr.detectChanges();
+    
     const params: any = {};
     
     // Add camera filter if selected
@@ -632,11 +645,21 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     this.http.get(apiEndpoint, { params }).subscribe({
       next: (response: any) => {
         this.updateChartsWithApiData(response, daysDiff > 1);
+        // Turn off all loading states
+        this.isBarChartLoading = false;
+        this.isDonutChartLoading = false;
+        this.isLineChartLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading human statistics:', error);
         // Keep charts empty in case of error
         console.log('API error - keeping charts empty');
+        // Turn off all loading states even on error
+        this.isBarChartLoading = false;
+        this.isDonutChartLoading = false;
+        this.isLineChartLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -1040,9 +1063,16 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
   private updateSummaryCardsFromNewData(data: BeDataResponse['data'], isDayView: boolean = false): void {
     console.log('🔍 updateSummaryCardsFromNewData - isDayView:', isDayView);
     console.log('🔍 gender data keys:', Object.keys(data.gender));
+    console.log('🔍 Raw data structure:', {
+      hasAgeRange: !!data.age_range,
+      hasGender: !!data.gender,
+      ageRangeKeys: Object.keys(data.age_range || {}),
+      genderKeys: Object.keys(data.gender || {})
+    });
     
     // Calculate total people count from age range
     const totalCount = Object.values(data.age_range).reduce((sum, val) => sum + val, 0);
+    console.log('📊 [DoiTuongNhanDien] Total count from age_range:', totalCount);
     
     // Find peak from gender data (works for both hour and day data)
     let maxCount = 0;
@@ -1095,9 +1125,21 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     });
     
     // Update only changed values to avoid unnecessary animations
-    this.updateSummaryCardValue(0, totalCount);
-    this.updateSummaryCardValue(1, maxCount);
-    this.updateSummaryCardValue(2, dominantAgeGroup);
+    console.log('🎯 ABOUT TO UPDATE CARDS:', { 
+      totalCount, 
+      maxCount, 
+      dominantAgeGroup,
+      currentCards: this.summaryCards.map(c => ({ title: c.title, value: c.value }))
+    });
+    this.updateSummaryCardValue(0, totalCount, true);
+    this.updateSummaryCardValue(1, maxCount, true);
+    this.updateSummaryCardValue(2, dominantAgeGroup, true);
+    console.log('✅ AFTER UPDATE CARDS:', {
+      currentCards: this.summaryCards.map(c => ({ title: c.title, value: c.value }))
+    });
+    // CRITICAL: markForCheck + detectChanges for OnPush
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   private updateLineChartFromApi(data: any): void {
@@ -1689,9 +1731,6 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     
     // Reload human statistics with current filters
     this.loadHumanStatistics();
-    
-    // Reconnect SSE with new filters
-    this.reconnectSSEWithFilters();
   }
 
   /**
@@ -1701,10 +1740,10 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     // Disconnect existing connection first
     this.disconnectSSE();
     
-    // Subscribe to SSE channel
-    console.log(`🔌 Connecting to SSE channel: ${this.SSE_CHANNEL}`);
+    // Subscribe to shared SSE stream
+    console.log(`🔌 Subscribing to shared SSE stream for: ${this.SSE_CHANNEL}`);
     
-    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+    this.sseSubscription = this.sseService.getSharedStream().subscribe({
       next: (data) => {
         this.handleSSEData(data);
       },
@@ -1725,7 +1764,7 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     if (this.sseSubscription) {
       this.sseSubscription.unsubscribe();
       this.sseSubscription = null;
-      this.sseService.disconnect(this.SSE_CHANNEL);
+      console.log('🔌 Unsubscribed from shared SSE stream');
     }
   }
 
@@ -1740,19 +1779,59 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
     const data = message.data || message;
     
     console.log(`📌 Event type: ${eventType}`, data);
+    console.log(`📌 Expected: PERSON:frame, Got: ${eventType}, Match: ${eventType === 'PERSON:frame'}`);
     
-    // Handle dataChanges event
-    if (data.dataChanges) {
-      console.log('✅ Processing dataChanges:', data.dataChanges);
-      this.processDataChanges(data.dataChanges);
-    } 
-    // Handle full data format (old format)
-    else if (data.age_range || data.gender || data.complexion) {
-      console.log('📊 Processing full data:', data);
-      this.updateChartsFromRealTimeData(data);
+    // TEMPORARILY DISABLED - Check what event types BE is sending
+    // Filter: Only process PERSON:frame events for object recognition
+    /*
+    if (eventType !== 'PERSON:frame') {
+      console.log(`🔇 Filtered out event type: ${eventType} (expected: PERSON:frame)`);
+      return;
     }
-    else {
-      console.warn('⚠️ Unknown SSE data format:', data);
+    */
+    
+    try {
+      // **CLIENT-SIDE FILTER: Kiểm tra xem SSE data có match với filter hiện tại hay không**
+      if (data.dataChanges) {
+        const sseCamera = data.dataChanges.cameraSn || data.cameraSn;
+        const sseLocation = data.dataChanges.location || data.location;
+        
+        // Nếu có filter camera và SSE data không match -> bỏ qua
+        if (this.selectedCamera && sseCamera && this.selectedCamera !== sseCamera) {
+          console.log('⚠️ SSE data filtered out - camera mismatch:', {
+            filter: this.selectedCamera,
+            sse: sseCamera
+          });
+          return;
+        }
+        
+        // Nếu có filter area/location và SSE data không match -> bỏ qua
+        if (this.selectedArea && sseLocation && this.selectedArea !== sseLocation) {
+          console.log('⚠️ SSE data filtered out - location mismatch:', {
+            filter: this.selectedArea,
+            sse: sseLocation
+          });
+          return;
+        }
+        
+        console.log('✅ SSE data matches current filters, processing...');
+      }
+      
+      // Handle dataChanges event
+      if (data.dataChanges) {
+        console.log('✅ Processing dataChanges:', data.dataChanges);
+        this.processDataChanges(data.dataChanges);
+      } 
+      // Handle full data format (old format)
+      else if (data.age_range || data.gender || data.complexion) {
+        console.log('📊 Processing full data:', data);
+        this.updateChartsFromRealTimeData(data);
+      }
+      else {
+        console.warn('⚠️ Unknown SSE data format:', data);
+      }
+    } catch (error) {
+      console.error('❌ Error processing SSE data:', error);
     }
   }
 
@@ -1838,21 +1917,11 @@ export class DoiTuongNhanDienComponent implements OnInit, OnDestroy {
         complexion: this.complexionData
       }, false);
       
-      // Trigger change detection
-      this.cdr.markForCheck();
+      // CRITICAL: Force immediate UI update (not just mark for check)
+      this.cdr.detectChanges();
       
-      console.log('✅ Charts updated successfully');
+      console.log('✅ Charts and UI updated successfully');
     }
-  }
-
-  /**
-   * Reconnect SSE when filters change
-   */
-  private reconnectSSEWithFilters(): void {
-    // Note: SSE currently uses a single channel for all statistics
-    // Filter-specific data will be handled by loadHumanStatistics()
-    // Uncomment below if backend supports filter-specific SSE channels:
-    // this.connectSSE();
   }
 
   ngOnDestroy(): void {

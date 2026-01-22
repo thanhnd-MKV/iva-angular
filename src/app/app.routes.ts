@@ -68,32 +68,32 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./pages/event/traffic-event.component').then(m => m.TrafficEventComponent)
       },
       {
-        path: 'thong-ke/doi-tuong-nhan-dien',
-        title: 'Đối tượng nhận diện',
+        path: 'thong-ke/person-recognition',
+        title: 'Person Recognition',
         // canActivate: [PermissionGuard],
-        // data: { permissions: ['thong-ke:doi-tuong-nhan-dien'] },
-        loadComponent: () => import('./pages/statistics/doi-tuong-nhan-dien.component').then(m => m.DoiTuongNhanDienComponent)
+        // data: { permissions: ['thong-ke:person-recognition'] },
+        loadComponent: () => import('./pages/statistics/person-recognition.component').then(m => m.PersonRecognitionComponent)
       },
       {
-        path: 'thong-ke/luu-luong-ra-vao',
-        title: 'Lưu lượng ra vào',
+        path: 'thong-ke/entry-exit-flow',
+        title: 'Entry Exit Flow',
         // canActivate: [PermissionGuard],
-        // data: { permissions: ['thong-ke:luu-luong-ra-vao'] },
-        loadComponent: () => import('./pages/statistics/luu-luong-ra-vao.component').then(m => m.LuuLuongRaVaoComponent)
+        // data: { permissions: ['thong-ke:entry-exit-flow'] },
+        loadComponent: () => import('./pages/statistics/entry-exit-flow.component').then(m => m.EntryExitFlowComponent)
       },
       {
-        path: 'thong-ke/luu-luong-giao-thong',
-        title: 'Lưu lượng giao thông',
+        path: 'thong-ke/traffic-flow',
+        title: 'Traffic Flow',
         // canActivate: [PermissionGuard],
-        // data: { permissions: ['thong-ke:luu-luong-giao-thong'] },
-        loadComponent: () => import('./pages/statistics/luu-luong-giao-thong.component').then(m => m.LuuLuongGiaoThongComponent)
+        // data: { permissions: ['thong-ke:traffic-flow'] },
+        loadComponent: () => import('./pages/statistics/traffic-flow.component').then(m => m.TrafficFlowComponent)
       },
       {
-        path: 'thong-ke/vi-pham-giao-thong',
-        title: 'Vi phạm giao thông',
+        path: 'thong-ke/traffic-violation',
+        title: 'Traffic Violation',
         // canActivate: [PermissionGuard],
-        // data: { permissions: ['thong-ke:vi-pham-giao-thong'] },
-        loadComponent: () => import('./pages/statistics/vi-pham-giao-thong.component').then(m => m.ViPhamGiaoThongComponent)
+        // data: { permissions: ['thong-ke:traffic-violation'] },
+        loadComponent: () => import('./pages/statistics/traffic-violation.component').then(m => m.TrafficViolationComponent)
       },
       {
         path: 'event/detail/:id',
@@ -108,6 +108,48 @@ export const appRoutes: Routes = [
         // canActivate: [PermissionGuard],
         // data: { permissions: ['event:info'] },
         loadComponent: () => import('./pages/violation-data/violation-screen.component').then(m => m.ViolationScreenComponent)
+      },
+      {
+        path: 'object-management',
+        title: 'Quản lý đối tượng',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management'] },
+        loadComponent: () => import('./pages/object-management/object-list.component').then(m => m.ObjectListComponent)
+      },
+      {
+        path: 'object-management/detail/:id',
+        title: 'Chi tiết đối tượng',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management:detail'] },
+        loadComponent: () => import('./pages/object-management/object-detail.component').then(m => m.ObjectDetailComponent)
+      },
+      {
+        path: 'object-management/add',
+        title: 'Thêm mới đối tượng',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management:add'] },
+        loadComponent: () => import('./pages/object-management/object-form.component').then(m => m.ObjectFormComponent)
+      },
+      {
+        path: 'object-management/edit/:id',
+        title: 'Chỉnh sửa đối tượng',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management:edit'] },
+        loadComponent: () => import('./pages/object-management/object-form.component').then(m => m.ObjectFormComponent)
+      },
+      {
+        path: 'object-management/events/:id',
+        title: 'Truy vết sự kiện',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management:events'] },
+        loadComponent: () => import('./pages/object-management/object-events.component').then(m => m.ObjectEventsComponent)
+      },
+      {
+        path: 'notification-test',
+        title: 'Test SSE Notification',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['dev'] },
+        loadComponent: () => import('./pages/notification-test/notification-test.component').then(m => m.NotificationTestComponent)
       },
       {
         path: '404',

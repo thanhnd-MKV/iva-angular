@@ -113,27 +113,34 @@
             (mouseleave)="isSidebarOpened ? null : onSubmenuHover($event, false)">
           <div>
             <li>
-              <a routerLink="/thong-ke/doi-tuong-nhan-dien" routerLinkActive="active" (click)="closeAllSubMenus()">
+              <a routerLink="/thong-ke/person-recognition" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Đối tượng nhận diện
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/luu-luong-ra-vao" routerLinkActive="active" (click)="closeAllSubMenus()">
+              <a routerLink="/thong-ke/entry-exit-flow" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Lưu lượng ra vào
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/luu-luong-giao-thong" routerLinkActive="active" (click)="closeAllSubMenus()">
+              <a routerLink="/thong-ke/traffic-flow" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Lưu lượng giao thông
               </a>
             </li>
             <li>
-              <a routerLink="/thong-ke/vi-pham-giao-thong" routerLinkActive="active" (click)="closeAllSubMenus()">
+              <a routerLink="/thong-ke/traffic-violation" routerLinkActive="active" (click)="closeAllSubMenus()">
                 Vi phạm giao thông
               </a>
             </li>
           </div>
         </ul>
+      </li>
+      
+      <li>
+        <a routerLink="/object-management" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <img src="assets/icon/id-icon.svg" alt="Object Management" class="menu-icon">
+          <span>Quản lý đối tượng</span>
+        </a>
       </li>
     </ul>
     

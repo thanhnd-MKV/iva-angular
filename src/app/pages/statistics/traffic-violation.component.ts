@@ -17,7 +17,7 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 @Component({
-  selector: 'app-vi-pham-giao-thong',
+  selector: 'app-traffic-violation',
   standalone: true,
   imports: [
     CommonModule,
@@ -28,10 +28,10 @@ import { filter } from 'rxjs/operators';
     DateRangePickerComponent,
     TrafficFlowMapComponent
   ],
-  templateUrl: './vi-pham-giao-thong.component.html',
-  styleUrls: ['./vi-pham-giao-thong.component.scss']
+  templateUrl: './traffic-violation.component.html',
+  styleUrls: ['./traffic-violation.component.scss']
 })
-export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
+export class TrafficViolationComponent implements OnInit, OnDestroy {
   @ViewChild('barChart') chart?: BaseChartDirective;
   @ViewChild('donutChart') donutChart?: BaseChartDirective;
   @ViewChildren('digitSpan', { read: ElementRef }) digitSpans?: QueryList<ElementRef>;
@@ -47,7 +47,7 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
   // SSE for real-time traffic violation updates
   private sseSubscription?: Subscription;
   private routerSubscription?: Subscription;
-  private readonly SSE_CHANNEL = 'trafficViolation';
+  private readonly SSE_CHANNEL = 'alarm';
   private isPageActive = false;
   
   // Mock data toggle - set to true to use mock data
@@ -128,7 +128,7 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
   
   // Map data
   mapCenter = { lat: 14.0583, lng: 108.2772 }; // Vietnam center for country view
-  mapZoom = 5; // Start with country overview
+  mapZoom = 1; // Start with lowest zoom (country overview)
   cameraLocations: any[] = [];
   
   // Summary cards data - 4 metrics for violations
@@ -549,11 +549,13 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
         }
         this.isLineChartLoading = false;
         this.isBarChartLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading statistics:', error);
         this.isLineChartLoading = false;
         this.isBarChartLoading = false;
+        this.cdr.detectChanges();
       }
     });
 
@@ -568,9 +570,9 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
           // Clear map when API returns no data - create NEW array reference
           this.cameraLocations = [...[]]; // New empty array
           this.mapCenter = { lat: 14.0583, lng: 108.2772 };
-          this.mapZoom = 5;
-          this.cdr.detectChanges();
+          this.mapZoom = 1;
         }
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading GPS stats:', error);
@@ -605,6 +607,7 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
             allCameras.push({
               ...camera,
               locationName: location.location,
+              address: camera.address || location.location, // Ưu tiên address chi tiết
               lat: lat,
               lng: lng
             });
@@ -630,7 +633,8 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
           lat: camera.lat,
           lng: camera.lng,
           total: camera.total || 0,
-          locationName: camera.locationName
+          locationName: camera.locationName,
+          address: camera.address // Lưu address chi tiết
         });
       });
       
@@ -665,11 +669,12 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
         return {
           lat: mainCamera.lat,
           lng: mainCamera.lng,
-          name: locationNames,
+          name: locationNames || mainCamera.address, // Ưu tiên tên location chung
           count: totalCount,
           cameraCode: cameras.length === 1 ? mainCamera.cameraSn : `${cameras.length} cameras`,
           cameras: cameras.map(c => c.cameraSn),
-          individualCameras: cameras
+          individualCameras: cameras,
+          address: mainCamera.address || locationNames // Lưu address chi tiết cho info window
         };
       });
       
@@ -846,16 +851,22 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
     // Reset summary cards if no data
     if (!data || data.totalViolations === 0 || !data.totalViolations) {
       console.log('⚠️ No violation data - resetting summary cards');
-      this.updateSummaryCardValue(0, 0);
+      this.updateSummaryCardValue(0, 0, true);
       this.summaryCards[1].value = 0;
       this.summaryCards[1].subtitle = 'N/A';
       this.summaryCards[2].value = 0;
       this.summaryCards[2].subtitle = 'N/A';
-      this.updateSummaryCardValue(3, 0);
+      this.updateSummaryCardValue(3, 0, true);
       this.summaryCards[3].subtitle = 'N/A';
     } else {
       // Update summary cards with correct data and animation
-      this.updateSummaryCardValue(0, data.totalViolations || 0);
+      console.log('📊 [ViPhamGiaoThong] Setting cards from API:', {
+        totalViolations: data.totalViolations,
+        mostCommonType: data.mostCommonViolationType,
+        peakDay: data.peakDay,
+        mostActiveCamera: data.mostActiveCamera
+      });
+      this.updateSummaryCardValue(0, data.totalViolations || 0, true);
       console.log('✅ Card 1 - Total violations:', this.summaryCards[0].value);
       
       // Most common violation type - map to Vietnamese (only text, no number display)
@@ -882,12 +893,17 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
       // Most active camera
       if (data.mostActiveCamera) {
         this.summaryCards[3].subtitle = data.mostActiveCamera;
-        this.updateSummaryCardValue(3, data.mostActiveCameraCount?.count || 0);
+        this.updateSummaryCardValue(3, data.mostActiveCameraCount?.count || 0, true);
         console.log('✅ Card 4 - Most active camera:', this.summaryCards[3].subtitle, '=', this.summaryCards[3].value);
       } else {
-        this.updateSummaryCardValue(3, 0);
+        this.updateSummaryCardValue(3, 0, true);
         this.summaryCards[3].subtitle = 'N/A';
       }
+      
+      console.log('✅ [ViPhamGiaoThong] Summary cards after update:', this.summaryCards.map(c => ({ title: c.title, value: c.value, subtitle: c.subtitle })));
+      // CRITICAL: markForCheck + detectChanges for OnPush
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
     }
 
     // Update donut chart - violation types from eventTypeTotals
@@ -1205,14 +1221,25 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log(`🔌 Connecting to SSE: ${this.SSE_CHANNEL}`);
+    console.log(`🔌 Subscribing to shared SSE stream for: ${this.SSE_CHANNEL}`);
     
-    // Disconnect any existing connection first
+    // Disconnect any existing subscription first
     this.disconnectSSE();
     
-    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+    this.sseSubscription = this.sseService.getSharedStream().subscribe({
       next: (message) => {
         console.log(`📨 SSE Data [${this.SSE_CHANNEL}]:`, message);
+        
+        // TEMPORARILY DISABLED - Check what event types BE is sending
+        // Filter: Only process TRAFFIC:event for traffic violations
+        /*
+        const eventType = message.event || 'message';
+        if (eventType !== 'TRAFFIC:event') {
+          console.log(`🔇 Filtered out event type: ${eventType} (expected: TRAFFIC:event)`);
+          return;
+        }
+        */
+        
         this.handleSSEUpdate(message.data || message);
       },
       error: (error) => {
@@ -1237,28 +1264,28 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
       this.sseSubscription.unsubscribe();
       this.sseSubscription = undefined;
     }
-    this.sseService.disconnect(this.SSE_CHANNEL);
   }
-  
+
   private handleSSEUpdate(data: any): void {
     console.log('🔄 Processing SSE update for traffic violation:', data);
     
-    // Handle dataChanges format: {"dataChanges":{"cameraSn":{"violationType":count}}}
-    if (data.dataChanges) {
-      console.log('📊 DataChanges detected:', data.dataChanges);
-      
+    try {
       let totalNewViolations = 0;
       const currentHour = new Date().getHours();
       
-      // Iterate through each camera
-      Object.keys(data.dataChanges).forEach(cameraSn => {
-        const violationData = data.dataChanges[cameraSn];
-        console.log(`📷 Camera ${cameraSn} violations:`, violationData);
+      // Handle dataChanges format: {"dataChanges":{"cameraSn":{"violationType":count}}}
+      if (data.dataChanges) {
+        console.log('📊 DataChanges detected:', data.dataChanges);
         
-        let cameraViolationCount = 0;
-        
-        // Process each violation type
-        Object.keys(violationData).forEach(violationType => {
+        // Iterate through each camera
+        Object.keys(data.dataChanges).forEach(cameraSn => {
+          const violationData = data.dataChanges[cameraSn];
+            console.log(`📷 Camera ${cameraSn} violations:`, violationData);
+          
+          let cameraViolationCount = 0;
+          
+          // Process each violation type
+          Object.keys(violationData).forEach(violationType => {
           const count = violationData[violationType];
           cameraViolationCount += count;
           totalNewViolations += count;
@@ -1267,11 +1294,11 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
           this.violationData.eventTypeTotals[violationType] = 
             (this.violationData.eventTypeTotals[violationType] || 0) + count;
           
-          console.log(`  ⚠️ ${violationType}: +${count} (total: ${this.violationData.eventTypeTotals[violationType]})`);
-        });
-        
-        // Find camera location from totalCameraEvents first (more reliable), then cameraLocations
-        let cameraLocation = 'Unknown';
+            console.log(`  ⚠️ ${violationType}: +${count} (total: ${this.violationData.eventTypeTotals[violationType]})`);
+          });
+          
+          // Find camera location from totalCameraEvents first (more reliable), then cameraLocations
+          let cameraLocation = 'Unknown';
         
         // Check in existing totalCameraEvents data first
         if (this.violationData.totalCameraEvents[cameraSn]) {
@@ -1295,6 +1322,15 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
           } else {
             console.warn(`⚠️ Camera ${cameraSn} not found in any location data, using 'Unknown'`);
           }
+        }
+        
+        // **CLIENT-SIDE FILTER: Kiểm tra location/area filter**
+        if (this.selectedArea && cameraLocation !== 'Unknown' && this.selectedArea !== cameraLocation) {
+          console.log('⚠️ SSE data filtered out - area/location mismatch:', {
+            filter: this.selectedArea,
+            sse: cameraLocation
+          });
+          return; // Skip this camera
         }
         
         // Update totalCameraEvents
@@ -1342,10 +1378,11 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
             (locationEntry.eventTypes[violationType] || 0) + count;
         });
         locationEntry.total += cameraViolationCount;
-      });
+        });
       
-      // Update total violations
-      this.violationData.totalViolations += totalNewViolations;
+        // Update total violations
+        this.violationData.totalViolations += totalNewViolations;
+      }
       
       console.log('📊 Updated violationData:', this.violationData);
       
@@ -1361,10 +1398,12 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
       // Update peak hour
       this.updatePeakHour(currentHour);
       
-      // Use markForCheck instead of detectChanges for better performance with OnPush
-      this.cdr.markForCheck();
+      // CRITICAL: Force immediate UI update (not just mark for check)
+      this.cdr.detectChanges();
       
-      console.log('✅ SSE update completed successfully');
+      console.log('✅ SSE update completed and UI refreshed');
+    } catch (error) {
+      console.error('❌ Error processing SSE data:', error);
     }
     
     // Handle direct format (legacy)
@@ -1562,12 +1601,14 @@ export class ViPhamGiaoThongComponent implements OnInit, OnDestroy {
   }
 
   // Update card with animation
-  private updateSummaryCardValue(cardIndex: number, newValue: number): void {
+  private updateSummaryCardValue(cardIndex: number, newValue: number, skipAnimation: boolean = false): void {
     const oldValue = this.summaryCards[cardIndex].value;
     
     if (oldValue !== newValue && typeof oldValue === 'number') {
       this.summaryCards[cardIndex].value = newValue;
-      this.animateNumberDigits(cardIndex, oldValue, newValue);
+      if (!skipAnimation) {
+        this.animateNumberDigits(cardIndex, oldValue, newValue);
+      }
       this.cdr.detectChanges();
     }
   }

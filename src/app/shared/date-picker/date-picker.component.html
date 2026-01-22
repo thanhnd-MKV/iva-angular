@@ -1,7 +1,7 @@
 <div class="datepicker-container" (click)="$event.stopPropagation()">
-  <div #inputWrapperRef class="input-wrapper" (click)="toggleCalendar()">
+  <div #inputWrapperRef class="input-wrapper" (click)="toggleCalendar()" [class.disabled]="disabled">
     <span class="calendar-icon"></span>
-    <input type="text" [value]="formattedDate" readonly placeholder="Select a date">
+    <input type="text" [value]="formattedDate" readonly [placeholder]="placeholder" [disabled]="disabled">
   </div>
 
   <div #popupRef class="calendar-popup" *ngIf="isOpen" [ngClass]="popupPosition">

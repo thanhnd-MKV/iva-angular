@@ -638,7 +638,6 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
   }
   
   transformEventData(row: any): any {
-    // Parse images - ưu tiên croppedImagePath trước, sau đó fullImagePath
     let images: string[] = [];
     
     // Thêm cropped image trước (nếu có)

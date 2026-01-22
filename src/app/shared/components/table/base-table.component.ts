@@ -184,10 +184,6 @@ export class BaseTableComponent implements OnInit, OnChanges {
 
     // Debug selectedEventId changes
     if (changes['selectedEventId']) {
-      console.log('🔄 BaseTable: selectedEventId changed:', {
-        previous: changes['selectedEventId'].previousValue,
-        current: changes['selectedEventId'].currentValue
-      });
       // Force change detection for class binding
       this.cdr.markForCheck();
     }
@@ -364,7 +360,6 @@ export class BaseTableComponent implements OnInit, OnChanges {
     
     // Debug logging (only log when highlighted)
     if (isHighlighted) {
-      console.log('✅ BaseTable: Row is highlighted', { rowEventId, selectedId });
     }
     
     return isHighlighted;

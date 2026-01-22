@@ -1,0 +1,44 @@
+<div class="object-events-container">
+  <!-- Search Bar - với ảnh đối tượng (read-only) -->
+  <app-event-search-bar
+    [filters]="eventFilters"
+    [showSearchInput]="true"
+    [searchInputPlaceholder]="'Tìm kiếm (ID, biển số, ...)'"
+    [searchFieldName]="'searchText'"
+    [showAdvancedSearch]="false"
+    [showImageUpload]="true"
+    [showThresholdSlider]="true"
+    [displayOnlyImages]="objectData && objectData.avatarUrl ? [objectData.avatarUrl] : []"
+    [imageLabel]="objectData?.name || 'Đối tượng'"
+    (searchTriggered)="onSearch($event)">
+  </app-event-search-bar>
+
+  <!-- Content Layout - tracking mode mặc định -->
+  <div class="content-layout tracking-mode">
+    <!-- Table Section -->
+    <div class="table-section with-map">
+      <app-base-table 
+        [title]="'Lộ trình - ' + (objectData?.name || trackingTarget)" 
+        [data]="tableData" 
+        [columnsToDisplay]="columnsToDisplay"
+        [columnDefs]="columnDefs" 
+        [actions]="['view']" 
+        [hasError]="hasError"
+        [errorMessage]="errorMessage"
+        [selectedEventId]="selectedEventId"
+        (view)="viewEventDetail($event)"
+        (rowClick)="handleRowClick($event)"
+        (refresh)="onRetry()">
+      </app-base-table>
+    </div>
+
+    <!-- Tracking Map Section -->
+    <div class="map-section">
+      <app-tracking-map 
+        [locations]="trackingLocations"
+        [trackingTarget]="trackingTarget"
+        [selectedEventId]="selectedEventId">
+      </app-tracking-map>
+    </div>
+  </div>
+</div>

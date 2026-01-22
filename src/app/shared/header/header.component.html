@@ -2,8 +2,8 @@
   <div class="breadcrumb">
     <span class="breadcrumb-parent" 
           *ngIf="parentTitle" 
-          [class.clickable]="isEventDetailPage"
-          (click)="isEventDetailPage ? navigateToParent() : null">
+          [class.clickable]="isEventDetailPage || isObjectManagementPage"
+          (click)="(isEventDetailPage || isObjectManagementPage) ? navigateToParent() : null">
       {{ parentTitle }}
     </span>
     <mat-icon *ngIf="parentTitle" class="breadcrumb-separator">chevron_right</mat-icon>

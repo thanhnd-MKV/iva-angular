@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, ChangeDetectorRef, AfterViewInit, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GoogleMapsModule, GoogleMap, MapMarker, MapInfoWindow } from '@angular/google-maps';
+import { MapMarkerService, MarkerType, ZoomLevel, ClusterMarker } from '../../shared/services/map-marker.service';
 
 interface MarkerData {
   position: google.maps.LatLngLiteral;
@@ -10,6 +11,7 @@ interface MarkerData {
   id: string;
   area?: string;
   cameraCode?: string;
+  address?: string; // Địa chỉ camera từ API
 }
 
 interface CameraLocation {
@@ -18,8 +20,11 @@ interface CameraLocation {
   name: string;
   count: number;
   cameraCode: string;
-  totalIn?: number;
-  totalOut?: number;
+  address: string;                    // Địa chỉ camera từ API
+  violationCount?: number;           // totalTrafficViolation từ API
+  totalTrafficDetected?: number;     // Tổng phương tiện từ API
+  totalPersonDetected?: number;      // Tổng người từ API
+  cameraType?: 'TRAFFIC' | 'PERSON'; // Loại camera từ API
 }
 
 @Component({
@@ -54,18 +59,6 @@ interface CameraLocation {
         (mapInitialized)="onMapInitialized()"
         (zoomChanged)="onZoomChanged()">
         
-        <!-- Blue circle zones -->
-        <ng-container *ngIf="zoom >= 8">
-          <ng-container *ngFor="let marker of visibleMarkers; trackBy: trackByMarkerId">
-            <map-circle
-              *ngIf="marker.position && isFinite(marker.position.lat) && isFinite(marker.position.lng)"
-              [center]="marker.position"
-              [radius]="getCircleRadius(marker)"
-              [options]="getCircleOptions(marker)">
-            </map-circle>
-          </ng-container>
-        </ng-container>
-        
         <!-- Markers -->
         <ng-container *ngFor="let marker of visibleMarkers; let i = index; trackBy: trackByMarkerId">
           <map-marker 
@@ -80,19 +73,29 @@ interface CameraLocation {
         <!-- Info Window -->
         <map-info-window #infoWindow>
           <div class="info-window-content" *ngIf="selectedMarker">
-            <h4 class="info-title">{{ selectedMarker.label }}</h4>
+            <div class="info-header">
+              <h4 class="info-title">{{ selectedMarker.area || selectedMarker.label }}</h4>
+              <button class="traffic-icon-btn">
+                <img src="assets/icon/cameraIcon.svg" alt="Camera" class="icon-img">
+                <span>Giao thông</span>
+              </button>
+            </div>
             <div class="info-details">
-              <div class="info-row" *ngIf="selectedMarker.level === 'camera'">
-                <span class="info-label">Camera</span>
-                <span class="info-value">{{ selectedMarker.cameraCode }}</span>
+              <div class="info-row">
+                <img src="assets/icon/carIcon.svg" alt="Car" class="info-icon-img">
+                <span class="info-label">Tổng phương tiện:</span>
+                <span class="info-value">{{ getTrafficCount(selectedMarker) | number }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Tổng lưu lượng</span>
-                <span class="info-value">{{ selectedMarker.count }}</span>
+                <img src="assets/icon/warningIcon.svg" alt="Warning" class="info-icon-img">
+                <span class="info-label">Tổng số vi phạm:</span>
+                <span class="info-value">{{ getViolationCount(selectedMarker) | number }}</span>
               </div>
-              <div class="info-row" *ngIf="selectedMarker.area">
-                <span class="info-label">Khu vực</span>
-                <span class="info-value">{{ selectedMarker.area }}</span>
+              <div class="info-row" *ngIf="getAddress(selectedMarker)">
+                <img src="assets/icon/locationIcon.svg" alt="Location" class="info-icon-img">
+                <a [href]="getGoogleMapsLink(selectedMarker)" target="_blank" class="info-address">
+                  {{ getAddress(selectedMarker) }}
+                </a>
               </div>
             </div>
           </div>
@@ -189,50 +192,121 @@ interface CameraLocation {
     }
     
     .info-window-content {
-      padding: 8px;
-      min-width: 220px;
-      max-width: 300px;
+      padding: 16px;
+      min-width: 280px;
+      max-width: 350px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e7eb;
     }
     
     .info-title {
-      margin: 0 0 12px 0;
-      font-size: 15px;
-      font-weight: 600;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
       color: #1f2937;
+    }
+    
+    .traffic-icon-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: #f3f4f6;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .traffic-icon-btn:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    
+    .traffic-icon-btn .icon-img {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .info-icon-img {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
     }
     
     .info-details {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
     }
     
     .info-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
-      border-bottom: 1px solid #f3f4f6;
+      gap: 8px;
+      padding: 0;
+      border: none;
     }
     
-    .info-row:last-child {
-      border-bottom: none;
+    .info-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
     }
     
     .info-label {
       font-size: 13px;
       color: #6b7280;
-      font-weight: 500;
+      font-weight: 400;
+      flex: 0 0 auto;
     }
     
     .info-value {
-      font-size: 13px;
-      color: #1f2937;
+      font-size: 14px;
+      color: #111827;
       font-weight: 600;
+      margin-left: auto;
+    }
+    
+    .info-address {
+      font-size: 13px;
+      color: #3b82f6;
+      text-decoration: underline;
+      cursor: pointer;
+      flex: 1;
     }
   `]
 })
 export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
+  
+  private readonly BADGE_STYLE = {
+    fontSize: 9,
+    fontFamily: 'Arial',
+    fontWeight: 'bold',
+    height: 18,             
+    horizontalPadding: 6,   
+    borderRadius: 9,        // Bo góc badge (bằng height/2 để tròn hoàn toàn)
+    backgroundColor: '#EF4444', // Màu đỏ
+    textColor: '#FFFFFF',       // Màu trắng
+    borderColor: '#FFFFFF',     // Viền trắng
+    borderWidth: 1,
+    offsetX: 3, // Khoảng cách từ cạnh phải icon
+    offsetY: 1  // Khoảng cách từ cạnh trên icon (giảm giá trị = đẩy lên cao hơn)
+  };
+  
   @ViewChild('map') mapElement!: GoogleMap;
   @ViewChild(MapInfoWindow) infoWindow!: MapInfoWindow;
   @ViewChildren(MapMarker) markerElements!: QueryList<MapMarker>;
@@ -243,7 +317,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
 
   isLoading = true;
   center: google.maps.LatLngLiteral = { lat: 15.6, lng: 107.0 }; // Default center
-  zoom = 5.2; // Default zoom
+  zoom = 10; // Default zoom - Start at MEDIUM level to show individual cameras
   
   selectedMarker: MarkerData | null = null;
   selectedMarkerIndex: number = -1;
@@ -251,6 +325,9 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   
   private zoomChangeTimeout: any;
   private markerOptionsCache = new Map<string, google.maps.MarkerOptions>();
+  private loadedMarkerIcons = new Map<MarkerType, string>();
+  private badgeIconCache = new Map<string, string>(); // Cache for icon+badge composites
+  private markersCache = new Map<ZoomLevel, MarkerData[]>(); // Cache markers by zoom level to prevent rebuilding
   
   // Hierarchical data arrays
   private countryLevelData: MarkerData[] = [];
@@ -258,6 +335,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   private districtLevelData: MarkerData[] = [];
   private cameraLevelData: MarkerData[] = []; // Area groups from parent
   private individualCameras: MarkerData[] = []; // Individual cameras for high zoom
+  private clusterMarkers: ClusterMarker[] = []; // Clustered markers for low zoom
   
   mapOptions: google.maps.MapOptions = {
     mapTypeId: 'roadmap',
@@ -278,7 +356,10 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     ]
   };
 
-  constructor(private cdr: ChangeDetectorRef) {
+  constructor(
+    private cdr: ChangeDetectorRef,
+    private mapMarkerService: MapMarkerService
+  ) {
     // Validate initial center
     if (!isFinite(this.center.lat) || !isFinite(this.center.lng)) {
       console.error('🗺️ [TrafficFlowMapComponent] ❌ Invalid initial center, resetting to default');
@@ -287,7 +368,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     
     if (!isFinite(this.zoom) || this.zoom < 5 || this.zoom > 18) {
       console.error('🗺️ [TrafficFlowMapComponent] ❌ Invalid initial zoom, resetting to default');
-      this.zoom = 5.2;
+      this.zoom = 10;
     }
     
     console.log('🗺️ [TrafficFlowMapComponent] Constructor - Initial center:', this.center, 'zoom:', this.zoom);
@@ -295,8 +376,76 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
 
   ngOnInit() {
     console.log('🗺️ [TrafficFlowMapComponent] ngOnInit - Initial cameraLocations:', this.cameraLocations?.length || 0);
-    this.convertCameraLocationsToMarkers();
-    this.updateMarkersForZoomLevel();
+    // Don't call initializeMap here, wait for AfterViewInit and data
+  }
+
+  ngAfterViewInit() {
+    console.log('🗺️ [TrafficFlowMapComponent] ngAfterViewInit - Map ready, cameraLocations:', this.cameraLocations?.length || 0);
+    // Initialize map after view is ready
+    this.initializeMap();
+  }
+
+  /**
+   * Initialize map with proper sequence
+   */
+  private async initializeMap() {
+    try {
+      console.log('🗺️ [TrafficFlowMapComponent] Initializing map...');
+      
+      // 1. Preload icons first
+      await this.preloadMarkerIcons();
+      
+      // 2. Convert camera data if available
+      if (this.cameraLocations && this.cameraLocations.length > 0) {
+        this.convertCameraLocationsToMarkers();
+        
+        // 3. Update markers after icons are ready
+        this.updateMarkersForZoomLevel();
+      }
+      
+      // 4. Hide loading state
+      this.isLoading = false;
+      
+      // 5. Trigger change detection
+      this.cdr.detectChanges();
+      
+      console.log('✅ Map initialization complete');
+    } catch (error) {
+      console.error('❌ Error initializing map:', error);
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /**
+   * Preload all marker icons for the map
+   */
+  private async preloadMarkerIcons() {
+    try {
+      console.log('📍 Preloading map marker icons...');
+      await this.mapMarkerService.preloadAllMarkers();
+      
+      // Cache marker icon URLs for quick access - all 3 zoom levels
+      const iconTypes = [
+        MarkerType.EVENT_CLUSTER_ZOOM0,  // LOW zoom
+        MarkerType.CAMERA_MAP,            // MEDIUM zoom
+        MarkerType.CAMERA                 // HIGH zoom
+      ];
+      
+      iconTypes.forEach(type => {
+        const iconUrl = this.mapMarkerService.getCachedIcon(type);
+        if (iconUrl) {
+          this.loadedMarkerIcons.set(type, iconUrl);
+          console.log(`✅ Cached icon for ${type}:`, iconUrl.substring(0, 50) + '...');
+        } else {
+          console.warn(`⚠️ Failed to cache icon for ${type}`);
+        }
+      });
+      
+      console.log('✅ Map marker icons preloaded. Total cached:', this.loadedMarkerIcons.size);
+    } catch (error) {
+      console.error('❌ Error preloading marker icons:', error);
+    }
   }
   
   ngOnChanges(changes: SimpleChanges) {
@@ -317,8 +466,8 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     if (changes['mapZoom'] && this.mapZoom !== undefined) {
       console.log('🗺️ [TrafficFlowMapComponent] Map zoom changed:', this.mapZoom);
       
-      // Validate zoom
-      if (typeof this.mapZoom === 'number' && isFinite(this.mapZoom) && this.mapZoom >= 5 && this.mapZoom <= 18) {
+      // Validate zoom (allow 1-18)
+      if (typeof this.mapZoom === 'number' && isFinite(this.mapZoom) && this.mapZoom >= 1 && this.mapZoom <= 18) {
         this.zoom = this.mapZoom;
       } else {
         console.error('🗺️ [TrafficFlowMapComponent] ❌ Invalid mapZoom from parent:', this.mapZoom);
@@ -364,11 +513,24 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       
       // Only process if data actually changed
       if (JSON.stringify(currentValue) !== JSON.stringify(previousValue)) {
-        // Clear marker cache when data changes
-        this.markerOptionsCache.clear();
+        console.log('🗺️ [TrafficFlowMapComponent] Processing camera location changes...');
         
-        this.convertCameraLocationsToMarkers();
-        this.updateMarkersForZoomLevel();
+        // Clear icon caches but KEEP markers cache
+        this.markerOptionsCache.clear();
+        this.badgeIconCache.clear();
+        // KHÔNG clear markersCache - giữ markers đã build
+        
+        // If icons are already loaded, convert and update
+        if (this.loadedMarkerIcons.size > 0) {
+          this.convertCameraLocationsToMarkers();
+          this.updateMarkersForZoomLevel();
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        } else {
+          // Icons not loaded yet, initialize map now
+          console.log('🗺️ [TrafficFlowMapComponent] Icons not loaded, initializing map...');
+          this.initializeMap();
+        }
         
         // Only auto-zoom if parent didn't provide explicit center/zoom
         if (!this.mapCenter && !this.mapZoom && this.cameraLocations && this.cameraLocations.length > 0) {
@@ -439,11 +601,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
 
   private convertCameraLocationsToMarkers() {
     try {
-      console.log('🗺️ [TrafficFlowMapComponent] ========== Converting camera locations ==========');
-      console.log('🗺️ [TrafficFlowMapComponent] Input cameraLocations:', this.cameraLocations?.length || 0, 'items');
-      
       if (!this.cameraLocations || this.cameraLocations.length === 0) {
-        console.log('🗺️ [TrafficFlowMapComponent] ⚠️ No camera locations to convert');
         this.cameraLevelData = [];
         this.individualCameras = [];
         return;
@@ -456,22 +614,33 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
           // Parse coordinates safely
           let lat: number;
           let lng: number;
+          const locationAny = location as any;
           
+          // Try lat first, then latitude
           if (typeof location.lat === 'number') {
             lat = location.lat;
           } else if (typeof location.lat === 'string') {
             lat = parseFloat(location.lat);
+          } else if (typeof locationAny.latitude === 'number') {
+            lat = locationAny.latitude;
+          } else if (typeof locationAny.latitude === 'string') {
+            lat = parseFloat(locationAny.latitude);
           } else {
-            console.error(`🗺️ [TrafficFlowMapComponent] Invalid lat type at index ${index}:`, typeof location.lat, location);
+            console.error(`🗺️ [TrafficFlowMapComponent] Invalid lat/latitude at index ${index}:`, location);
             return;
           }
           
+          // Try lng first, then longitude
           if (typeof location.lng === 'number') {
             lng = location.lng;
           } else if (typeof location.lng === 'string') {
             lng = parseFloat(location.lng);
+          } else if (typeof locationAny.longitude === 'number') {
+            lng = locationAny.longitude;
+          } else if (typeof locationAny.longitude === 'string') {
+            lng = parseFloat(locationAny.longitude);
           } else {
-            console.error(`🗺️ [TrafficFlowMapComponent] Invalid lng type at index ${index}:`, typeof location.lng, location);
+            console.error(`🗺️ [TrafficFlowMapComponent] Invalid lng/longitude at index ${index}:`, location);
             return;
           }
           
@@ -498,23 +667,15 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
             count: location.count || 0,
             level: 'camera',
             id: `cam_${location.cameraCode || index}`,
-            area: location.name || '',
-            cameraCode: location.cameraCode || `CAM-${index + 1}`
+            area: location.name || location.address || location.cameraCode || '', // Ưu tiên name (location chung) trước
+            cameraCode: location.cameraCode || `CAM-${index + 1}`,
+            address: location.address || ''
           };
-          
-          console.log(`🗺️ [TrafficFlowMapComponent] ✅ Created camera marker[${index}]:`, {
-            lat: lat.toFixed(6),
-            lng: lng.toFixed(6),
-            label: marker.label,
-            count: marker.count
-          });
           
           validMarkers.push(marker);
       });
       
       this.cameraLevelData = validMarkers;
-      
-      console.log('🗺️ [TrafficFlowMapComponent] ✅ Camera level markers created:', this.cameraLevelData.length);
       
       // Create individual camera markers (for high zoom)
       this.individualCameras = [];
@@ -545,8 +706,9 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
               count: cam.total || 0,
               level: 'camera' as const,
               id: `individual_${cam.cameraSn}`,
-              area: location.name || '',
-              cameraCode: cam.cameraSn
+              area: location.name || cam.address || location.address || cam.cameraSn, // Ưu tiên location.name ("Sân bay")
+              cameraCode: cam.cameraSn,
+              address: cam.address || location.address || '' // Lưu address từ cam hoặc location
             };
             
             this.individualCameras.push(individualMarker);
@@ -597,8 +759,9 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
             count: location.count || 0,
             level: 'camera' as const,
             id: `individual_${location.cameraCode}`,
-            area: location.name || '',
-            cameraCode: location.cameraCode || ''
+            area: location.name || location.address || location.cameraCode || '', // Ưu tiên location.name
+            cameraCode: location.cameraCode || '',
+            address: location.address || '' // Lưu address từ API
           };
           
           this.individualCameras.push(individualMarker);
@@ -664,26 +827,12 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       return;
     }
 
-    console.log('🗺️ [generateHierarchicalData] Valid cameras:', validCameras.length);
-
-    // Country level: Calculate center from actual camera positions
+    // Country level: Use first camera's exact GPS (NO averaging)
     const totalCount = validCameras.reduce((sum, camera) => sum + camera.count, 0);
-    const avgLat = validCameras.reduce((sum, c) => sum + c.position.lat, 0) / validCameras.length;
-    const avgLng = validCameras.reduce((sum, c) => sum + c.position.lng, 0) / validCameras.length;
-    
-    // Validate calculated averages
-    if (!isFinite(avgLat) || isNaN(avgLat) || !isFinite(avgLng) || isNaN(avgLng)) {
-      console.error('🗺️ [generateHierarchicalData] ❌ Invalid calculated center:', { avgLat, avgLng });
-      this.countryLevelData = [];
-      this.cityLevelData = [];
-      this.districtLevelData = [];
-      return;
-    }
-    
-    console.log('🗺️ [generateHierarchicalData] Country center:', { lat: avgLat.toFixed(6), lng: avgLng.toFixed(6), count: totalCount });
+    const firstCamera = validCameras[0];
     
     this.countryLevelData = [{
-      position: { lat: avgLat, lng: avgLng },
+      position: { lat: firstCamera.position.lat, lng: firstCamera.position.lng },
       label: 'Việt Nam',
       count: totalCount,
       level: 'country',
@@ -696,18 +845,12 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     const validCityMarkers: MarkerData[] = [];
     
     Object.entries(cityGroups).forEach(([regionName, cameras]) => {
-      const avgLat = cameras.reduce((sum, c) => sum + c.position.lat, 0) / cameras.length;
-      const avgLng = cameras.reduce((sum, c) => sum + c.position.lng, 0) / cameras.length;
+      // Use first camera's exact GPS (NO averaging)
+      const firstCameraInCity = cameras[0];
       const totalCount = cameras.reduce((sum, c) => sum + c.count, 0);
       
-      // Validate city center
-      if (!isFinite(avgLat) || isNaN(avgLat) || !isFinite(avgLng) || isNaN(avgLng)) {
-        console.error('🗺️ [generateHierarchicalData] ❌ Invalid city center for', regionName);
-        return;
-      }
-      
       validCityMarkers.push({
-        position: { lat: avgLat, lng: avgLng },
+        position: { lat: firstCameraInCity.position.lat, lng: firstCameraInCity.position.lng },
         label: regionName,
         count: totalCount,
         level: 'city',
@@ -771,18 +914,12 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     
     for (let i = 0; i < cameras.length; i += clusterSize) {
       const clusterCameras = cameras.slice(i, i + clusterSize);
-      const avgLat = clusterCameras.reduce((sum, c) => sum + c.position.lat, 0) / clusterCameras.length;
-      const avgLng = clusterCameras.reduce((sum, c) => sum + c.position.lng, 0) / clusterCameras.length;
+      // Use first camera's exact GPS (NO averaging)
+      const firstCamera = clusterCameras[0];
       const totalCount = clusterCameras.reduce((sum, c) => sum + c.count, 0);
       
-      // Validate district center
-      if (!isFinite(avgLat) || isNaN(avgLat) || !isFinite(avgLng) || isNaN(avgLng)) {
-        console.error('🗺️ [createDistrictClusters] ❌ Invalid district center for', regionName, 'cluster', i);
-        continue; // Skip this district
-      }
-      
       districts.push({
-        position: { lat: avgLat, lng: avgLng },
+        position: { lat: firstCamera.position.lat, lng: firstCamera.position.lng },
         label: `${regionName} - Khu vực ${Math.floor(i / clusterSize) + 1}`,
         count: totalCount,
         level: 'district',
@@ -794,24 +931,16 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     return districts;
   }
 
-  ngAfterViewInit() {
+  onMapInitialized() {
+    console.log('🗺️ Traffic Flow Map initialized successfully');
+    // Map is ready but don't hide loading yet - wait for markers
+    
     setTimeout(() => {
-      if (this.isLoading) {
-        console.warn('Map initialization timeout - forcing load complete');
+      if (this.visibleMarkers.length > 0) {
         this.isLoading = false;
         this.cdr.detectChanges();
       }
-    }, 2000);
-  }
-
-  onMapInitialized() {
-    console.log('🗺️ Traffic Flow Map initialized successfully');
-    this.isLoading = false;
-    this.cdr.detectChanges();
-    
-    setTimeout(() => {
-      this.updateMarkersForZoomLevel();
-    }, 100);
+    }, 500);
   }
 
   onZoomChanged() {
@@ -821,12 +950,26 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     
     this.zoomChangeTimeout = setTimeout(() => {
       if (this.mapElement && this.mapElement.googleMap) {
-        const currentZoom = this.mapElement.googleMap.getZoom() || 6;
+        const currentZoom = this.mapElement.googleMap.getZoom();
+        if (!currentZoom) {
+          return;
+        }
+        
         if (this.zoom !== currentZoom) {
+          const oldZoomLevel = this.mapMarkerService.getZoomLevel(this.zoom);
+          const newZoomLevel = this.mapMarkerService.getZoomLevel(currentZoom);
+          
           this.zoom = currentZoom;
-          // Clear marker cache since size depends on zoom
-          this.markerOptionsCache.clear();
-          this.updateMarkersForZoomLevel();
+          
+          // CHỈ rebuild markers khi zoom LEVEL thay đổi (LOW ↔ MEDIUM ↔ HIGH)
+          if (oldZoomLevel !== newZoomLevel) {
+            this.markerOptionsCache.clear();  // Clear icon cache
+            this.updateMarkersForZoomLevel();
+          } else {
+            // Cùng level, chỉ update kích thước icon
+            this.markerOptionsCache.clear();  // Update icon sizes only
+            this.cdr.detectChanges();
+          }
         }
       }
     }, 150);
@@ -835,22 +978,85 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   private updateMarkersForZoomLevel() {
     console.log('🗺️ [TrafficFlowMapComponent] ========== Updating markers for zoom level ==========');
     console.log('🗺️ [TrafficFlowMapComponent] Current zoom:', this.zoom);
-    console.log('🗺️ [TrafficFlowMapComponent] Available camera level data:', this.cameraLevelData.length);
-    console.log('🗺️ [TrafficFlowMapComponent] Available individual cameras:', this.individualCameras.length);
+    console.log('🗺️ [TrafficFlowMapComponent] Individual cameras count:', this.individualCameras?.length || 0);
+    console.log('🗺️ [TrafficFlowMapComponent] Camera level data count:', this.cameraLevelData?.length || 0);
     
-    if (this.cameraLevelData.length === 0) {
-      console.log('🗺️ [TrafficFlowMapComponent] ⚠️ No camera data available - clearing markers');
+    const zoomLevel = this.mapMarkerService.getZoomLevel(this.zoom);
+    console.log(`🗺️ [TrafficFlowMapComponent] Zoom Level: ${zoomLevel} (${this.zoom})`);
+    
+    // Check cache first - if we have cached markers for this zoom level, use them
+    if (this.markersCache.has(zoomLevel)) {
+      console.log('🗺️ ✅ Using cached markers for zoom level:', zoomLevel);
+      this.visibleMarkers = this.markersCache.get(zoomLevel)!;
+      this.cdr.detectChanges();
+      return;
+    }
+    
+    // Check if we have data to display - use cameraLevelData as fallback
+    const dataSource = this.individualCameras?.length > 0 ? this.individualCameras : this.cameraLevelData;
+    
+    if (!dataSource || dataSource.length === 0) {
+      // Don't clear if we already have markers showing
+      if (this.visibleMarkers.length > 0) {
+        return;
+      }
       this.visibleMarkers = [];
       this.cdr.detectChanges();
       return;
     }
     
-    // Improved zoom logic:
-    // Zoom < 7: Show area groups (for overview)
-    // Zoom >= 7: Show individual cameras (for detail view)
-    if (this.zoom < 7) {
-      // Filter out any invalid markers before displaying
-      this.visibleMarkers = this.cameraLevelData.filter(marker => {
+    // Use the best data source available
+    const camerasToUse = this.individualCameras?.length > 0 ? this.individualCameras : this.cameraLevelData;
+    
+    // Store previous markers count for comparison
+    const previousCount = this.visibleMarkers.length;
+    
+    // Build new markers based on zoom level
+    let newMarkers: MarkerData[] = [];
+    
+    // Level 1: LOW zoom (< 9) - Show regional clusters with event-total-zoom0.svg
+    if (zoomLevel === ZoomLevel.LOW) {
+      const gridSize = this.mapMarkerService.getClusterGridSize(this.zoom);
+      const cameras = camerasToUse.map(marker => ({
+        lat: marker.position.lat,
+        lng: marker.position.lng,
+        totalEvents: marker.count,
+        count: marker.count,
+        cameraCode: marker.cameraCode,
+        name: marker.label,
+        location: marker.area
+      }));
+      
+      this.clusterMarkers = this.mapMarkerService.clusterCamerasByRegion(cameras, gridSize);
+      
+      newMarkers = this.clusterMarkers.map((cluster, index) => ({
+        position: cluster.position,
+        label: `${cluster.region || 'Khu vực'}`,
+        count: cluster.totalEvents,
+        level: 'aggregate' as const,
+        id: `cluster_${index}`,
+        area: cluster.region
+      })).filter(marker => 
+        marker.position && 
+        isFinite(marker.position.lat) && 
+        !isNaN(marker.position.lat) &&
+        isFinite(marker.position.lng) && 
+        !isNaN(marker.position.lng)
+      );
+    }
+    // Level 2: MEDIUM zoom (9-13) - Show individual cameras with camera-map.svg  
+    else if (zoomLevel === ZoomLevel.MEDIUM) {
+      newMarkers = camerasToUse.filter(marker => 
+        marker.position && 
+        isFinite(marker.position.lat) && 
+        !isNaN(marker.position.lat) &&
+        isFinite(marker.position.lng) && 
+        !isNaN(marker.position.lng)
+      );
+    }
+    // Level 3: HIGH zoom (≥ 14) - Show detailed view with camera-map-marker.svg
+    else {
+      newMarkers = camerasToUse.filter(marker => {
         const isValid = marker.position && 
                        isFinite(marker.position.lat) && 
                        !isNaN(marker.position.lat) &&
@@ -858,81 +1064,52 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
                        !isNaN(marker.position.lng);
         
         if (!isValid) {
-          console.error('🗺️ [updateMarkersForZoomLevel] ❌ Filtering out invalid area marker:', marker);
+          console.error('🗺️ [updateMarkersForZoomLevel] ❌ Filtering out invalid camera marker:', marker);
         }
         
         return isValid;
       });
       
-      console.log('🗺️ [TrafficFlowMapComponent] ✅ Showing area groups:', this.visibleMarkers.length);
-      console.log('🗺️ [TrafficFlowMapComponent] Area group markers:', this.visibleMarkers.map((m, i) => ({
-        index: i,
-        lat: m.position.lat.toFixed(6),
-        lng: m.position.lng.toFixed(6),
-        label: m.label,
-        count: m.count
-      })));
-    } else {
-      // Filter out any invalid markers before displaying
-      this.visibleMarkers = this.individualCameras.filter(marker => {
-        const isValid = marker.position && 
-                       isFinite(marker.position.lat) && 
-                       !isNaN(marker.position.lat) &&
-                       isFinite(marker.position.lng) && 
-                       !isNaN(marker.position.lng);
-        
-        if (!isValid) {
-          console.error('🗺️ [updateMarkersForZoomLevel] ❌ Filtering out invalid individual marker:', marker);
-        }
-        
-        return isValid;
-      });
-      
-      console.log('🗺️ [TrafficFlowMapComponent] ✅ Showing individual cameras:', this.visibleMarkers.length);
-      if (this.visibleMarkers.length > 0) {
-        console.log('🗺️ [TrafficFlowMapComponent] Individual camera markers:', this.visibleMarkers.slice(0, 5).map((m, i) => ({
-          index: i,
-          lat: m.position.lat.toFixed(6),
-          lng: m.position.lng.toFixed(6),
-          label: m.label,
-          count: m.count
-        })), this.visibleMarkers.length > 5 ? `... and ${this.visibleMarkers.length - 5} more` : '');
-      }
+      console.log(`🗺️ [TrafficFlowMapComponent] ✅ Level 3 (HIGH): Built ${newMarkers.length} cameras with detail`);
     }
     
-    console.log('🗺️ [TrafficFlowMapComponent] ✅ Final visible markers count:', this.visibleMarkers.length);
-    
-    // Final safety check before rendering
-    const invalidMarkers = this.visibleMarkers.filter(m => 
+    // Final safety check before caching and rendering
+    const invalidMarkers = newMarkers.filter(m => 
       !m.position || !isFinite(m.position.lat) || isNaN(m.position.lat) || 
       !isFinite(m.position.lng) || isNaN(m.position.lng)
     );
     
     if (invalidMarkers.length > 0) {
-      console.error('🗺️ [TrafficFlowMapComponent] ❌❌❌ CRITICAL: Invalid markers about to be rendered!', invalidMarkers);
-      console.error('🗺️ [TrafficFlowMapComponent] ❌ Removing', invalidMarkers.length, 'invalid markers');
+      console.error('🗺️ [TrafficFlowMapComponent] ❌ Removing', invalidMarkers.length, 'invalid markers before caching');
       
       // Remove invalid markers
-      this.visibleMarkers = this.visibleMarkers.filter(m => 
+      newMarkers = newMarkers.filter(m => 
         m.position && isFinite(m.position.lat) && !isNaN(m.position.lat) && 
         isFinite(m.position.lng) && !isNaN(m.position.lng)
       );
-      
-      console.log('🗺️ [TrafficFlowMapComponent] ✅ After cleanup:', this.visibleMarkers.length, 'valid markers');
     }
     
-    // Log ALL markers that will be rendered
-    console.log('🗺️ [TrafficFlowMapComponent] 📍📍📍 RENDERING THESE MARKERS:', 
-      this.visibleMarkers.map((m, i) => ({
+    // Cache the built markers for this zoom level
+    this.markersCache.set(zoomLevel, newMarkers);
+    console.log(`🗺️ ✅ Cached ${newMarkers.length} markers for zoom level: ${zoomLevel}`);
+    
+    // Update visible markers (atomic swap - prevents flickering)
+    this.visibleMarkers = newMarkers;
+    
+    console.log(`🗺️ [TrafficFlowMapComponent] Marker count: ${previousCount} → ${this.visibleMarkers.length}`);
+    
+    // Log ALL markers that will be rendered (only first 5 to avoid spam)
+    console.log('🗺️ [TrafficFlowMapComponent] 📍 Sample markers (first 5):', 
+      this.visibleMarkers.slice(0, 5).map((m, i) => ({
         index: i,
         id: m.id,
-        lat: m.position?.lat,
-        lng: m.position?.lng,
-        latValid: m.position ? isFinite(m.position.lat) && !isNaN(m.position.lat) : false,
-        lngValid: m.position ? isFinite(m.position.lng) && !isNaN(m.position.lng) : false
+        lat: m.position?.lat?.toFixed(6),
+        lng: m.position?.lng?.toFixed(6),
+        count: m.count
       }))
     );
     
+    // Force change detection
     this.cdr.detectChanges();
   }
 
@@ -987,57 +1164,164 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       };
     }
     
-    // Don't cache since size depends on zoom level
+    // Check cache
     const cacheKey = `${marker.id}_zoom_${this.zoom}`;
     if (this.markerOptionsCache.has(cacheKey)) {
       return this.markerOptionsCache.get(cacheKey)!;
     }
     
-    let icon: google.maps.Icon | google.maps.Symbol;
+    const zoomLevel = this.mapMarkerService.getZoomLevel(this.zoom);
+    const markerType = this.mapMarkerService.getMarkerTypeForZoom(this.zoom, marker.level === 'aggregate');
+    
+    let icon: google.maps.Icon | undefined;
     let label: google.maps.MarkerLabel | undefined;
     
-    // Always use blue circle style with size adjusted by zoom
-    let markerSize = 26;
-    let fontSize = '12px';
+    // Get marker icon based on zoom level
+    const iconUrl = this.loadedMarkerIcons.get(markerType);
     
-    // Adjust size based on zoom for better visibility
-    if (this.zoom < 7) {
-      markerSize = 30;
-      fontSize = '13px';
-    } else if (this.zoom < 10) {
-      markerSize = 28;
-      fontSize = '12px';
+    if (iconUrl) {
+      // Always use custom icon from service
+      const size = zoomLevel === ZoomLevel.LOW ? 
+        this.mapMarkerService.getScaledMarkerSize(markerType, marker.count, this.getMaxEventCount()) :
+        this.mapMarkerService.getDefaultSize(markerType);
+      
+      // For MEDIUM and HIGH zoom, create composite icon with badge (only if count > 0)
+      if ((zoomLevel === ZoomLevel.MEDIUM || zoomLevel === ZoomLevel.HIGH) && marker.count > 0) {
+        const displayCount = marker.count > 999 ? `${(marker.count / 1000).toFixed(1)}k` : marker.count.toString();
+        const compositeIconUrl = this.createIconWithBadge(iconUrl, displayCount, size);
+        
+        icon = {
+          url: compositeIconUrl,
+          scaledSize: new google.maps.Size(size.width, size.height + 20), // Add extra height for badge above icon
+          anchor: new google.maps.Point(size.width / 2, size.height + 10) // Anchor at bottom center of pin
+        };
+      } else {
+        // LOW zoom or count = 0 - no badge, just icon
+        icon = {
+          url: iconUrl,
+          scaledSize: new google.maps.Size(size.width, size.height),
+          anchor: new google.maps.Point(size.width / 2, size.height / 2) // CENTER for circular icon
+        };
+      }
+      
+      // No text label for any zoom level (badge replaces it)
+      label = undefined;
     } else {
-      markerSize = 26;
-      fontSize = '11px';
+      console.warn('⚠️ Marker icon not loaded for type:', markerType, '- Using fallback');
+      // Fallback to simple marker
+      icon = {
+        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMiIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMWQ0ZWQ4IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=',
+        scaledSize: new google.maps.Size(32, 32),
+        anchor: new google.maps.Point(16, 16)
+      };
+      
+      label = undefined;
     }
-    
-    icon = {
-      path: google.maps.SymbolPath.CIRCLE,
-      fillColor: '#3b82f6',
-      fillOpacity: 0.9,
-      strokeColor: '#1d4ed8',
-      strokeWeight: 3,
-      scale: markerSize
-    };
-    
-    const displayCount = marker.count > 999 ? `${(marker.count / 1000).toFixed(1)}k` : marker.count.toString();
-    label = {
-      text: displayCount,
-      color: '#ffffff',
-      fontSize: fontSize,
-      fontWeight: 'bold'
-    };
     
     const options: google.maps.MarkerOptions = {
       icon: icon,
       label: label,
       optimized: true,
-      zIndex: 4
+      zIndex: zoomLevel === ZoomLevel.LOW ? 3 : 4
     };
     
     this.markerOptionsCache.set(cacheKey, options);
     return options;
+  }
+  
+  /**
+   * Get max event count for scaling
+   */
+  private getMaxEventCount(): number {
+    if (this.visibleMarkers.length === 0) return 100;
+    return Math.max(...this.visibleMarkers.map(m => m.count));
+  }
+
+  /**
+   * Create a composite icon with badge overlay
+   * Badge appears in top-right corner like the design
+   */
+  private createIconWithBadge(iconUrl: string, count: string, size: { width: number; height: number }): string {
+    // Check cache first
+    const cacheKey = `${iconUrl}_${count}_${size.width}x${size.height}`;
+    if (this.badgeIconCache.has(cacheKey)) {
+      return this.badgeIconCache.get(cacheKey)!;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    
+    // Set canvas size with extra space for badge
+    canvas.width = size.width;
+    canvas.height = size.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Create image from icon URL
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    // Check if image is already loaded (from blob URL)
+    if (img.complete || iconUrl.startsWith('blob:')) {
+      img.src = iconUrl;
+      
+      // Wait a tick for blob to be accessible
+      setTimeout(() => {
+        try {
+          // Draw the icon - preserve aspect ratio
+          ctx.drawImage(img, 0, 0, size.width, size.height);
+          
+          // Use fixed height, auto width based on text
+          const config = this.BADGE_STYLE;
+          ctx.font = `${config.fontWeight} ${config.fontSize}px ${config.fontFamily}`;
+          const textMetrics = ctx.measureText(count);
+          const textWidth = textMetrics.width;
+          
+          const badgeHeight = config.height;
+          const badgeWidth = textWidth + config.horizontalPadding * 2;
+          
+          const badgeX = size.width - badgeWidth / 2 - config.offsetX;
+          const badgeY = badgeHeight / 2 + config.offsetY;
+          
+          // Badge background (rounded rectangle)
+          const badgeLeft = badgeX - badgeWidth / 2;
+          const badgeTop = badgeY - badgeHeight / 2;
+          
+          ctx.beginPath();
+          ctx.roundRect(badgeLeft, badgeTop, badgeWidth, badgeHeight, config.borderRadius);
+          ctx.fillStyle = config.backgroundColor;
+          ctx.fill();
+          ctx.strokeStyle = config.borderColor;
+          ctx.lineWidth = config.borderWidth;
+          ctx.stroke();
+          
+          // Badge text
+          ctx.fillStyle = config.textColor;
+          ctx.font = `${config.fontWeight} ${config.fontSize}px ${config.fontFamily}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(count, badgeX, badgeY);
+          
+          // Cache the result
+          const dataUrl = canvas.toDataURL('image/png');
+          this.badgeIconCache.set(cacheKey, dataUrl);
+          
+        } catch (error) {
+          console.error('Error drawing icon with badge:', error);
+        }
+      }, 10);
+    } else {
+      img.src = iconUrl;
+    }
+    
+    // Return canvas as data URL (even if not fully drawn yet, will be cached next time)
+    try {
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error creating badge icon:', error);
+      return iconUrl;
+    }
   }
 
   onMarkerClick(marker: MarkerData, index: number) {
@@ -1051,22 +1335,72 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       }
     }, 0);
     
-    // Auto-zoom and center to camera GPS when clicking marker
+    // Just center the map to marker position, NO auto-zoom to prevent marker disappearing
     if (this.mapElement && this.mapElement.googleMap) {
-      // If clicking on an area group marker (zoom < 7), zoom in to show individual cameras
-      if (this.zoom < 7) {
-        console.log('🎯 Zooming from area group to individual cameras');
-        this.animateToPosition(marker.position, 12); // Zoom to level 12 to see individual cameras
-      } else if (this.zoom < 15) {
-        // If already showing individual cameras, zoom in closer to street level
-        console.log('🎯 Zooming to street level for camera:', marker.cameraCode);
-        this.animateToPosition(marker.position, 16); // Zoom to street level
-      } else {
-        // Already at street level, just center the map
-        console.log('🎯 Centering map to camera:', marker.cameraCode);
-        this.mapElement.googleMap.panTo(marker.position);
-      }
+      this.mapElement.googleMap.panTo(marker.position);
     }
+  }
+
+  /**
+   * Get traffic count for marker - lookup from cameraLocations
+   */
+  getTrafficCount(marker: MarkerData): number {
+    // For cluster markers or direct data, use marker's own data
+    if (marker.count !== undefined) {
+      // Find corresponding camera location data
+      const camera = this.cameraLocations.find(c => 
+        c.cameraCode === marker.cameraCode || 
+        (c.lat === marker.position.lat && c.lng === marker.position.lng)
+      );
+      return camera?.totalTrafficDetected || camera?.count || marker.count || 0;
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Get violation count for marker - lookup from cameraLocations
+   */
+  getViolationCount(marker: MarkerData): number {
+    // Find corresponding camera location data by code or position
+    const camera = this.cameraLocations.find(c => 
+      c.cameraCode === marker.cameraCode || 
+      (c.lat === marker.position.lat && c.lng === marker.position.lng)
+    );
+    return camera?.violationCount || 0;
+  }
+
+  /**
+   * Get address for marker - từ marker.address hoặc lookup từ cameraLocations
+   */
+  getAddress(marker: MarkerData): string {
+    // Ưu tiên lấy address từ marker (đã được lưu khi convert)
+    if (marker.address) return marker.address;
+    
+    // Fallback: lookup từ cameraLocations nếu có cameraCode
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      if (camera?.address) return camera.address;
+    }
+    
+    // Cuối cùng dùng area
+    return marker.area || '';
+  }
+
+  /**
+   * Get Google Maps link for address
+   */
+  getGoogleMapsLink(marker: MarkerData): string {
+    const address = this.getAddress(marker);
+    if (!address) return '#';
+    
+    // Use camera position for accurate navigation
+    if (marker.position) {
+      return `https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
+    }
+    
+    // Fallback to address search
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
   }
 
   private animateToPosition(position: google.maps.LatLngLiteral, zoom: number) {
@@ -1105,5 +1439,6 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       clearTimeout(this.zoomChangeTimeout);
     }
     this.markerOptionsCache.clear();
+    this.badgeIconCache.clear();
   }
 }

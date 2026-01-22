@@ -40,6 +40,8 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   @Input() showImageUpload: boolean = false;  // Hiển thị upload ảnh
   @Input() showThresholdSlider: boolean = false;  // Hiển thị ngưỡng nhận diện
   @Input() searchFieldOptions: FilterOption[] = []; // Options for search field dropdown
+  @Input() displayOnlyImages: string[] = []; // Ảnh chỉ để hiển thị, không cho upload/edit (dùng cho màn object-events)
+  @Input() imageLabel: string = 'Đối tượng'; // Label cho ảnh hiển thị
   
   @ViewChild('dateRangePicker') dateRangePicker!: DateRangePickerComponent;
 
@@ -75,8 +77,8 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   endDate: Date | null = null;
 
   // Uploaded images
-  uploadedImages: UploadedImage[] = [];
-  showImageUploadDropdown = false;
+  uploadedImages: UploadedImage[] = []; // Property for storing uploaded images
+  showImageUploadDropdown = false; // Toggle dropdown visibility
   
   // Threshold for image search
   threshold: number = 70;
@@ -186,6 +188,63 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       this.showCustomDatePicker = true;
     } else {
       this.showCustomDatePicker = false;
+      
+      // Auto-calculate dates for preset time ranges
+      console.log('🔧 Calculating dates for time range:', option.value);
+      const now = new Date();
+      console.log('  Current time:', now.toISOString());
+      
+      switch (option.value) {
+        case 'today':
+          this.startDate = new Date();
+          this.startDate.setHours(0, 0, 0, 0);
+          this.endDate = new Date();
+          this.endDate.setHours(23, 59, 59, 999);
+          console.log('  ✅ TODAY calculated:');
+          console.log('    startDate:', this.startDate.toISOString());
+          console.log('    endDate:', this.endDate.toISOString());
+          break;
+        case 'yesterday':
+          this.startDate = new Date();
+          this.startDate.setDate(this.startDate.getDate() - 1);
+          this.startDate.setHours(0, 0, 0, 0);
+          this.endDate = new Date();
+          this.endDate.setDate(this.endDate.getDate() - 1);
+          this.endDate.setHours(23, 59, 59, 999);
+          console.log('  ✅ YESTERDAY calculated:');
+          console.log('    startDate:', this.startDate.toISOString());
+          console.log('    endDate:', this.endDate.toISOString());
+          break;
+        case 'last7days':
+          this.startDate = new Date();
+          this.startDate.setDate(this.startDate.getDate() - 7);
+          this.startDate.setHours(0, 0, 0, 0);
+          this.endDate = new Date();
+          this.endDate.setHours(23, 59, 59, 999);
+          console.log('  ✅ LAST 7 DAYS calculated:');
+          console.log('    startDate:', this.startDate.toISOString());
+          console.log('    endDate:', this.endDate.toISOString());
+          break;
+        case 'last30days':
+          this.startDate = new Date();
+          this.startDate.setDate(this.startDate.getDate() - 30);
+          this.startDate.setHours(0, 0, 0, 0);
+          this.endDate = new Date();
+          this.endDate.setHours(23, 59, 59, 999);
+          console.log('  ✅ LAST 30 DAYS calculated:');
+          console.log('    startDate:', this.startDate.toISOString());
+          console.log('    endDate:', this.endDate.toISOString());
+          break;
+        default:
+          // Clear dates if no time range selected
+          this.startDate = null;
+          this.endDate = null;
+          console.log('  ⚠️ No time range, dates cleared');
+      }
+      
+      console.log('📅 Final dates set:');
+      console.log('  - startDate:', this.startDate);
+      console.log('  - endDate:', this.endDate);
     }
   }
 
@@ -292,9 +351,21 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       }
     });
     
+    // Add dates if available (from time range selection or custom picker)
     if (this.startDate && this.endDate) {
       searchParams.startDate = this.startDate;
       searchParams.endDate = this.endDate;
+      console.log('📅 Emitting dates in searchParams:', {
+        startDate: this.startDate,
+        endDate: this.endDate
+      });
+    } else {
+      console.log('⚠️ No dates to emit (startDate or endDate is null)');
+    }
+    
+    // Always add threshold when threshold slider is shown
+    if (this.showThresholdSlider) {
+      searchParams.threshold = this.threshold / 100; // Convert 70 to 0.7
     }
     
     // Add uploaded images if available
@@ -303,7 +374,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       searchParams.imageList = this.uploadedImages
         .map(img => img.file || img.imageUrl)
         .filter(item => item); // Remove nulls
-      searchParams.threshold = this.threshold; // Add threshold when searching with images
     }
     
     this.searchTriggered.emit(searchParams);

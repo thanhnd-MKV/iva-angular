@@ -3,182 +3,302 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Dashboard Interface</title>
+    <title>Thêm mới đối tượng - Giao diện</title>
     <style>
-        /* Cấu hình chung */
+        /* --- CSS STYLE --- */
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
         body {
-            background-color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            padding: 40px 20px;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
 
         .container {
+            background: #fff;
             width: 100%;
-            max-width: 500px;
+            max-width: 950px;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
 
-        /* Thẻ Camera */
-        .camera-card {
-            background-color: #f2f2f2;
-            border-radius: 20px;
-            padding: 20px 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border: 1px solid #e0e0e0;
-        }
-
-        /* Hàng trên cùng: Tên và Trạng thái */
-        .card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .camera-name {
-            font-size: 32px;
-            font-weight: 700;
-            color: #3a3a3a;
-            margin: 0;
-        }
-
-        .actions {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* Nút gạt trạng thái (Toggle Badge) */
-        .status-badge {
-            display: flex;
-            align-items: center;
-            padding: 5px 15px;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: 500;
-            border: 1.5px solid;
-            min-width: 70px;
-            justify-content: center;
-        }
-
-        .status-off {
-            background-color: #f8f8f8;
-            color: #b5b5b5;
-            border-color: #dcdcdc;
-        }
-
-        .status-on {
-            background-color: #e8f9ed;
-            color: #2b2b2b;
-            border-color: #4cd964;
-        }
-
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .dot-red { background-color: #ff3b30; }
-        .dot-green { background-color: #4cd964; }
-
-        /* Icon bánh răng settings */
-        .settings-icon {
-            width: 28px;
-            height: 28px;
-            fill: #8e8e93;
-            cursor: pointer;
-        }
-
-        /* Hàng dưới cùng: Loại và Số sự kiện */
-        .card-bottom {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-        }
-
-        .camera-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .form-title {
+            margin: 0 0 20px 0;
             font-size: 22px;
-            color: #666;
+            font-weight: 600;
+            color: #1a1a1a;
         }
 
-        .cam-icon {
-            width: 24px;
-            height: 24px;
-            fill: #8e8e93;
+        .form-content {
+            display: flex;
+            gap: 30px;
         }
 
-        .event-info {
-            font-size: 28px;
+        /* Cột trái */
+        .left-column {
+            flex: 0 0 42%;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        /* Cột phải */
+        .right-column {
+            flex: 1;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
             color: #444;
         }
 
-        .event-info span {
-            font-weight: 400;
-            color: #333;
+        .form-group {
+            margin-bottom: 15px;
         }
 
-        .event-number {
+        .form-group label {
+            display: block;
+            font-size: 13px;
             font-weight: 500;
-            margin-left: 5px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+        }
+
+        .input-disabled {
+            background-color: #ebedef;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        .select-blacklist {
+            color: #dc2626;
+            font-weight: 600;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 1em;
+        }
+
+        /* Khu vực ảnh */
+        .image-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .image-box {
+            width: 110px;
+            height: 130px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .image-box img {
+            width: 50px;
+            opacity: 0.3;
+            margin-bottom: 8px;
+        }
+
+        .image-box span {
+            font-size: 10px;
+            color: #999;
+            font-weight: bold;
+        }
+
+        .btn-upload {
+            background: #fff;
+            border: 1px solid #2563eb;
+            color: #2563eb;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 500;
+        }
+
+        /* Footer buttons */
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 25px;
+            padding-top: 15px;
+        }
+
+        .btn-cancel {
+            min-width: 100px;
+            padding: 10px 20px;
+            border: 1px solid #333;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-save {
+            min-width: 250px;
+            padding: 10px 20px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .btn-save:hover {
+            background: #1d4ed8;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-content {
+                flex-direction: column;
+            }
+            .left-column {
+                flex: none;
+            }
+            .btn-save {
+                min-width: 150px;
+                flex: 1;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        
-        <div class="camera-card">
-            <div class="card-top">
-                <h2 class="camera-name">Camera 0221</h2>
-                <div class="actions">
-                    <div class="status-badge status-off">
-                        <div class="dot dot-red"></div> OFF
+<div class="container">
+    <h2 class="form-title">Thêm mới đối tượng</h2>
+    
+    <div class="form-content">
+        <div class="left-column">
+            <div class="form-group">
+                <label>Hình ảnh</label>
+                <div class="image-section">
+                    <div class="image-box">
+                        <img src="https://cdn-icons-png.flaticon.com/512/16/16410.png" alt="Icon">
+                        <span>KHÔNG CÓ ẢNH</span>
                     </div>
-                    <svg class="settings-icon" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.81,11.69,4.81,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
+                    <button type="button" class="btn-upload">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                        Tải hình ảnh
+                    </button>
                 </div>
             </div>
-            <div class="card-bottom">
-                <div class="camera-info">
-                    <svg class="cam-icon" viewBox="0 0 24 24"><path d="M15,8c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S13.9,8,15,8z M23,16v2c0,1.1-0.9,2-2,2H3c-1.1,0-2-0.9-2-2V8 c0-1.1,0.9-2,2-2h4c1.1,0,2,0.9,2,2v1h5V8c0-1.1,0.9-2,2-2h4c1.1,0,2,0.9,2,2v8z M21,10h-4v4h4V10z"/></svg>
-                    Đối tượng người
-                </div>
-                <div class="event-info">
-                    Sự kiện: <span class="event-number">123</span>
-                </div>
+
+            <div class="form-group">
+                <label>Họ và tên</label>
+                <input type="text" value="Nguyễn Văn A">
+            </div>
+
+            <div class="form-group">
+                <label>ID đối tượng</label>
+                <input type="text" value="4324324">
+            </div>
+
+            <div class="form-group">
+                <label>Nhóm đối tượng</label>
+                <select class="select-blacklist">
+                    <option selected>Blacklist</option>
+                    <option>Whitelist</option>
+                    <option>Normal</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nguồn dữ liệu</label>
+                <input type="text" value="Đồng bộ" readonly class="input-disabled">
             </div>
         </div>
 
-        <div class="camera-card">
-            <div class="card-top">
-                <h2 class="camera-name">Camera 0221</h2>
-                <div class="actions">
-                    <div class="status-badge status-on">
-                        <div class="dot dot-green"></div> ON
-                    </div>
-                    <svg class="settings-icon" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.81,11.69,4.81,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
-                </div>
+        <div class="right-column">
+            <h3 class="section-subtitle">Thông tin cá nhân</h3>
+            
+            <div class="form-group">
+                <label>Số CCCD</label>
+                <input type="text" value="43243121224">
             </div>
-            <div class="card-bottom">
-                <div class="camera-info">
-                    <svg class="cam-icon" viewBox="0 0 24 24"><path d="M15,8c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S13.9,8,15,8z M23,16v2c0,1.1-0.9,2-2,2H3c-1.1,0-2-0.9-2-2V8 c0-1.1,0.9-2,2-2h4c1.1,0,2,0.9,2,2v1h5V8c0-1.1,0.9-2,2-2h4c1.1,0,2,0.9,2,2v8z M21,10h-4v4h4V10z"/></svg>
-                    Giao thông
-                </div>
-                <div class="event-info">
-                    Sự kiện: <span class="event-number">123</span>
-                </div>
+
+            <div class="form-group">
+                <label>Quốc tịch</label>
+                <input type="text" value="Việt Nam">
+            </div>
+
+            <div class="form-group">
+                <label>Ngày cấp CCCD</label>
+                <input type="text" value="12/12/2024">
+            </div>
+
+            <div class="form-group">
+                <label>Nơi cấp CCCD</label>
+                <input type="text" value="Bộ Công An">
+            </div>
+
+            <div class="form-group">
+                <label>Ngày Sinh</label>
+                <input type="text" value="12/12/1990">
+            </div>
+
+            <div class="form-group">
+                <label>Giới tính</label>
+                <input type="text" value="Nam">
+            </div>
+
+            <div class="form-group">
+                <label>Quê quán</label>
+                <input type="text" value="An Khánh, Hà Nội">
+            </div>
+
+            <div class="form-group">
+                <label>Nơi thường trú</label>
+                <input type="text" value="An Khánh, Hà Nội">
             </div>
         </div>
-
     </div>
+
+    <div class="form-actions">
+        <button class="btn-cancel">Hủy</button>
+        <button class="btn-save">Lưu</button>
+    </div>
+</div>
 
 </body>
 </html>

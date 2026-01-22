@@ -101,8 +101,30 @@
     <!-- Full view khi mở rộng -->
     <div class="expanded-view" *ngIf="showAdvancedFilters">
       <div class="filters-section">
-        <!-- Image Upload Dropdown -->
-        <div *ngIf="showImageUpload" class="filter-dropdown image-upload-dropdown" (clickOutside)="showImageUploadDropdown = false">
+        <!-- Display Only Images (Object Image - Read Only) -->
+        <div *ngIf="showImageUpload && displayOnlyImages.length > 0" class="filter-dropdown image-display-only">
+          <div class="display-trigger">
+            <svg class="image-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span class="trigger-label">{{ imageLabel }}</span>
+            
+            <!-- Thumbnails hiển thị ảnh đối tượng (read-only) -->
+            <div class="selected-images-preview">
+              <div class="image-thumbnail" *ngFor="let imgUrl of displayOnlyImages.slice(0, 3)">
+                <img [src]="imgUrl" [alt]="imageLabel" />
+              </div>
+              <div class="more-images" *ngIf="displayOnlyImages.length > 3">
+                +{{ displayOnlyImages.length - 3 }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image Upload Dropdown (Upload mode) -->
+        <div *ngIf="showImageUpload && displayOnlyImages.length === 0" class="filter-dropdown image-upload-dropdown" (clickOutside)="showImageUploadDropdown = false">
           <button class="dropdown-trigger" (click)="toggleImageUploadDropdown()">
             <svg class="image-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>

@@ -4,8 +4,11 @@ import {
   HostListener,
   OnInit,
   ViewChild,
+  forwardRef,
+  Input,
 } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 interface Day {
   date: Date;
@@ -18,13 +21,22 @@ interface Day {
   selector: 'app-date-picker',
   standalone: true,
   imports: [CommonModule],
-  providers: [DatePipe],
+  providers: [
+    DatePipe,
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => DatePickerComponent),
+      multi: true
+    }
+  ],
   templateUrl: './date-picker.component.html',
   styleUrls: ['./date-picker.component.scss'],
 })
-export class DatePickerComponent implements OnInit {
+export class DatePickerComponent implements OnInit, ControlValueAccessor {
+  @Input() placeholder: string = 'Chọn ngày';
+  
   isOpen = false;
-  selectedDate: Date | null = new Date();
+  selectedDate: Date | null = null;
   displayDate: Date = new Date();
 
   days: Day[] = [];
@@ -42,8 +54,13 @@ export class DatePickerComponent implements OnInit {
 
   @ViewChild('popupRef') popupRef!: ElementRef;
   @ViewChild('inputWrapperRef') inputWrapperRef!: ElementRef;
-leftCalendarDate: any;
-rightCalendarDate: any;
+  leftCalendarDate: any;
+  rightCalendarDate: any;
+
+  // ControlValueAccessor
+  private onChange: (value: Date | null) => void = () => {};
+  private onTouched: () => void = () => {};
+  disabled = false;
 
   constructor(private elementRef: ElementRef, private datePipe: DatePipe) {}
 
@@ -59,6 +76,8 @@ rightCalendarDate: any;
   }
 
   toggleCalendar(): void {
+    if (this.disabled) return;
+    
     this.isOpen = !this.isOpen;
 
     if (this.isOpen) {
@@ -112,6 +131,10 @@ rightCalendarDate: any;
     this.selectedDate = day.date;
     this.isOpen = false;
     this.generateCalendar();
+    
+    // Notify form control
+    this.onChange(this.selectedDate);
+    this.onTouched();
   }
 
   changeMonth(amount: number): void {
@@ -203,5 +226,29 @@ rightCalendarDate: any;
     this.displayDate = new Date(this.displayDate.setFullYear(year));
     this.generateCalendar();
     this.showYearDropdown = false;
+  }
+
+  // ControlValueAccessor implementation
+  writeValue(value: Date | string | null): void {
+    if (value) {
+      this.selectedDate = typeof value === 'string' ? new Date(value) : value;
+      this.displayDate = new Date(this.selectedDate);
+    } else {
+      this.selectedDate = null;
+      this.displayDate = new Date();
+    }
+    this.generateCalendar();
+  }
+
+  registerOnChange(fn: (value: Date | null) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {
+    this.disabled = isDisabled;
   }
 }

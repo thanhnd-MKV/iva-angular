@@ -1,0 +1,102 @@
+<div class="object-list-container">
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-left">
+      <div class="search-box">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input type="text" placeholder="Tìm kiếm theo ID sự kiện, camera, vị trí" class="search-input"
+          [(ngModel)]="searchText" (keyup.enter)="onSearch()">
+      </div>
+
+      <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
+        <mat-icon class="btn-icon">close</mat-icon>
+        <span>Xóa bộ lọc</span>
+      </button>
+    </div>
+
+    <div class="filter-right">
+      <button class="add-btn" (click)="addNewObject()">
+        <mat-icon class="btn-icon">add</mat-icon>
+        <span>Thêm mới đối tượng</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Custom Table Container -->
+  <div class="custom-table-container">
+    <!-- Loading Spinner -->
+    <div *ngIf="isLoading" class="loading-overlay">
+      <mat-spinner diameter="50"></mat-spinner>
+    </div>
+
+    <!-- Data Table -->
+    <table class="custom-data-table" *ngIf="!isLoading">
+      <thead>
+        <tr>
+          <th class="th-avatar">Ảnh đại diện</th>
+          <th class="th-name">Tên gọi</th>
+          <th class="th-group">Loại theo dõi</th>
+          <th class="th-count">Số lần xuất hiện</th>
+          <th class="th-updated">Cập nhật gần nhất</th>
+          <th class="th-actions">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of tableData" class="data-row" (click)="handleRowClick(item)">
+          <td class="td-avatar">
+            <img [src]="item.image || 'assets/images/no-image.png'" [alt]="item.fullName" class="avatar-image"
+              (error)="handleImageError($event)">
+          </td>
+          <td class="td-name">{{ item.fullName || 'N/A' }}</td>
+          <td class="td-group">
+            <span class="group-badge" [ngClass]="getGroupBadgeClass(item.trackingType)">
+              {{ item.trackingType }}
+            </span>
+          </td>
+          <td class="td-count">{{ item.numberOfAppearances }}</td>
+          <td class="td-updated">
+            <div class="datetime-cell">
+              <span class="date-text">{{ item.updatedAt | date: 'dd/MM/yyyy' }}</span>
+              <span class="time-text">{{ item.updatedAt | date: 'HH:mm:ss' }}</span>
+            </div>
+          </td>
+          <td class="td-actions">
+            <div class="action-buttons">
+              <button mat-icon-button class="action-btn" matTooltip="Theo dõi"
+                (click)="viewRelatedEvents(item); $event.stopPropagation()">
+                <mat-icon>track_changes</mat-icon>
+              </button>
+              <button mat-icon-button class="action-btn" matTooltip="Chỉnh sửa"
+                (click)="editObject(item); $event.stopPropagation()">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button class="action-btn" matTooltip="Chi tiết"
+                (click)=" viewObjectDetail(item); $event.stopPropagation()">
+                <mat-icon>info</mat-icon>
+              </button>
+              <button mat-icon-button class="action-btn delete-btn" matTooltip="Xóa"
+                (click)="deleteObject(item); $event.stopPropagation()">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Empty State -->
+        <tr *ngIf="tableData.length === 0">
+          <td colspan="6" class="empty-state">
+            <div class="empty-content">
+              <mat-icon class="empty-icon">person_off</mat-icon>
+              <p class="empty-text">Không tìm thấy đối tượng nào</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <app-custom-paginator *ngIf="!isLoading && tableData.length > 0" [currentPage]="currentPage" [pageSize]="pageSize"
+      [totalItems]="totalItems" (pageChange)="onPageChange($event)">
+    </app-custom-paginator>
+  </div>
+</div>

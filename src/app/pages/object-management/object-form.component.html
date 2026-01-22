@@ -1,0 +1,131 @@
+<div class="object-form-container">
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+  </div>
+
+  <!-- Form -->
+  <div *ngIf="!isLoading" class="form-content">
+    <div class="form-card">
+      <form [formGroup]="objectForm" (ngSubmit)="onSubmit()">
+        <div class="form-grid">
+          <!-- Left Column -->
+          <div class="form-column">
+            <!-- Image Upload -->
+            <div class="image-upload-section">
+              <label>Hình ảnh</label>
+              <div class="upload-area">
+                <div class="uploaded-images" *ngIf="uploadedImages.length > 0; else noImage">
+                  <div *ngFor="let img of uploadedImages; let i = index" class="image-preview">
+                    <img [src]="img" alt="Preview">
+                    <button type="button" mat-icon-button class="remove-btn" (click)="removeImage(i)">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                <ng-template #noImage>
+                  <div class="image-preview">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 10px;">
+                      <mat-icon style="font-size: 50px; width: 50px; height: 50px; opacity: 0.3; color: #999;">image</mat-icon>
+                      <span class="upload-hint" style="margin-top: 8px;">KHÔNG CÓ ẢNH</span>
+                    </div>
+                  </div>
+                </ng-template>
+                <button type="button" class="upload-btn" (click)="triggerImageUpload()">
+                  <mat-icon>cloud_upload</mat-icon>
+                  <span>Tải hình ảnh</span>
+                </button>
+                <input type="file" id="imageUpload" hidden multiple accept="image/*" (change)="onImageUpload($event)">
+              </div>
+            </div>
+
+            <!-- Basic Info -->
+            <div class="form-group">
+              <label>Họ và tên</label>
+              <input type="text" formControlName="name" placeholder="Nguyễn Văn A">
+            </div>
+
+            <div class="form-group">
+              <label>ID đối tượng</label>
+              <input type="text" formControlName="objectId" placeholder="4324324">
+            </div>
+
+            <div class="form-group">
+              <label>Nhóm đối tượng</label>
+              <select formControlName="groupType" [class.select-blacklist]="objectForm.get('groupType')?.value === 'blacklist'">
+                <option *ngFor="let type of groupTypes" [value]="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Nguồn dữ liệu</label>
+              <input type="text" formControlName="dataSource" placeholder="Đồng bộ" readonly class="input-disabled">
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="form-column">
+            <h4>Thông tin cá nhân</h4>
+
+            <div class="form-group">
+              <label>Số CCCD</label>
+              <input type="text" formControlName="cccdNumber" placeholder="43243121224">
+            </div>
+
+            <div class="form-group">
+              <label>Quốc tích</label>
+              <input type="text" formControlName="nationality" placeholder="Việt Nam">
+            </div>
+
+            <div class="form-group">
+              <label>Ngày cấp CCCD</label>
+              <app-date-picker formControlName="cccdIssueDate" placeholder="Chọn ngày cấp"></app-date-picker>
+            </div>
+
+            <div class="form-group">
+              <label>Nơi cấp CCCD</label>
+              <input type="text" formControlName="cccdIssuePlace" placeholder="Bộ Công An">
+            </div>
+
+            <div class="form-group">
+              <label>Ngày Sinh</label>
+              <app-date-picker formControlName="dateOfBirth" placeholder="Chọn ngày sinh"></app-date-picker>
+            </div>
+
+            <div class="form-group">
+              <label>Giới tính</label>
+              <select formControlName="gender">
+                <option value="">Chọn giới tính</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Quê quán</label>
+              <input type="text" formControlName="origin" placeholder="An Khánh, Hà Nội">
+            </div>
+
+            <div class="form-group">
+              <label>Nơi thường trú</label>
+              <input type="text" formControlName="residence" placeholder="An Khánh, Hà Nội">
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button class="btn-cancel" type="button" (click)="onCancel()" [disabled]="isSaving">
+            Hủy
+          </button>
+          <button class="btn-save" type="submit" [disabled]="isSaving">
+            <span *ngIf="!isSaving">{{ isEditMode ? 'Lưu chỉnh sửa' : 'Lưu' }}</span>
+            <span *ngIf="isSaving">Đang lưu...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

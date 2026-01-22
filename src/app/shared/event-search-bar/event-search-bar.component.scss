@@ -150,6 +150,75 @@
   gap: 6px;
 }
 
+// Image Display Only (Read-only mode for object image)
+.image-display-only {
+  min-width: 160px;
+  
+  .display-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 32px;
+    min-width: 160px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f9fafb;
+    cursor: default;
+  }
+  
+  .image-icon {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+  
+  .trigger-label {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #374151;
+    font-weight: 500;
+  }
+  
+  // Selected images preview thumbnails
+  .selected-images-preview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    
+    .image-thumbnail {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 2px solid #3b82f6;
+      background: #f9fafb;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+    
+    .more-images {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      font-size: 10px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+  }
+}
+
 // Image Upload Dropdown
 .image-upload-dropdown {
   min-width: 160px;

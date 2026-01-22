@@ -1,0 +1,104 @@
+<div class="object-detail-container">
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading && objectData" class="detail-content">
+    <div class="content-header">
+      <button mat-raised-button color="primary" (click)="viewRelatedEvents()">
+        <mat-icon>timeline</mat-icon>
+        Truy vết sự kiện liên quan
+      </button>
+      <button mat-raised-button (click)="editObject()">
+        <mat-icon>edit</mat-icon>
+        Chỉnh sửa
+      </button>
+    </div>
+
+    <div class="detail-card">
+      <div class="card-left">
+        <!-- Images Section -->
+        <div class="images-section">
+          <h3>Hình ảnh</h3>
+          <div class="image-gallery">
+            <img *ngFor="let img of objectData.images || [objectData.avatarUrl]" 
+                 [src]="img" 
+                 [alt]="objectData.name"
+                 class="gallery-image">
+          </div>
+        </div>
+
+        <!-- Basic Info -->
+        <div class="info-section">
+          <div class="info-row">
+            <label>Họ và Tên</label>
+            <div class="info-value">{{ objectData.name }}</div>
+          </div>
+          <div class="info-row">
+            <label>ID đối tượng</label>
+            <div class="info-value">{{ objectData.objectId }}</div>
+          </div>
+          <div class="info-row">
+            <label>Nhóm đối tượng</label>
+            <div class="info-value">
+              <span class="group-badge" [ngClass]="getGroupTypeBadgeClass(objectData.groupType)">
+                {{ objectData.groupType }}
+              </span>
+            </div>
+          </div>
+          <div class="info-row">
+            <label>Nguồn dữ liệu</label>
+            <div class="info-value">{{ objectData.dataSource }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-right">
+        <h3>Thông tin cá nhân</h3>
+        
+        <div class="info-section">
+          <div class="info-row">
+            <label>Số CCCD</label>
+            <div class="info-value">{{ objectData.cccdNumber || '-' }}</div>
+          </div>
+          <div class="info-row">
+            <label>Quốc tích</label>
+            <div class="info-value">{{ objectData.nationality || '-' }}</div>
+          </div>
+          <div class="info-row">
+            <label>Ngày cấp CCCD</label>
+            <div class="info-value">
+              <mat-icon>calendar_today</mat-icon>
+              {{ objectData.cccdIssueDate || '-' }}
+            </div>
+          </div>
+          <div class="info-row">
+            <label>Nơi cấp CCCD</label>
+            <div class="info-value">{{ objectData.cccdIssuePlace || '-' }}</div>
+          </div>
+          <div class="info-row">
+            <label>Ngày Sinh</label>
+            <div class="info-value">
+              <mat-icon>calendar_today</mat-icon>
+              {{ objectData.dateOfBirth || '-' }}
+            </div>
+          </div>
+          <div class="info-row">
+            <label>Giới tính</label>
+            <div class="info-value">{{ objectData.gender || '-' }}</div>
+          </div>
+          <div class="info-row">
+            <label>Quê quán</label>
+            <div class="info-value">{{ objectData.origin || '-' }}</div>
+          </div>
+          <div class="info-row">
+            <label>Nơi thường trú</label>
+            <div class="info-value">{{ objectData.residence || '-' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

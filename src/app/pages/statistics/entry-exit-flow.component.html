@@ -73,15 +73,14 @@
   </div>
 </div>
 
-<div class="statistics-container">
+<div class="statistics-container" [class.sidebar-opened]="isSidebarOpened" [class.sidebar-closed]="!isSidebarOpened">
+  <!-- Summary Cards Row -->
+  
 
-
-  <!-- Top Section: Donut Chart + Bar Chart -->
-  <div class="top-section">
-
-<div class="left-section">
-        <!-- Summary Cards Section -->
-  <div class="summary-cards-section">
+  <div class="main-content">
+    <!-- Map Section -->
+ <div>
+      <div class="summary-cards-section">
     <div class="summary-card" [ngClass]="'summary-card-' + card.color" *ngFor="let card of summaryCards; let i = index; trackBy: trackByCardIndex">
       <div class="summary-header">
         <span class="summary-title">{{ card.title }}</span>
@@ -105,84 +104,106 @@
       </div>
     </div>
   </div>
-    <!-- Donut Chart -->
-    <div class="chart-card donut-chart-card">
-      <h3 class="chart-title">Thống kê lượt xuất hiện độ tuổi</h3>
-      <div class="donut-wrapper" [class.loading]="isDonutChartLoading">
-        <div *ngIf="isDonutChartLoading" class="loading-overlay">
-          <mat-spinner diameter="40"></mat-spinner>
-        </div>
-        <div class="donut-content">
-          <div class="donut-chart">
-            <canvas #donutChart baseChart 
-              [data]="donutChartData" 
-              [options]="donutChartOptions" 
-              type="doughnut">
-            </canvas>
-            <div class="donut-center">
-              <div class="total-label">Tổng</div>
-              <div class="total-value">{{ formattedTotalCount }}</div>
-            </div>
-          </div>
-          <div class="donut-legend">
-            <div class="legend-item" 
-                 *ngFor="let item of donutChartData.labels; let i = index"
-                 [class.hidden]="isAgeGroupHidden(item)"
-                 (click)="toggleAgeGroup(item)">
-              <div class="legend-color" [style.background-color]="getBackgroundColor(i)"></div>
-              <span class="legend-label">{{ item }}</span>
-              <span class="legend-value">{{ getAgeGroupCount(item) }}</span>
-            </div>
-          </div>
+    <div class="map-section">
+      <div class="map-card luu-luong-map">
+        <h3 class="chart-title">Thống kê lưu lượng theo Camera</h3>
+        <div class="map-wrapper">
+          <app-traffic-flow-map 
+            [cameraLocations]="cameraLocations"
+            [mapCenter]="mapCenter"
+            [mapZoom]="mapZoom">
+          </app-traffic-flow-map>
         </div>
       </div>
     </div>
-</div>
+ </div>
 
-    <!-- Bar Chart -->
-    <div class="chart-card bar-chart-card">
+    <!-- Charts Section -->
+    <div class="charts-section">
+     <!-- Line Chart Section -->
+  <div class="chart-section">
+    <div class="chart-card line-chart-card">
       <div class="chart-header">
-        <h3 class="chart-title">Thống kê nhận chủng học</h3>
-        <div class="chart-legend-inline">
-          <div class="legend-item-inline" 
-               *ngFor="let dataset of barChartData.datasets; let i = index"
-               [class.legend-hidden]="isDatasetHidden(i)"
-               (click)="toggleDataset(i)">
-            <span class="legend-dot" [style.background-color]="dataset.backgroundColor"></span>
-            <span class="legend-text">{{ dataset.label }}</span>
+        <h3 class="chart-title">Lượt đến/ rời đi theo giờ trong ngày</h3>
+        <div class="chart-controls">
+          <div class="chart-filter-buttons">
+            <button class="chart-filter-btn" 
+                    [class.active]="lineChartFilter === 'all'"
+                    (click)="setLineChartFilter('all')">
+              Tất cả
+            </button>
+            <button class="chart-filter-btn" 
+                    [class.active]="lineChartFilter === 'in'"
+                    (click)="setLineChartFilter('in')">
+              <span class="filter-dot" style="background-color: #10b981;"></span>
+              Lượt đến
+            </button>
+            <button class="chart-filter-btn" 
+                    [class.active]="lineChartFilter === 'out'"
+                    (click)="setLineChartFilter('out')">
+              <span class="filter-dot" style="background-color: #8b5cf6;"></span>
+              Lượt rời đi
+            </button>
           </div>
         </div>
       </div>
-      <div class="chart-wrapper" [class.loading]="isBarChartLoading" [style.height]="barChartHeight">
-        <div *ngIf="isBarChartLoading" class="loading-overlay">
-          <mat-spinner diameter="40"></mat-spinner>
+      <div class="chart-container">
+        <div class="chart-wrapper" [class.loading]="isLineChartLoading">
+          <div *ngIf="isLineChartLoading" class="loading-overlay">
+            <mat-spinner diameter="40"></mat-spinner>
+          </div>
+          <canvas #lineChart
+            baseChart 
+            [data]="lineChartData" 
+            [options]="lineChartOptions" 
+            type="line">
+          </canvas>
         </div>
-        <canvas #barChart baseChart 
-          [data]="barChartData" 
-          [options]="barChartOptions" 
-          type="bar">
-        </canvas>
       </div>
     </div>
-
-    <!-- Donut Chart with Legend -->
-
   </div>
 
-  <!-- Bottom Section: Line Chart -->
-  <div class="bottom-section">
-    <div class="chart-card line-chart-card">
-      <h3 class="chart-title">Lượt xuất hiện của các đối tượng</h3>
-      <div class="chart-wrapper" [class.loading]="isLineChartLoading" [style.height]="lineChartHeight">
-        <div *ngIf="isLineChartLoading" class="loading-overlay">
-          <mat-spinner diameter="40"></mat-spinner>
+  <!-- Bar Chart Section -->
+  <div class="chart-section">
+    <div class="chart-card bar-chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Lưu lượng ra vào theo từng khu vực</h3>
+        <div class="chart-controls">
+          <div class="chart-filter-buttons">
+            <button class="chart-filter-btn" 
+                    [class.active]="barChartFilter === 'all'"
+                    (click)="setBarChartFilter('all')">
+              Tất cả
+            </button>
+            <button class="chart-filter-btn" 
+                    [class.active]="barChartFilter === 'in'"
+                    (click)="setBarChartFilter('in')">
+              <span class="filter-dot" style="background-color: #10b981;"></span>
+              Lượt đến
+            </button>
+            <button class="chart-filter-btn" 
+                    [class.active]="barChartFilter === 'out'"
+                    (click)="setBarChartFilter('out')">
+              <span class="filter-dot" style="background-color: #8b5cf6;"></span>
+              Lượt rời đi
+            </button>
+          </div>
         </div>
-        <canvas #lineChart baseChart 
-          [data]="lineChartData" 
-          [options]="lineChartOptions" 
-          type="line">
-        </canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-wrapper" [class.loading]="isBarChartLoading">
+          <div *ngIf="isBarChartLoading" class="loading-overlay">
+            <mat-spinner diameter="40"></mat-spinner>
+          </div>
+          <canvas #barChart
+            baseChart 
+            [data]="barChartData" 
+            [options]="barChartOptions" 
+            type="bar">
+          </canvas>
+        </div>
       </div>
     </div>
+  </div>
   </div>
 </div>

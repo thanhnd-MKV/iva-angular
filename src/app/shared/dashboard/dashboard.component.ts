@@ -365,13 +365,14 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
               : (camera.totalTrafficDetected || 0) + (camera.totalTrafficViolation || 0);
             
             this.cameraLocations.push({
-              name: camera.cameraName ,
+              name: location.location || camera.address, // Ưu tiên tên location chung
               cameraSn: camera.cameraSn,
               cameraCode: camera.cameraSn,
               lat: camera.latitude,
               lng: camera.longitude,
               count: count,
               type: camera.cameraType,
+              address: camera.address || location.location, // Lưu address chi tiết cho info window
               totalPersonDetected: camera.totalPersonDetected || 0,
               totalTrafficDetected: camera.totalTrafficDetected || 0,
               totalTrafficViolation: camera.totalTrafficViolation || 0,
@@ -409,10 +410,11 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
           this.cameras.push({
             id: camera.cameraSn,
             sn: camera.cameraSn,
-            name: camera.cameraName || camera.cameraSn,
+            name: location.location || camera.address || camera.cameraName, // Ưu tiên tên location chung
             category: camera.cameraType,
             connectionStatus: 1,
             location: location.location,
+            address: camera.address || location.location, // Lưu address chi tiết cho info window
             latitude: camera.latitude,
             longitude: camera.longitude,
             eventCount: eventCount,
@@ -474,90 +476,32 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   }
   
   private connectSSE(): void {
-    console.log('🚀 Starting SSE connections for dashboard...');
+    console.log('🚀 Dashboard subscribing to global SSE stream...');
     
     // Ensure we disconnect any existing connections first
     this.disconnectAllSSE();
     
-    // Connect to multiple SSE channels for dashboard
-    const channels = [
-      'objectRecognition',    // Đối tượng nhận diện
-      'trafficVolume',        // Lưu lượng giao thông
-      'trafficViolation',     // Vi phạm giao thông
-      'homepageDashboard'     // Dashboard trang chủ
-    ];
-    
-    channels.forEach(channel => {
-      console.log(`📡 Attempting to connect to channel: ${channel}`);
-      const subscription = this.sseService.connect(channel).subscribe({
-        next: (data) => {
-          console.log(`✅ SSE Data received from [${channel}]:`, data);
-          this.handleSSEMessage(channel, data);
-        },
-        error: (error) => {
-          console.error(`❌ SSE Error [${channel}]:`, error);
-          // Auto reconnect after error
-          setTimeout(() => {
-            console.log(`🔄 Reconnecting to ${channel}...`);
-            this.reconnectSSE(channel);
-          }, 5000);
-        },
-        complete: () => {
-          console.log(`🔌 SSE Connection completed [${channel}]`);
-        }
-      });
-      
-      this.sseSubscriptions.push(subscription);
-    });
-    
-    console.log(`📊 Total SSE subscriptions: ${this.sseSubscriptions.length}`);
-  }
-  
-  private reconnectSSE(channel: string): void {
-    // Only reconnect if dashboard is still active
-    if (!this.isDashboardActive) {
-      console.log(`⏸️ Dashboard inactive, skipping reconnect for ${channel}`);
-      return;
-    }
-    
-    const subscription = this.sseService.connect(channel).subscribe({
-      next: (data) => {
-        this.handleSSEMessage(channel, data);
+    // Subscribe to global shared SSE stream (already connected in MainLayout)
+    const subscription = this.sseService.getGlobalStream().subscribe({
+      next: (message) => {
+        console.log('✅ Dashboard received SSE:', message);
+        this.handleHomepageDashboard(message.data || message);
       },
       error: (error) => {
-        console.error(`SSE Reconnect Error [${channel}]:`, error);
+        console.error('❌ Dashboard SSE Error:', error);
+      },
+      complete: () => {
+        console.log('🔌 Dashboard SSE completed');
       }
     });
     
     this.sseSubscriptions.push(subscription);
+    console.log('📊 Dashboard subscribed to global SSE');
   }
   
-  private handleSSEMessage(channel: string, message: any): void {
-    console.log(`📨 SSE Data [${channel}]:`, message);
-    
-    // Extract event type and data
-    const eventType = message.event || 'message';
-    const data = message.data || message;
-    
-    console.log(`📌 Event type: ${eventType}`, data);
-    
-    switch (channel) {
-      case 'objectRecognition':
-        this.handleObjectRecognition(data);
-        break;
-      case 'trafficVolume':
-        this.handleTrafficVolume(data);
-        break;
-      case 'trafficViolation':
-        this.handleTrafficViolation(data);
-        break;
-      case 'homepageDashboard':
-        this.handleHomepageDashboard(data);
-        break;
-      default:
-        console.warn(`Unknown SSE channel: ${channel}`);
-    }
-  }
+  // Removed reconnectSSE - using global shared stream, no reconnection needed
+  
+  // Removed handleSSEMessage - directly call handleHomepageDashboard in connectSSE
   
   private handleObjectRecognition(data: any): void {
     // Handle real-time object recognition updates

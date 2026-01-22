@@ -17,7 +17,7 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 @Component({
-  selector: 'app-luu-luong-giao-thong',
+  selector: 'app-traffic-flow',
   standalone: true,
   imports: [
     CommonModule,
@@ -28,11 +28,11 @@ import { filter } from 'rxjs/operators';
     DateRangePickerComponent,
     TrafficFlowMapComponent
   ],
-  templateUrl: './luu-luong-giao-thong.component.html',
-  styleUrls: ['./luu-luong-giao-thong.component.scss'],
+  templateUrl: './traffic-flow.component.html',
+  styleUrls: ['./traffic-flow.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
+export class TrafficFlowComponent implements OnInit, OnDestroy {
   @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
 
   private sidebarSubscription?: Subscription;
@@ -41,7 +41,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   // SSE for real-time traffic volume updates
   private sseSubscription?: Subscription;
   private routerSubscription?: Subscription;
-  private readonly SSE_CHANNEL = 'trafficVolume';
+  private readonly SSE_CHANNEL = 'alarm';
   private isPageActive = false;
   
   // Filter state
@@ -96,7 +96,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   summaryCards = [
     { title: 'Tổng số phương tiện', value: 8213, change: 12, isPositive: true, color: 'blue' },
     { title: 'Phương tiện chiếm tỉ lệ cao nhất', value: 0, change: 8, isPositive: true, subtitle: 'Xe máy', color: 'green' },
-    { title: 'Giờ cao điểm giao thông', value: 0, change: -3, isPositive: false, subtitle: '16-19h', color: 'purple' }
+    { title: 'Giờ cao điểm giao thông', value: 0, change: -3, isPositive: false, subtitle: '7-9h', color: 'purple' }
   ];
   
   // Line Chart Data (Traffic flow by hour)
@@ -480,6 +480,11 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
     
     console.log(`Calling Chart API (${isSingleDay ? 'single day - by hour' : 'multiple days - by day'}):`, chartApiUrl, 'with params:', params);
     
+    // Set loading states
+    this.isBarChartLoading = true;
+    this.isStatsLoading = true;
+    this.cdr.detectChanges();
+    
     this.http.get<any>(chartApiUrl, { params })
       .subscribe({
         next: (response) => {
@@ -579,13 +584,15 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
             }
             
             console.log(`🗺️  ✅ [${locIndex}.${camIndex}] Camera:`, camera.cameraSn, 
-              `| Lat: ${lat.toFixed(6)} | Lng: ${lng.toFixed(6)} | Total: ${camera.total || 0}`);
+              `| Lat: ${lat.toFixed(6)} | Lng: ${lng.toFixed(6)} | Total: ${camera.totalTrafficDetected || camera.totalPersonDetected || 0} | Address: ${camera.address}`);
             
             allCameras.push({
               ...camera,
               locationName: location.location,
+              address: camera.address || location.location, // Ưu tiên address chi tiết của camera
               lat: lat,
-              lng: lng
+              lng: lng,
+              total: camera.totalTrafficDetected || camera.totalPersonDetected || 0
             });
           });
         } else {
@@ -628,7 +635,8 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
           lat: camera.lat,
           lng: camera.lng,
           total: camera.total || 0,
-          locationName: camera.locationName
+          locationName: camera.locationName,
+          address: camera.address // Lưu address chi tiết
         });
         
         console.log(`🗺️ ✅ [${index}] Valid camera:`, {
@@ -675,24 +683,28 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
         const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
         const locationNames = [...new Set(cameras.map(c => c.locationName))].join(', ');
         
-        // Use first camera's coordinates (all should be the same in this group)
+        // Use first camera's exact GPS (NO averaging)
         const mainCamera = cameras[0];
         
         const markerData = {
-          lat: mainCamera.lat,
-          lng: mainCamera.lng,
-          name: locationNames,
+          lat: mainCamera.lat,  // Exact GPS
+          lng: mainCamera.lng,  // Exact GPS
+          name: locationNames || mainCamera.address, // Ưu tiên tên location chung
           count: totalCount,
           cameraCode: cameras.length === 1 ? mainCamera.cameraSn : `${cameras.length} cameras`,
           cameras: cameras.map(c => c.cameraSn),
-          individualCameras: cameras
+          individualCameras: cameras,
+          address: mainCamera.address || locationNames, // Lưu address chi tiết cho info window
+          violationCount: cameras.reduce((sum, c) => sum + (c.totalTrafficViolation || 0), 0), // Tổng vi phạm
+          totalTrafficDetected: totalCount // Tổng phương tiện
         };
         
         console.log(`🗺️ 🎯 Marker[${groupIndex}] created at ${coordKey}:`, {
           cameras: cameras.length,
           total: totalCount,
           locations: locationNames,
-          coords: { lat: mainCamera.lat, lng: mainCamera.lng }
+          coords: { lat: mainCamera.lat.toFixed(6), lng: mainCamera.lng.toFixed(6) },
+          coordKey: coordKey
         });
         
         return markerData;
@@ -707,7 +719,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
         name: loc.name
       })));
       
-      // Auto-adjust map center and zoom based on locations
+      // Calculate center from all camera locations
       if (this.cameraLocations.length > 0) {
         // Calculate bounds from all camera locations
         const lats = this.cameraLocations.map(loc => loc.lat);
@@ -724,51 +736,10 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
         
         this.mapCenter = { lat: centerLat, lng: centerLng };
         
-        // Calculate spread
-        const latSpread = maxLat - minLat;
-        const lngSpread = maxLng - minLng;
-        const maxSpread = Math.max(latSpread, lngSpread);
+        // ALWAYS start with MINIMUM zoom (country view) - user can zoom in manually
+        this.mapZoom = 5;
         
-        console.log('🗺️ Bounds - Lat: [', minLat.toFixed(6), ',', maxLat.toFixed(6), '] Lng: [', minLng.toFixed(6), ',', maxLng.toFixed(6), ']');
-        console.log('🗺️ Spread - Lat:', latSpread.toFixed(6), 'Lng:', lngSpread.toFixed(6), 'Max:', maxSpread.toFixed(6));
-        
-        // Determine zoom level with better thresholds
-        let calculatedZoom: number;
-        
-        if (this.cameraLocations.length === 1) {
-          calculatedZoom = 15;
-        } else if (maxSpread === 0) {
-          calculatedZoom = 15;
-        } else if (maxSpread >= 10) {
-          calculatedZoom = 5;
-        } else if (maxSpread >= 5) {
-          calculatedZoom = 6;
-        } else if (maxSpread >= 1) {
-          calculatedZoom = 8;
-        } else if (maxSpread >= 0.5) {
-          calculatedZoom = 9;
-        } else if (maxSpread >= 0.2) {
-          calculatedZoom = 10;
-        } else if (maxSpread >= 0.1) {
-          calculatedZoom = 11;
-        } else if (maxSpread >= 0.05) {
-          calculatedZoom = 12;
-        } else if (maxSpread >= 0.02) {
-          calculatedZoom = 13;
-        } else if (maxSpread >= 0.01) {
-          calculatedZoom = 14;
-        } else if (maxSpread >= 0.005) {
-          calculatedZoom = 15;
-        } else if (maxSpread >= 0.001) {
-          calculatedZoom = 16;
-        } else {
-          calculatedZoom = 17;
-        }
-        
-        // Apply zoom with slight zoom out for better visibility
-        this.mapZoom = this.cameraLocations.length > 1 ? Math.max(calculatedZoom - 1, 5) : calculatedZoom;
-        
-        console.log('🗺️ Map center:', this.mapCenter, 'Calculated Zoom:', calculatedZoom, 'Final Zoom:', this.mapZoom, 'Locations:', this.cameraLocations.length);
+        console.log('🗺️ Map center:', this.mapCenter, 'Fixed Zoom:', this.mapZoom, 'Locations:', this.cameraLocations.length);
         
         // Only trigger change detection once after all updates
         this.cdr.detectChanges();
@@ -1206,13 +1177,12 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       
       // Convert groups to map locations format
       this.cameraLocations = Object.entries(locationGroups).map(([locationName, cameras]) => {
-        const avgLat = cameras.reduce((sum, cam) => sum + cam.lat, 0) / cameras.length;
-        const avgLng = cameras.reduce((sum, cam) => sum + cam.lng, 0) / cameras.length;
+        const firstCamera = cameras[0];
         const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
         
         return {
-          lat: avgLat,
-          lng: avgLng,
+          lat: firstCamera.lat,  // Exact GPS
+          lng: firstCamera.lng,  // Exact GPS
           name: locationName,
           count: totalCount,
           cameraCode: locationName,
@@ -1557,14 +1527,25 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log(`🔌 Connecting to SSE: ${this.SSE_CHANNEL}`);
+    console.log(`🔌 Subscribing to shared SSE stream for: ${this.SSE_CHANNEL}`);
     
-    // Disconnect any existing connection first
+    // Disconnect any existing subscription first
     this.disconnectSSE();
     
-    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+    this.sseSubscription = this.sseService.getSharedStream().subscribe({
       next: (message) => {
         console.log(`📨 SSE Data [${this.SSE_CHANNEL}]:`, message);
+        
+        // TEMPORARILY DISABLED - Check what event types BE is sending
+        // Filter: Only process TRAFFIC:frame for traffic volume
+        /*
+        const eventType = message.event || 'message';
+        if (eventType !== 'TRAFFIC:frame') {
+          console.log(`🔇 Filtered out event type: ${eventType} (expected: TRAFFIC:frame)`);
+          return;
+        }
+        */
+        
         this.handleSSEUpdate(message.data || message);
       },
       error: (error) => {
@@ -1585,55 +1566,115 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
   
   private disconnectSSE(): void {
     if (this.sseSubscription) {
-      console.log(`🔌 Disconnecting SSE: ${this.SSE_CHANNEL}`);
+      console.log(`🔌 Unsubscribing from shared SSE stream`);
       this.sseSubscription.unsubscribe();
       this.sseSubscription = undefined;
     }
-    this.sseService.disconnect(this.SSE_CHANNEL);
   }
-  
+
   private handleSSEUpdate(data: any): void {
     console.log('🔄 Processing SSE update for traffic volume:', data);
     
-    // Handle dataChanges format: {"dataChanges":{"cameraSn":{"vehicleType":count}}}
-    if (data.dataChanges) {
-      console.log('📊 DataChanges detected:', data.dataChanges);
-      
-      // Iterate through each camera
-      Object.keys(data.dataChanges).forEach(cameraSn => {
-        const trafficData = data.dataChanges[cameraSn];
-        console.log(`📷 Camera ${cameraSn} traffic:`, trafficData);
+    try {
+      // Handle dataChanges format: {"dataChanges":{"Bus":1,"Motor":3,"Car":3,"Truck":2}}
+      if (data.dataChanges) {
+        console.log('📊 DataChanges detected:', data.dataChanges);
         
-        // Calculate total vehicles for this camera
-        let cameraTrafficCount = 0;
-        Object.keys(trafficData).forEach(vehicleType => {
-          const count = trafficData[vehicleType];
-          cameraTrafficCount += count;
-          console.log(`  🚗 ${vehicleType}: +${count}`);
+        // Check if dataChanges contains vehicle types directly (new format)
+        const hasVehicleTypes = Object.keys(data.dataChanges).some(key => 
+          ['Bus', 'Motor', 'Car', 'Truck', 'Bicycle'].includes(key)
+        );
+        
+        if (hasVehicleTypes) {
+          // New format: {"dataChanges":{"Bus":1,"Motor":3,"Car":3,"Truck":2}}
+            console.log('📊 New format detected - vehicle types directly');
+          
+          // Calculate total from vehicle types
+          const totalVehicles = Object.values(data.dataChanges).reduce((sum: number, count: any) => {
+            return sum + (typeof count === 'number' ? count : 0);
+          }, 0);
+          
+          // Update total vehicles in summary card
+          const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
+          if (totalCard) {
+            totalCard.value = (totalCard.value || 0) + totalVehicles;
+            console.log(`📊 Updated total vehicles to ${totalCard.value} (added ${totalVehicles})`);
+          }
+          
+          // Find the vehicle type with highest count (only Motor and Car)
+          let maxVehicleType = '';
+          let maxCount = 0;
+          Object.entries(data.dataChanges).forEach(([vehicleType, count]) => {
+            // Only consider Motor and Car
+            if ((vehicleType === 'Motor' || vehicleType === 'Car') && typeof count === 'number' && count > maxCount) {
+              maxCount = count;
+              maxVehicleType = vehicleType;
+            }
+            console.log(`  🚗 ${vehicleType}: +${count}`);
+          });
+          
+          // Update highest vehicle type card if needed
+          if (maxVehicleType) {
+            const highestCard = this.summaryCards.find(c => c.title === 'Phương tiện chiếm tỉ lệ cao nhất');
+            if (highestCard) {
+              // Map vehicle type to Vietnamese
+              const vehicleTypeMap: { [key: string]: string } = {
+                'Motor': 'Xe máy',
+                'Car': 'Xe ô tô',
+                'Truck': 'Xe tải',
+                'Bus': 'Xe buýt',
+                'Bicycle': 'Xe đạp'
+              };
+              highestCard.subtitle = vehicleTypeMap[maxVehicleType] || maxVehicleType;
+              console.log(`📊 Updated highest vehicle type to ${highestCard.subtitle}`);
+            }
+          }
+          
+        } else {
+        // Old format: {"dataChanges":{"cameraSn":{"vehicleType":count}}}
+        console.log('📊 Old format detected - camera-based');
+        
+        // Iterate through each camera
+        Object.keys(data.dataChanges).forEach(cameraSn => {
+          const trafficData = data.dataChanges[cameraSn];
+          console.log(`📷 Camera ${cameraSn} traffic:`, trafficData);
+          
+          // Calculate total vehicles for this camera
+          let cameraTrafficCount = 0;
+          Object.keys(trafficData).forEach(vehicleType => {
+            const count = trafficData[vehicleType];
+            cameraTrafficCount += count;
+            console.log(`  🚗 ${vehicleType}: +${count}`);
+          });
+          
+          // Update camera location on map
+          const location = this.cameraLocations.find(loc => 
+            loc.cameraCode === cameraSn || loc.cameraSn === cameraSn
+          );
+          if (location) {
+            location.count = (location.count || 0) + cameraTrafficCount;
+            console.log(`📍 Updated camera ${cameraSn} count to ${location.count}`);
+          }
         });
         
-        // Update camera location on map
-        const location = this.cameraLocations.find(loc => 
-          loc.cameraCode === cameraSn || loc.cameraSn === cameraSn
-        );
-        if (location) {
-          location.count = (location.count || 0) + cameraTrafficCount;
-          console.log(`📍 Updated camera ${cameraSn} count to ${location.count}`);
+        // Update total vehicles in summary card
+        const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
+        if (totalCard) {
+          // Calculate total from all cameras
+          const totalVehicles = Object.values(data.dataChanges).reduce((sum: number, vehicles: any) => {
+            return sum + Object.values(vehicles).reduce((s: number, count: any) => s + count, 0);
+          }, 0);
+          totalCard.value = (totalCard.value || 0) + totalVehicles;
+          console.log(`📊 Updated total vehicles to ${totalCard.value}`);
         }
-      });
-      
-      // Update total vehicles in summary card
-      const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
-      if (totalCard) {
-        // Calculate total from all cameras
-        const totalVehicles = Object.values(data.dataChanges).reduce((sum: number, vehicles: any) => {
-          return sum + Object.values(vehicles).reduce((s: number, count: any) => s + count, 0);
-        }, 0);
-        totalCard.value = (totalCard.value || 0) + totalVehicles;
-        console.log(`📊 Updated total vehicles to ${totalCard.value}`);
+        }
       }
       
-      this.cdr.markForCheck();
+      // CRITICAL: Force immediate UI update
+      this.cdr.detectChanges();
+      console.log('✅ UI updated with SSE data');
+    } catch (error) {
+      console.error('❌ Error processing SSE data:', error);
     }
     
     // Handle direct format (legacy)
@@ -1641,7 +1682,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
       if (totalCard) {
         totalCard.value = data.totalVehicles;
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     }
     
@@ -1649,7 +1690,7 @@ export class LuuLuongGiaoThongComponent implements OnInit, OnDestroy {
       const location = this.cameraLocations.find(loc => loc.cameraCode === data.cameraSn);
       if (location) {
         location.count = data.totalTrafficDetected;
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     }
     

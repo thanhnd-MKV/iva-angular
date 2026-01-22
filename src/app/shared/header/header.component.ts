@@ -20,6 +20,7 @@ export class HeaderComponent implements OnInit {
   currentDate = '';
   eventId = ''; // Event ID for detail page
   isEventDetailPage = false; // Flag to show event ID
+  isObjectManagementPage = false; // Flag for object management pages
 
   constructor(
     private router: Router,
@@ -63,6 +64,9 @@ export class HeaderComponent implements OnInit {
       this.eventId = '';
     }
     
+    // Check if it's object management page (not the list page itself)
+    this.isObjectManagementPage = this.router.url.includes('/object-management/') && !this.router.url.endsWith('/object-management');
+    
     this.titleService.setTitle(this.pageTitle);
   }
 
@@ -81,14 +85,20 @@ export class HeaderComponent implements OnInit {
       return 'Thống kê sự kiện';
     } else if (url.includes('/camera/')) {
       return 'Camera';
+    } else if (url.includes('/object-management/')) {
+      return 'Danh sách đối tượng';
     } else if (url === '/dashboard') {
       return '';
     }
     return '';
   }
 
-  // Navigate back to previous page using browser history
+  // Navigate back to previous page using browser history or specific route
   navigateToParent() {
-    this.location.back();
+    if (this.isObjectManagementPage) {
+      this.router.navigate(['/object-management']);
+    } else {
+      this.location.back();
+    }
   }
 }

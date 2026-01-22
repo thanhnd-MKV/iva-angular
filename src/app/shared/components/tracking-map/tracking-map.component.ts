@@ -23,7 +23,7 @@ export interface TrackingLocation {
       <div class="map-wrapper" #mapWrapper>
         <!-- Info box overlay -->
         <div class="map-info-overlay" *ngIf="trackingTarget">
-          <div class="info-header">ID: {{ trackingTarget }}</div>
+          <div class="info-header">{{ trackingTarget }}</div>
           <div class="info-detail">Sự kiện ghi nhận: {{ locations.length }}</div>
         </div>
 
@@ -106,12 +106,27 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
   constructor() {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['locations'] && this.locations.length > 0) {
-      this.calculateOptimalZoom();
-      setTimeout(() => {
-        this.drawPolylineWithAnimation();
-        this.createEventMarkers();
-      }, 300);
+    console.log('🔄 TrackingMap ngOnChanges triggered:', {
+      hasLocationsChange: !!changes['locations'],
+      hasSelectedEventIdChange: !!changes['selectedEventId'],
+      locationsLength: this.locations?.length || 0,
+      locations: this.locations
+    });
+    
+    if (changes['locations']) {
+      if (this.locations.length > 0) {
+        // Has data - draw map with markers
+        console.log('✅ Has locations data, will draw markers and polyline');
+        this.calculateOptimalZoom();
+        setTimeout(() => {
+          this.drawPolylineWithAnimation();
+          this.createEventMarkers();
+        }, 300);
+      } else {
+        // No data - clear everything
+        console.log('🗑️ Locations empty, clearing map markers and polyline');
+        this.clearMapElements();
+      }
     }
 
     // Handle selectedEventId changes
@@ -167,6 +182,41 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
       this.customInfoWindow = null;
       console.log('✅ Custom info window closed');
     }
+  }
+
+  // Clear all map elements (markers, polyline, info windows)
+  private clearMapElements(): void {
+    console.log('🧹 Clearing all map elements...');
+    
+    // Clear event markers
+    if (this.eventMarkers.length > 0) {
+      this.eventMarkers.forEach(marker => marker.setMap(null));
+      this.eventMarkers = [];
+      console.log('✅ Cleared event markers');
+    }
+    
+    // Clear polyline
+    if (this.polyline) {
+      this.polyline.setMap(null);
+      this.polyline = null;
+      console.log('✅ Cleared polyline');
+    }
+    
+    // Stop animation
+    if (this.animationInterval) {
+      clearInterval(this.animationInterval);
+      this.animationInterval = null;
+      console.log('✅ Stopped animation');
+    }
+    
+    // Close info window
+    this.closeCustomInfoWindow();
+    
+    // Reset selected marker state
+    this.previousSelectedMarker = null;
+    this.previousSelectedMarkerOriginalIcon = null;
+    
+    console.log('✅ All map elements cleared');
   }
 
   calculateOptimalZoom(): void {
@@ -382,7 +432,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
         color: #1E3A8A;
         margin-bottom: 12px;
         letter-spacing: -0.3px;">
-        ID: ${location.id}
+        ${location.id}
       </div>
       
       <div style="
@@ -567,7 +617,7 @@ export class TrackingMapComponent implements OnChanges, AfterViewInit, OnDestroy
           color: #1E3A8A;
           margin-bottom: 12px;
           letter-spacing: -0.3px;">
-          ID: ${selectedLocation.id}
+          ${selectedLocation.id}
         </div>
         
         <div style="

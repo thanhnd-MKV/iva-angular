@@ -1,0 +1,385 @@
+.object-form-container {
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  box-sizing: border-box;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.form-content {
+  background: white;
+  width: 100%;
+  max-width: 1200px;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.form-card {
+  background: white;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 30px;
+  margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.form-column:first-child {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.form-column:last-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.form-column h4 {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #444;
+  display: block;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select,
+.form-group app-date-picker {
+  width: 100%;
+  max-width: 100%;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select {
+  padding: 10px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s;
+  background: white;
+  box-sizing: border-box;
+}
+
+/* Date picker trong form-group */
+.form-group app-date-picker ::ng-deep .input-wrapper {
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: white;
+}
+
+.form-group app-date-picker ::ng-deep .input-wrapper:hover {
+  border-color: #2563eb;
+}
+
+.form-group app-date-picker ::ng-deep .input-wrapper.disabled {
+  background-color: #ebedef;
+  cursor: not-allowed;
+}
+
+.form-group app-date-picker ::ng-deep input {
+  border: none !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #2563eb;
+}
+
+.form-group input.input-disabled {
+  background-color: #ebedef;
+  color: #777;
+  cursor: not-allowed;
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 1em;
+  padding-right: 36px;
+}
+
+.form-group select.select-blacklist {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.form-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+/* Image Upload */
+.image-upload-section {
+  margin-bottom: 10px;
+}
+
+.image-upload-section > label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+}
+
+.upload-area {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.uploaded-images {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.image-preview {
+  position: relative;
+  width: 105px;
+  height: 125px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: white;
+  flex-shrink: 0;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+}
+
+.remove-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid #2563eb;
+  background: white;
+  color: #2563eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+  font-weight: 500;
+  height: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.upload-btn:hover {
+  background: #eff6ff;
+}
+
+.upload-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.upload-hint {
+  font-size: 10px;
+  color: #999;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 25px;
+  padding-top: 15px;
+}
+
+.btn-cancel {
+  min-width: 100px;
+  padding: 10px 20px;
+  border: 1px solid #333;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 15px;
+  height: 40px;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.btn-cancel:hover:not([disabled]) {
+  background: #f5f5f5;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-save {
+  min-width: 250px;
+  padding: 10px 20px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  height: 40px;
+  transition: background-color 0.2s;
+}
+
+.btn-save:hover:not([disabled]) {
+  background: #1d4ed8;
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .form-content {
+    max-width: 1000px;
+  }
+  
+  .form-grid {
+    grid-template-columns: 350px 1fr;
+    gap: 25px;
+  }
+  
+  .image-preview {
+    width: 95px;
+    height: 115px;
+  }
+  
+  .upload-btn {
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+}
+
+@media (max-width: 850px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .form-content {
+    padding: 20px;
+  }
+  
+  .image-preview {
+    width: 105px;
+    height: 125px;
+  }
+  
+  .upload-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .upload-area {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .uploaded-images {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn-save {
+    min-width: 150px;
+    flex: 1;
+  }
+}

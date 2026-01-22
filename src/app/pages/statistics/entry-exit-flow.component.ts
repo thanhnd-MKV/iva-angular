@@ -15,7 +15,7 @@ import { SSEService } from '../../core/services/sse.service';
 import { Subscription } from 'rxjs';
 
 @Component({
-  selector: 'app-luu-luong-ra-vao',
+  selector: 'app-entry-exit-flow',
   standalone: true,
   imports: [
     CommonModule,
@@ -26,11 +26,11 @@ import { Subscription } from 'rxjs';
     DateRangePickerComponent,
     TrafficFlowMapComponent
   ],
-  templateUrl: './luu-luong-ra-vao.component.html',
-  styleUrls: ['./luu-luong-ra-vao.component.scss'],
+  templateUrl: './entry-exit-flow.component.html',
+  styleUrls: ['./entry-exit-flow.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
+export class EntryExitFlowComponent implements OnInit, OnDestroy {
   @ViewChild('lineChart') lineChart?: BaseChartDirective;
   @ViewChild('barChart') barChart?: BaseChartDirective;
   @ViewChildren('digitSpan', { read: ElementRef }) digitSpans?: QueryList<ElementRef>;
@@ -40,7 +40,7 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   
   // SSE for real-time updates
   private sseSubscription: Subscription | null = null;
-  private readonly SSE_CHANNEL = 'pedestrianTraffic';
+  private readonly SSE_CHANNEL = 'alarm';
   
   // Animation properties
   summaryDisplayValues: number[] = [0, 0, 0];
@@ -245,14 +245,23 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     setTimeout(() => this.connectSSE(), 100);
   }
   
-  ngOnDestroy(): void {
-    // Disconnect SSE
+  /**
+   * Disconnect SSE connection
+   */
+  private disconnectSSE(): void {
     if (this.sseSubscription) {
       this.sseSubscription.unsubscribe();
       this.sseSubscription = null;
+      console.log('🔌 Unsubscribed from shared SSE stream');
     }
-    this.sseService.disconnect(this.SSE_CHANNEL);
-    console.log('🔌 SSE Disconnected:', this.SSE_CHANNEL);
+  }
+
+  ngOnDestroy(): void {
+    // Disconnect SSE
+    this.disconnectSSE();
+    
+    // Stop fake data if running
+    this.stopFakeDataStream();
     
     // Cleanup subscriptions
     if (this.sidebarSubscription) {
@@ -299,14 +308,30 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateSummaryCardValue(cardIndex: number, newValue: number): void {
+  private updateSummaryCardValue(cardIndex: number, newValue: number, skipAnimation: boolean = false): void {
     const oldValue = this.summaryCards[cardIndex].value;
     
     if (oldValue !== newValue && typeof oldValue === 'number') {
       this.summaryCards[cardIndex].value = newValue;
-      this.animateNumberDigits(cardIndex, oldValue, newValue);
+      if (!skipAnimation) {
+        this.animateNumberDigits(cardIndex, oldValue, newValue);
+      } else {
+        // Update digits without animation
+        this.updateCardDigitsArray(cardIndex, newValue);
+      }
       this.cdr.detectChanges();
     }
+  }
+
+  // Update card digits array without animation (for immediate display)
+  private updateCardDigitsArray(cardIndex: number, value: number): void {
+    const digits = value.toString().split('');
+    this.cardDigits[cardIndex] = digits.map((d, idx) => ({ 
+      digit: d, 
+      animate: false, 
+      key: idx 
+    }));
+    this.summaryDisplayValues[cardIndex] = value;
   }
 
   private animateNumberDigits(cardIndex: number, oldValue: number, newValue: number): void {
@@ -350,13 +375,32 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   
   // ============ SSE Methods ============
   private connectSSE(): void {
-    console.log('🔌 Connecting to SSE:', this.SSE_CHANNEL);
+    // Build params for SSE connection
+    const params: any = {};
+    if (this.selectedCamera) {
+      params.cameraSn = this.selectedCamera;
+    }
+    if (this.selectedArea) {
+      params.location = this.selectedArea;
+    }
     
-    this.sseSubscription = this.sseService.connect(this.SSE_CHANNEL).subscribe({
+    console.log('🔌 Subscribing to shared SSE stream for:', this.SSE_CHANNEL);
+    
+    this.sseSubscription = this.sseService.getSharedStream().subscribe({
       next: (message) => {
         console.log('📨 SSE Message received:', message);
         
-        if (message.event === 'dataChanges' && message.data) {
+        // TEMPORARILY DISABLED - Check what event types BE is sending
+        // Filter: Only process PERSON:event for pedestrian traffic
+        /*
+        const eventType = message.event || 'message';
+        if (eventType !== 'PERSON:event') {
+          console.log(`🔇 Filtered out event type: ${eventType} (expected: PERSON:event)`);
+          return;
+        }
+        */
+        
+        if (message.data) {
           this.handleSSEDataUpdate(message.data);
         }
       },
@@ -371,30 +415,78 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
   private handleSSEDataUpdate(data: any): void {
     console.log('🔄 Processing SSE update:', data);
     
-    // Parse SSE data structure: {"dataChanges":{"outTotal":1,"inTotal":5, "hour": 14, "location": "Khu A"}}
-    // SSE data là incremental - phải cộng thêm vào giá trị hiện tại
-    if (data.dataChanges) {
-      const inDelta = data.dataChanges.inTotal || 0;
-      const outDelta = data.dataChanges.outTotal || 0;
+    try {
+      // Parse SSE data structure: {"dataChanges":{"outTotal":1,"inTotal":5, "hour": 14, "location": "Khu A", "cameraSn": "CAM001"}}
+      // SSE data là incremental - phải cộng thêm vào giá trị hiện tại
+      if (data.dataChanges) {
+        // **CLIENT-SIDE FILTER: Kiểm tra xem SSE data có match với filter hiện tại hay không**
+        const sseCamera = data.dataChanges.cameraSn;
+        const sseLocation = data.dataChanges.location;
+        
+        // Nếu có filter camera và SSE data không match -> bỏ qua
+        if (this.selectedCamera && sseCamera && this.selectedCamera !== sseCamera) {
+          console.log('⚠️ SSE data filtered out - camera mismatch:', {
+            filter: this.selectedCamera,
+            sse: sseCamera
+          });
+          return;
+        }
+        
+        // Nếu có filter area/location và SSE data không match -> bỏ qua
+        if (this.selectedArea && sseLocation && this.selectedArea !== sseLocation) {
+          console.log('⚠️ SSE data filtered out - location mismatch:', {
+            filter: this.selectedArea,
+            sse: sseLocation
+          });
+          return;
+        }
+      
+      console.log('✅ SSE data matches current filters, processing...');
+      
+      const inDelta = data.dataChanges.inTotal;
+      const outDelta = data.dataChanges.outTotal;
       
       // ========== Cập nhật Summary Cards ==========
+      // CHỈ update các trường có trong SSE dataChanges, không đụng vào trường khác
       const currentTotal = this.summaryCards[0].value as number;
       const currentIn = this.summaryCards[1].value as number;
       const currentOut = this.summaryCards[2].value as number;
       
-      const newTotal = currentTotal + inDelta + outDelta;
-      const newIn = currentIn + inDelta;
-      const newOut = currentOut + outDelta;
+      let newTotal = currentTotal;
+      let newIn = currentIn;
+      let newOut = currentOut;
+      
+      // Chỉ update nếu SSE có data cho trường đó
+      if (inDelta !== undefined && inDelta !== null) {
+        newIn = currentIn + inDelta;
+        newTotal = currentTotal + inDelta;
+      }
+      if (outDelta !== undefined && outDelta !== null) {
+        newOut = currentOut + outDelta;
+        newTotal = currentTotal + outDelta;
+      }
       
       console.log('📊 SSE incremental update:', { 
         delta: { in: inDelta, out: outDelta },
         old: { total: currentTotal, in: currentIn, out: currentOut },
-        new: { total: newTotal, in: newIn, out: newOut }
+        new: { total: newTotal, in: newIn, out: newOut },
+        hasInUpdate: inDelta !== undefined && inDelta !== null,
+        hasOutUpdate: outDelta !== undefined && outDelta !== null
       });
       
-      this.updateSummaryCardValue(0, newTotal);  // Tổng lưu lượng
-      this.updateSummaryCardValue(1, newIn);     // Lượt đến
-      this.updateSummaryCardValue(2, newOut);    // Lượt đi
+      // Chỉ update card nếu có thay đổi
+      console.log('🔄 [SSE] About to update summary cards:', {
+        willUpdateTotal: newTotal !== currentTotal,
+        willUpdateIn: newIn !== currentIn,
+        willUpdateOut: newOut !== currentOut,
+        cards: { total: newTotal, in: newIn, out: newOut }
+      });
+      
+      if (newTotal !== currentTotal) this.updateSummaryCardValue(0, newTotal);
+      if (newIn !== currentIn) this.updateSummaryCardValue(1, newIn);
+      if (newOut !== currentOut) this.updateSummaryCardValue(2, newOut);
+      
+      console.log('✅ [SSE] Summary cards after update:', this.summaryCards);
       
       // ========== Cập nhật Line Chart (theo giờ) ==========
       const hour = data.dataChanges.hour;
@@ -460,6 +552,9 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
           chart.update('none');
         }
       }
+      }
+    } catch (error) {
+      console.error('❌ Error processing SSE data:', error);
     }
     
     this.cdr.detectChanges();
@@ -613,11 +708,10 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     
     this.isLoadingData = true;
     
-    // Chỉ hiển thị loading spinner khi là user action
-    if (this.isUserAction) {
-      this.isLineChartLoading = true;
-      this.isBarChartLoading = true;
-    }
+    // Hiển thị loading spinner cho tất cả các chart
+    this.isLineChartLoading = true;
+    this.isBarChartLoading = true;
+    this.cdr.detectChanges();
     
     // Calculate date range based on selected time range
     const { fromUtc, toUtc } = this.getDateRange();
@@ -663,6 +757,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
           this.updateStatsData(response);
           statsCompleted = true;
           checkAllCompleted();
+          // Trigger change detection for OnPush strategy
+          this.cdr.detectChanges();
         },
         error: (error) => {
           console.error('❌ Error fetching stats data:', error);
@@ -690,19 +786,15 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
           console.log('✅ Line chart API response:', response);
           this.isSingleDayView = isSingleDay;
           this.updateLineChartData(response, isSingleDay);
-          
-          // Chỉ tắt loading khi là user action
-          if (this.isUserAction) {
-            this.isLineChartLoading = false;
-          }
+          this.isLineChartLoading = false;
+          this.cdr.detectChanges();
           lineChartCompleted = true;
           checkAllCompleted();
         },
         error: (error) => {
           console.error('❌ Error fetching line chart data:', error);
-          if (this.isUserAction) {
-            this.isLineChartLoading = false;
-          }
+          this.isLineChartLoading = false;
+          this.cdr.detectChanges();
           lineChartCompleted = true;
           checkAllCompleted();
         }
@@ -717,19 +809,15 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
         next: (response) => {
           console.log('✅ Bar chart API response:', response);
           this.updateBarChartData(response);
-          
-          // Chỉ tắt loading khi là user action
-          if (this.isUserAction) {
-            this.isBarChartLoading = false;
-          }
+          this.isBarChartLoading = false;
+          this.cdr.detectChanges();
           barChartCompleted = true;
           checkAllCompleted();
         },
         error: (error) => {
           console.error('❌ Error fetching bar chart data:', error);
-          if (this.isUserAction) {
-            this.isBarChartLoading = false;
-          }
+          this.isBarChartLoading = false;
+          this.cdr.detectChanges();
           barChartCompleted = true;
           checkAllCompleted();
         }
@@ -857,34 +945,42 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     }
     
     // Update summary cards if stats data available
-    if (statsData.total !== undefined) {
-      const total = statsData.total || 0;
-      const totalIn = statsData.totalIn || 0;
-      const totalOut = statsData.totalOut || 0;
+    if (statsData.total !== undefined || statsData.totalIn !== undefined || statsData.totalOut !== undefined) {
+      // Use explicit fallback - if field is missing, use 0
+      const total = (typeof statsData.total === 'number') ? statsData.total : 0;
+      const totalIn = (typeof statsData.totalIn === 'number') ? statsData.totalIn : 0;
+      const totalOut = (typeof statsData.totalOut === 'number') ? statsData.totalOut : 0;
       
-      this.summaryCards = [
-        { 
-          title: 'Tổng số lượt đến và đi', 
-          value: total, 
-          change: 0, 
-          isPositive: true,
-          color: 'blue'
-        },
-        { 
-          title: 'Tổng số lượt đến', 
-          value: totalIn, 
-          change: 0, 
-          isPositive: true,
-          color: 'green'
-        },
-        { 
-          title: 'Tổng số lượt rời đi', 
-          value: totalOut, 
-          change: 0, 
-          isPositive: true,
-          color: 'purple'
+      console.log('📊 [LuuLuongRaVao] Setting summary cards from API:', { 
+        total, 
+        totalIn, 
+        totalOut,
+        rawData: { 
+          total: statsData.total, 
+          totalIn: statsData.totalIn, 
+          totalOut: statsData.totalOut,
+          hasTotalIn: statsData.hasOwnProperty('totalIn'),
+          hasTotalOut: statsData.hasOwnProperty('totalOut')
         }
-      ];
+      });
+      
+      // CRITICAL: Update values DIRECTLY instead of replacing array
+      // This ensures OnPush detects changes even with trackBy
+      this.summaryCards[0].value = total;
+      this.summaryCards[1].value = totalIn;
+      this.summaryCards[2].value = totalOut;
+      
+      // Update digit arrays for animation display
+      this.updateCardDigitsArray(0, total);
+      this.updateCardDigitsArray(1, totalIn);
+      this.updateCardDigitsArray(2, totalOut);
+      
+      console.log('✅ [LuuLuongRaVao] Summary cards after API update:', this.summaryCards);
+      // CRITICAL: markForCheck + detectChanges for OnPush
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+    } else {
+      console.warn('⚠️ [LuuLuongRaVao] No stats data fields found in API response');
     }
     
     // Get cameraInfo array from locations
@@ -946,9 +1042,8 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
       
       // Convert groups to map locations format
       this.cameraLocations = Object.entries(locationGroups).map(([locationName, cameras]) => {
-        // Calculate average position for the group marker
-        const avgLat = cameras.reduce((sum, cam) => sum + cam.lat, 0) / cameras.length;
-        const avgLng = cameras.reduce((sum, cam) => sum + cam.lng, 0) / cameras.length;
+        // Use first camera's exact GPS (NO averaging)
+        const firstCamera = cameras[0];
         
         // Sum totals for the group
         const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
@@ -957,14 +1052,14 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
         
         console.log(`🗺️ [LuuLuongRaVao] Location "${locationName}":`, {
           cameras: cameras.map(c => c.cameraSn),
-          avgPosition: { lat: avgLat, lng: avgLng },
+          position: { lat: firstCamera.lat, lng: firstCamera.lng },
           totals: { total: totalCount, in: totalIn, out: totalOut },
           individualCameras: cameras.length
         });
         
         return {
-          lat: avgLat,
-          lng: avgLng,
+          lat: firstCamera.lat,  // Exact GPS
+          lng: firstCamera.lng,  // Exact GPS
           name: locationName,
           count: totalCount,
           cameraCode: locationName,
@@ -985,6 +1080,9 @@ export class LuuLuongRaVaoComponent implements OnInit, OnDestroy {
     
     console.log('✅ Updated summary cards:', this.summaryCards);
     console.log('✅ Updated camera locations:', this.cameraLocations.length, 'locations');
+    
+    // Trigger change detection for OnPush strategy
+    this.cdr.markForCheck();
   }
   
   private applyLineChartFilter(isSingleDay: boolean = false): void {
