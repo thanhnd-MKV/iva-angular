@@ -161,11 +161,29 @@ export class DashboardService {
   /**
    * Get homepage statistics including person/traffic detection and camera locations
    */
-  getHomepageStats(params?: { fromUtc?: string; toUtc?: string }): Observable<any> {
+  getHomepageStats(params?: { 
+    fromUtc?: string; 
+    toUtc?: string;
+    category?: string;      // Filter by camera type: TRAFFIC, PERSON, FACE
+    status?: string;        // Filter by connection status: online, offline
+    location?: string;      // Filter by location name
+    search?: string;        // Search by camera name or SN
+  }): Observable<any> {
     console.log('🔥 DashboardService.getHomepageStats() called');
     console.log('🔥 API URL:', `${this.apiEvents}/stats/homepage`);
     console.log('🔥 Params:', params);
-    return this.http.get<any>(`${this.apiEvents}/stats/homepage`, { params });
+    
+    // Remove empty params
+    const cleanParams = params ? Object.keys(params).reduce((acc: any, key) => {
+      const value = (params as any)[key];
+      if (value !== undefined && value !== null && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {}) : {};
+    
+    console.log('🔥 Clean Params:', cleanParams);
+    return this.http.get<any>(`${this.apiEvents}/stats/homepage`, { params: cleanParams });
   }
 
   getCameraViolations(params: {

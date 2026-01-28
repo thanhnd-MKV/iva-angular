@@ -103,6 +103,7 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
   mapCenter = { lat: 15.6, lng: 107.0 }; // Centered between Hanoi and Phu Quoc
   mapZoom = 5.2; // Optimal zoom to see both markers
   cameraLocations: any[] = [];
+  mapKey = 0; // Key to force map recreation
   
   // Summary cards data
   summaryCards = [
@@ -311,15 +312,27 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
   private updateSummaryCardValue(cardIndex: number, newValue: number, skipAnimation: boolean = false): void {
     const oldValue = this.summaryCards[cardIndex].value;
     
+    console.log(`🔢 [Card ${cardIndex}] Updating value:`, { old: oldValue, new: newValue, skipAnimation });
+    
     if (oldValue !== newValue && typeof oldValue === 'number') {
       this.summaryCards[cardIndex].value = newValue;
+      
+      // ALWAYS animate for SSE updates (skipAnimation only for initial load)
       if (!skipAnimation) {
+        console.log(`✨ [Card ${cardIndex}] Triggering animation from ${oldValue} to ${newValue}`);
         this.animateNumberDigits(cardIndex, oldValue, newValue);
       } else {
         // Update digits without animation
         this.updateCardDigitsArray(cardIndex, newValue);
       }
-      this.cdr.detectChanges();
+      
+      // Use markForCheck() for OnPush strategy - more reliable than detectChanges()
+      this.cdr.markForCheck();
+      
+      // Also trigger detectChanges to ensure immediate update
+      setTimeout(() => {
+        this.cdr.detectChanges();
+      }, 0);
     }
   }
 
@@ -653,9 +666,11 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
     this.cameraService.getCameraOptions().subscribe({
       next: (cameras) => {
         console.log('✅ Camera options loaded:', cameras);
+        // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+        const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
         this.cameraOptions = [
           { label: 'Tất cả Camera', value: '' },
-          ...cameras
+          ...filteredCameras
         ];
       },
       error: (error) => {
@@ -1040,8 +1055,8 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
       
       console.log('🗺️ [LuuLuongRaVao] Grouped cameras by location:', locationGroups);
       
-      // Convert groups to map locations format
-      this.cameraLocations = Object.entries(locationGroups).map(([locationName, cameras]) => {
+      // Convert groups to map locations format - CREATE NEW ARRAY for change detection
+      this.cameraLocations = [...Object.entries(locationGroups).map(([locationName, cameras]) => {
         // Use first camera's exact GPS (NO averaging)
         const firstCamera = cameras[0];
         
@@ -1068,10 +1083,14 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
           cameras: cameras.map(c => c.cameraSn),
           individualCameras: cameras // Store individual camera data for high zoom
         };
-      });
+      })];
+      
+      // Increment mapKey to force map component recreation
+      this.mapKey++;
       
       console.log('🗺️ [LuuLuongRaVao] Final camera locations for map:', this.cameraLocations);
       console.log('🗺️ [LuuLuongRaVao] Camera count:', this.cameraLocations.length);
+      console.log('🗺️ [LuuLuongRaVao] Map key incremented to:', this.mapKey);
       
     } else {
       console.warn('🗺️ [LuuLuongRaVao] No camera data found in API response');
@@ -1081,8 +1100,9 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
     console.log('✅ Updated summary cards:', this.summaryCards);
     console.log('✅ Updated camera locations:', this.cameraLocations.length, 'locations');
     
-    // Trigger change detection for OnPush strategy
+    // Force change detection for map update with OnPush strategy
     this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
   
   private applyLineChartFilter(isSingleDay: boolean = false): void {
@@ -1215,15 +1235,18 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
     // Handle both array and object wrapper formats
     let dataArray = Array.isArray(data) ? data : (data.data || data.result || []);
     
-    if (!dataArray || dataArray.length === 0) {
-      console.warn('No data received for bar chart');
-      return;
+    if (!dataArray) {
+      dataArray = [];
     }
     
-    // Store raw data for filtering
+    if (dataArray.length === 0) {
+      console.warn('No data received for bar chart - will clear chart');
+    }
+    
+    // Store raw data for filtering (even if empty)
     this.rawBarChartData = dataArray;
     
-    // Apply current filter
+    // Apply current filter (will clear chart if data is empty)
     this.applyBarChartFilter();
   }
   
@@ -1231,6 +1254,49 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
     const dataArray = this.rawBarChartData;
     
     if (!dataArray || dataArray.length === 0) {
+      console.log('⚠️ No bar chart data - clearing chart');
+      // Clear chart when no data
+      if (this.barChartData.labels && this.barChartData.datasets && this.barChart?.chart) {
+        this.barChartData.labels = [];
+        this.barChartData.datasets = [
+          {
+            data: [],
+            label: 'Lượt đến',
+            backgroundColor: '#10b981',
+            borderRadius: 4,
+            barThickness: 24
+          },
+          {
+            data: [],
+            label: 'Lượt rời đi',
+            backgroundColor: '#8b5cf6',
+            borderRadius: 4,
+            barThickness: 24
+          }
+        ];
+        this.barChart.chart.update('none');
+      } else {
+        this.barChartData = {
+          labels: [],
+          datasets: [
+            {
+              data: [],
+              label: 'Lượt đến',
+              backgroundColor: '#10b981',
+              borderRadius: 4,
+              barThickness: 24
+            },
+            {
+              data: [],
+              label: 'Lượt rời đi',
+              backgroundColor: '#8b5cf6',
+              borderRadius: 4,
+              barThickness: 24
+            }
+          ]
+        };
+      }
+      this.cdr.detectChanges();
       return;
     }
     

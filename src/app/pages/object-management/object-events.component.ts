@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -13,7 +13,9 @@ import { EventSearchBarComponent, FilterConfig } from '../../shared/event-search
 import { BaseErrorHandlerComponent } from '../../core/components/base-error-handler.component';
 import { TrackingMapComponent, TrackingLocation } from '../../shared/components/tracking-map/tracking-map.component';
 import { BaseTableComponent } from '../../shared/components/table/base-table.component';
+import { CustomPaginatorComponent } from '../../shared/custom-paginator/custom-paginator.component';
 import { SSEService } from '../../core/services/sse.service';
+import { CameraService } from '../camera/camera.service';
 import { mapSearchParamsToAPI } from '../../shared/utils/api-params.mapper';
 
 interface EventItem {
@@ -47,7 +49,8 @@ interface EventItem {
     MatSnackBarModule,
     EventSearchBarComponent,
     TrackingMapComponent,
-    BaseTableComponent
+    BaseTableComponent,
+    CustomPaginatorComponent
   ]
 })
 export class ObjectEventsComponent extends BaseErrorHandlerComponent implements OnInit, OnDestroy {
@@ -136,8 +139,16 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
   
   // Pagination
   currentPage = 0;
-  pageSize = 10;
+  pageSize = 17; // Default pageSize, will be calculated based on screen size
   totalItems = 0;
+  totalPages = 0;
+  pageIndex = 0;
+  
+  // Computed property to decide if pagination should be shown
+  get shouldShowPagination(): boolean {
+    const show = this.totalPages > 1 || this.totalItems > this.pageSize;
+    return show;
+  }
 
   // Date range for filtering
   startDate: string = '';
@@ -162,6 +173,11 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     fromUtc?: string;
     toUtc?: string;
   } = {};
+
+  // Camera options for dropdown filter
+  cameraOptions: { label: string; value: string }[] = [
+    { label: 'Tất cả Camera', value: '' }
+  ];
 
   
   // Filters
@@ -193,14 +209,57 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     private objectService: ObjectManagementService,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
-    private sseService: SSEService
+    private sseService: SSEService,
+    private cameraService: CameraService
   ) {
     super();
+  }
+
+  // Host listener to listen for window resize
+  @HostListener('window:resize', ['$event'])
+  onResize(event: any) {
+    this.calculatePageSize();
   }
 
   override ngOnInit() {
     console.log('🚀 ObjectEventsComponent ngOnInit called');
     super.ngOnInit();
+    this.calculatePageSize(); // Calculate pageSize based on screen size
+    console.log('🖥️ PageSize calculated based on screen size:', this.pageSize);
+  }
+
+  // Calculate pageSize based on screen height for responsive design
+  private calculatePageSize(): void {
+    const screenHeight = window.innerHeight;
+    
+    // Calculate based on actual UI measurements
+    const headerHeight = 40;        // Main header + breadcrumb
+    const searchBarHeight = 40;     // Search bar + filter buttons
+    const tableHeaderHeight = 42;   // Table header row
+    const paginationHeight = 40;    // Pagination component
+    const margins = 10;             // Top/bottom margins
+    
+    const reservedHeight = headerHeight + searchBarHeight + tableHeaderHeight + paginationHeight + margins;
+    const availableHeight = screenHeight - reservedHeight;
+    const rowHeight = 44; // Measured from actual UI (each row ~44px)
+    
+    // Calculate number of rows that can be displayed
+    const calculatedRows = Math.floor(availableHeight / rowHeight);
+    
+    // Apply bounds
+    let newPageSize = Math.max(10, Math.min(30, calculatedRows));
+
+    // Only update if pageSize changed
+    if (this.pageSize !== newPageSize) {
+      console.log(`📏 Screen: ${screenHeight}px | Reserved: ${reservedHeight}px | Available: ${availableHeight}px | Row: ${rowHeight}px | Calculated: ${calculatedRows} | Final: ${newPageSize}`);
+      this.pageSize = newPageSize;
+      
+      // If data already loaded, reload with new pageSize
+      if (this.totalItems > 0) {
+        this.currentPage = 0;
+        this.loadEventList();
+      }
+    }
   }
 
   /**
@@ -266,9 +325,12 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     this.objectId = this.route.snapshot.paramMap.get('id') || '';
     console.log('📌 Object ID:', this.objectId);
     
+    // Load camera options from API
+    this.loadCameraOptions();
+    
     // Set default filters (threshold slider defaults to 70% = 0.7)
     this.activeFilters = {
-      recognitionThreshold: 0.7 // Default threshold from UI slider
+      recognitionThreshold: 0.5 // Default threshold from UI slider
     };
     
     if (this.objectId) {
@@ -316,6 +378,8 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     this.isLoading = true;
     
     const params = {
+      current: this.currentPage + 1, // API expects page starting from 1
+      size: this.pageSize,
       startDate: this.startDate,
       endDate: this.endDate,
       ...this.activeFilters // Include all active filters
@@ -325,7 +389,21 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
       next: (response: EventApiResponse) => {
         const events = response.data.records || [];
         this.tableData = this.mapEventsToTableData(events);
-        this.totalItems = response.data.total || this.tableData.length;
+        this.totalItems = response.data.total || 0;
+        this.pageSize = response.data.size || this.pageSize; // Sync pageSize with API
+        
+        // Calculate pagination
+        this.totalPages = response.data.pages || Math.ceil(this.totalItems / this.pageSize);
+        this.pageIndex = (response.data.current || 1) - 1;
+        
+        console.log('📄 Pagination Info:', {
+          totalItems: this.totalItems,
+          pageSize: this.pageSize,
+          totalPages: this.totalPages,
+          pageIndex: this.pageIndex,
+          shouldShowPagination: this.shouldShowPagination
+        });
+        
         this.isLoading = false;
         console.log('✅ Loaded', this.tableData.length, 'events');
         this.cdr.detectChanges();
@@ -383,7 +461,15 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
 
   onPageChange(page: number) {
     this.currentPage = page;
-    this.loadEventList();
+    this.pageIndex = page;
+    console.log('📄 Page changed to:', page, '| Tracking mode:', this.isTrackingMode);
+    
+    // Call appropriate load method based on mode
+    if (this.isTrackingMode && this.objectId) {
+      this.loadTrackingData(this.objectId);
+    } else {
+      this.loadEventList();
+    }
   }
 
   selectMarker(index: number) {
@@ -394,8 +480,21 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     }
   }
 
-  viewEventDetail(eventId: string) {
-    this.router.navigate(['/event/detail', eventId]);
+  viewEventDetail(row: any) {
+    const eventId = row?.id || row?.eventId;
+    if (!eventId) {
+      console.error('❌ No event ID found in row:', row);
+      return;
+    }
+    
+    console.log('🔍 Navigating to event detail:', eventId);
+    // Navigate to object-management event detail route to show correct breadcrumb
+    this.router.navigate(['/object-management/event-detail', eventId], {
+      state: { 
+        returnUrl: `/object-management/events/${this.objectId}`,
+        fromObjectManagement: true 
+      }
+    });
   }
 
   goBack() {
@@ -455,8 +554,8 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     // Load initial suspect events from API with filters and personId
     console.log('📥 Loading initial suspect events from API...');
     const apiParams = {
-      page: 0,
-      pageSize: 50,
+      current: this.currentPage + 1, // API expects 1-based page
+      size: this.pageSize,
       ...this.activeFilters
     };
     
@@ -468,26 +567,49 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
         // Map events to table data
         this.tableData = this.mapEventsToTableData(events);
         
+        // Set pagination from API response
+        this.totalItems = response.data.total || 0;
+        this.pageSize = response.data.size || this.pageSize;
+        this.totalPages = response.data.pages || Math.ceil(this.totalItems / this.pageSize);
+        this.pageIndex = (response.data.current || 1) - 1;
+        
+        console.log('📄 Pagination Info (Tracking Mode):', {
+          totalItems: this.totalItems,
+          pageSize: this.pageSize,
+          totalPages: this.totalPages,
+          pageIndex: this.pageIndex,
+          shouldShowPagination: this.shouldShowPagination
+        });
+        
         // Build tracking locations (always rebuild, even if empty)
         this.trackingLocations = events
           .filter((event: any) => event.latitude && event.longitude)
-          .map((event: any) => ({
-            lat: event.latitude,
-            lng: event.longitude,
-            id: event.id,
-            eventId: event.id, // Map từ id để match với selectedEventId
-            timestamp: event.startTime || event.eventTime,
-            cameraName: event.cameraName || 'Unknown',
-            address: event.location || 'N/A',
-            thumbnailUrl: event.croppedImagePath || event.fullImagePath || ''
-          }))
+          .map((event: any) => {
+            const thumbnailUrl = event.croppedImagePath || event.fullImagePath || '';
+            console.log('🖼️ [MAP] Event image URLs:', {
+              eventId: event.id,
+              croppedImagePath: event.croppedImagePath,
+              fullImagePath: event.fullImagePath,
+              finalThumbnailUrl: thumbnailUrl,
+              hasUrl: !!thumbnailUrl
+            });
+            return {
+              lat: event.latitude,
+              lng: event.longitude,
+              id: event.id,
+              eventId: event.id,
+              timestamp: event.startTime || event.eventTime,
+              cameraName: event.cameraName || 'Unknown',
+              address: event.location || 'N/A',
+              thumbnailUrl: thumbnailUrl
+            };
+          })
           .sort((a: TrackingLocation, b: TrackingLocation) => 
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
         
         console.log(`🗺️ Built ${this.trackingLocations.length} map locations`);
         
-        this.totalItems = this.tableData.length;
         this.trackingLoading = false;
         this.cdr.detectChanges(); // Trigger map update with new data
         
@@ -510,6 +632,12 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
     if (this.sseSubscription) {
       console.log('🔄 Closing previous SSE connection');
       this.sseSubscription.unsubscribe();
+    }
+
+    // Only subscribe to SSE when on first page (real-time updates only make sense for page 1)
+    if (this.currentPage !== 0) {
+      console.log('⏸️ Skipping SSE connection - not on first page (current page:', this.currentPage, ')');
+      return;
     }
 
     console.log('🔌 Subscribing to global SSE stream...');
@@ -558,12 +686,20 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
           }
         }
         
-        // Add to beginning of table (newest first)
-        this.tableData.unshift(mappedEvent);
-        
-        // Keep only last 50 events
-        if (this.tableData.length > 50) {
-          this.tableData.pop();
+        // Only add to table if on first page (real-time updates)
+        if (this.currentPage === 0) {
+          // Add to beginning of table (newest first)
+          this.tableData.unshift(mappedEvent);
+          
+          // Keep only last pageSize events
+          if (this.tableData.length > this.pageSize) {
+            this.tableData.pop();
+          }
+          
+          // Increment total items
+          this.totalItems++;
+        } else {
+          console.log('⏸️ Skipping SSE event table update - not on first page');
         }
         
         // Add to tracking locations if has coordinates
@@ -576,7 +712,16 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
             timestamp: mappedEvent.startTime,
             cameraName: mappedEvent.cameraName,
             address: mappedEvent.location || 'N/A',
-            thumbnailUrl: mappedEvent.croppedImagePath || mappedEvent.fullImagePath || ''
+            thumbnailUrl: (() => {
+              const url = mappedEvent.croppedImagePath || mappedEvent.fullImagePath || '';
+              console.log('🖼️ [SSE] New event image:', {
+                eventId: mappedEvent.id,
+                croppedImagePath: mappedEvent.croppedImagePath,
+                fullImagePath: mappedEvent.fullImagePath,
+                finalUrl: url
+              });
+              return url;
+            })()
           };
           
           this.trackingLocations.push(trackingLoc);
@@ -636,10 +781,23 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
   private mapSSEToTableData(notification: any): any {
     const data = notification.data || notification;
     
+    const imageUrl = data.croppedImagePath || data.fullImagePath || '';
+    console.log('🖼️ [MAP-SSE] Mapping event image:', {
+      eventId: data.id,
+      croppedImagePath: data.croppedImagePath,
+      fullImagePath: data.fullImagePath,
+      finalImageUrl: imageUrl,
+      hasImage: !!imageUrl,
+      imageLength: imageUrl?.length || 0
+    });
+    
     return {
       id: data.id, // FE chỉ dùng id (số), không dùng eventId (string từ BE)
       objectId: data.objectId,
       category: data.eventCategory || data.eventType || 'PERSON',
+      
+      // Image - add this field for table display
+      image: imageUrl,
       
       // Attributes - combine all available attributes
       attributes: {
@@ -664,7 +822,7 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
       latitude: data.latitude,
       longitude: data.longitude,
       
-      // Images
+      // Images - keep these for reference
       fullImagePath: data.fullImagePath,
       croppedImagePath: data.croppedImagePath,
       clipPath: data.clipPath,
@@ -672,6 +830,29 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
       eventType: data.eventType || data.eventCategory,
       eventCategory: data.eventCategory || data.eventType
     };
+  }
+
+  /**
+   * Load camera options from API
+   */
+  private loadCameraOptions(): void {
+    console.log('📷 Loading camera options from API...');
+    this.cameraService.getCameraOptions().subscribe({
+      next: (cameras) => {
+        console.log('✅ Camera options loaded:', cameras);
+        // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+        const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
+        this.cameraOptions = [
+          { label: 'Tất cả Camera', value: '' },
+          ...filteredCameras
+        ];
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Error loading camera options:', error);
+        // Keep default options if API fails
+      }
+    });
   }
 
   private mapEventsToTableData(events: any[]): any[] {

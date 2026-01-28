@@ -95,23 +95,36 @@ export interface EventApiResponse {
 }
 
 export interface ObjectData {
-  id: string;
-  name: string;
-  avatarUrl: string;
-  objectId: string;
-  groupName: string;
-  groupType: 'VIP' | 'Khach' | 'Blacklist';
-  dataSource: string;
-  appearanceCount: number;
-  lastUpdated: string;
+  id: number;
+  fullName: string;
+  objectId: number | string;
+  trackingType: string;
+  imagePath?: string;
+  numberOfAppearances?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  dataSource?: string;
   
-  // Additional details
-  cccdNumber?: string;
+  // Personal information fields
+  citizenId?: string;
   nationality?: string;
-  cccdIssueDate?: string;
-  cccdIssuePlace?: string;
+  citizenIdIssuedDate?: string;
+  citizenIdIssuedPlace?: string;
   dateOfBirth?: string;
   gender?: string;
+  hometown?: string;
+  permanentResidence?: string;
+  
+  // Legacy fields (for backward compatibility)
+  name?: string;
+  avatarUrl?: string;
+  groupName?: string;
+  groupType?: 'VIP' | 'Khach' | 'Blacklist';
+  appearanceCount?: number;
+  lastUpdated?: string;
+  cccdNumber?: string;
+  cccdIssueDate?: string;
+  cccdIssuePlace?: string;
   origin?: string;
   residence?: string;
   images?: string[];
@@ -120,16 +133,18 @@ export interface ObjectData {
 export interface ObjectListResponse {
   data: TrackingPersonData[];
   total: number;
-  page: number;
-  pageSize: number;
+  current: number;
+  size: number;
 }
 
 export interface ObjectSearchParams {
   page?: number;
-  pageSize?: number;
+  current?: number;
+  size?: number;
   searchText?: string;
   searchField?: string;
   groupType?: string;
+  trackingType?: string; // Add trackingType for API filtering
   dataSource?: string;
   startDate?: string;
   endDate?: string;
@@ -144,6 +159,7 @@ export class ObjectManagementService {
   // API endpoints
   private eventsApiUrl = `${environment.apiUrl}/api/admin/events/page`;
   private trackingPersonApiUrl = `${environment.apiUrl}/api/admin/tracking-person/page`;
+  private trackingPersonBaseUrl = `${environment.apiUrl}/api/admin/tracking-person`;
   
   // Toggle for using fake data (set to false when backend is ready)
   private useFakeData = false;
@@ -239,7 +255,7 @@ export class ObjectManagementService {
         updatedAt: event.updateTime || event.createTime
       }));
 
-      const pageSize = params.pageSize || 10;
+      const pageSize = params.size || 10;
       const page = params.page || 1;
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
@@ -259,8 +275,8 @@ export class ObjectManagementService {
       return of({
         data: paginatedData,
         total: filteredData.length,
-        page: page,
-        pageSize: pageSize
+        current: page,
+        size: pageSize
       }).pipe(delay(500)); // Simulate network delay
     }
     
@@ -270,8 +286,8 @@ export class ObjectManagementService {
     if (params.page !== undefined) {
       httpParams = httpParams.set('page', params.page.toString());
     }
-    if (params.pageSize !== undefined) {
-      httpParams = httpParams.set('pageSize', params.pageSize.toString());
+    if (params.size !== undefined) {
+      httpParams = httpParams.set('size', params.size.toString());
     }
     if (params.searchText) {
       httpParams = httpParams.set('searchText', params.searchText);
@@ -281,6 +297,9 @@ export class ObjectManagementService {
     }
     if (params.groupType) {
       httpParams = httpParams.set('groupType', params.groupType);
+    }
+    if (params.trackingType) {
+      httpParams = httpParams.set('trackingType', params.trackingType);
     }
     if (params.dataSource) {
       httpParams = httpParams.set('dataSource', params.dataSource);
@@ -305,8 +324,8 @@ export class ObjectManagementService {
           return {
             data: response.data.records,
             total: response.data.total,
-            page: response.data.current,
-            pageSize: response.data.size
+            current: response.data.current,
+            size: response.data.size
           };
         })
       );
@@ -344,30 +363,38 @@ export class ObjectManagementService {
       };
     }
     
-    return this.http.get<TrackingPersonDetailResponse>(`${this.trackingPersonApiUrl.replace('/page', '')}/${id}`)
+    return this.http.get<TrackingPersonDetailResponse>(`${this.trackingPersonBaseUrl}/${id}`)
       .pipe(
         map((response: TrackingPersonDetailResponse) => {
           const person = response.data;
+          // Return data matching ObjectData interface with BE structure
           return {
-            id: person.id.toString(),
+            id: person.id,
+            fullName: person.fullName,
+            objectId: person.id,
+            trackingType: person.trackingType,
+            imagePath: person.imagePath || '',
+            numberOfAppearances: person.numberOfAppearances,
+            createdAt: person.createdAt,
+            updatedAt: person.updatedAt,
+            citizenId: person.citizenId || undefined,
+            nationality: person.nationality || undefined,
+            citizenIdIssuedDate: person.citizenIdIssuedDate || undefined,
+            citizenIdIssuedPlace: person.citizenIdIssuedPlace || undefined,
+            dateOfBirth: person.dateOfBirth || undefined,
+            gender: person.gender || undefined,
+            hometown: person.hometown || undefined,
+            permanentResidence: person.permanentResidence || undefined,
+            images: person.imagePath ? [person.imagePath] : [],
+            // Legacy fields for backward compatibility
             name: person.fullName,
             avatarUrl: person.imagePath || '',
-            objectId: person.id.toString(),
             groupName: 'Đối tượng',
             groupType: (person.trackingType as 'VIP' | 'Khach' | 'Blacklist') || 'VIP',
             dataSource: 'Camera AI',
             appearanceCount: person.numberOfAppearances,
-            lastUpdated: person.updatedAt,
-            cccdNumber: person.citizenId || undefined,
-            nationality: person.nationality || undefined,
-            cccdIssueDate: person.citizenIdIssuedDate || undefined,
-            cccdIssuePlace: person.citizenIdIssuedPlace || undefined,
-            dateOfBirth: person.dateOfBirth || undefined,
-            gender: person.gender || undefined,
-            origin: person.hometown || undefined,
-            residence: person.permanentResidence || undefined,
-            images: person.imagePath ? [person.imagePath] : []
-          };
+            lastUpdated: person.updatedAt
+          } as ObjectData;
         })
       );
   }
@@ -379,7 +406,8 @@ export class ObjectManagementService {
     startDate?: string; 
     endDate?: string; 
     page?: number; 
-    pageSize?: number;
+    current?: number; // API expects 'current' param for pagination
+    size?: number;
     recognitionThreshold?: number;
     gender?: string;
     cameraSn?: string;
@@ -388,13 +416,14 @@ export class ObjectManagementService {
   }): Observable<EventApiResponse> {
     let httpParams = new HttpParams()
       .set('isSuspect', 'true')
-      .set('personId', objectId);
+      .set('suspectId', objectId);
     
     if (params) {
       if (params.startDate) httpParams = httpParams.set('startDate', params.startDate);
       if (params.endDate) httpParams = httpParams.set('endDate', params.endDate);
+      if (params.current !== undefined) httpParams = httpParams.set('current', params.current.toString());
       if (params.page !== undefined) httpParams = httpParams.set('page', params.page.toString());
-      if (params.pageSize !== undefined) httpParams = httpParams.set('pageSize', params.pageSize.toString());
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size.toString());
       if (params.recognitionThreshold !== undefined) httpParams = httpParams.set('recognitionThreshold', params.recognitionThreshold.toString());
       if (params.gender) httpParams = httpParams.set('gender', params.gender);
       if (params.cameraSn) httpParams = httpParams.set('cameraSn', params.cameraSn);
@@ -410,7 +439,7 @@ export class ObjectManagementService {
    */
   getSuspectEvents(params?: { 
     page?: number; 
-    pageSize?: number;
+    size?: number;
     recognitionThreshold?: number;
     gender?: string;
     cameraSn?: string;
@@ -421,7 +450,7 @@ export class ObjectManagementService {
     
     if (params) {
       if (params.page !== undefined) httpParams = httpParams.set('page', params.page.toString());
-      if (params.pageSize !== undefined) httpParams = httpParams.set('pageSize', params.pageSize.toString());
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size.toString());
       if (params.recognitionThreshold !== undefined) httpParams = httpParams.set('recognitionThreshold', params.recognitionThreshold.toString());
       if (params.gender) httpParams = httpParams.set('gender', params.gender);
       if (params.cameraSn) httpParams = httpParams.set('cameraSn', params.cameraSn);
@@ -450,20 +479,20 @@ export class ObjectManagementService {
     const personBlob = new Blob([JSON.stringify(data.person)], { type: 'application/json' });
     formData.append('person', personBlob);
     
-    return this.http.post(`${this.trackingPersonApiUrl.replace('/page', '')}`, formData);
+    return this.http.post(this.trackingPersonBaseUrl, formData);
   }
 
   /**
    * Update existing tracking person
    */
   updateObject(id: string, data: any): Observable<any> {
-    return this.http.put(`${this.trackingPersonApiUrl.replace('/page', '')}/${id}`, data);
+    return this.http.put(`${this.trackingPersonBaseUrl}/${id}`, data);
   }
 
   /**
    * Delete tracking person
    */
   deleteObject(id: string): Observable<any> {
-    return this.http.delete(`${this.trackingPersonApiUrl.replace('/page', '')}/${id}`);
+    return this.http.delete(`${this.trackingPersonBaseUrl}/${id}`);
   }
 }

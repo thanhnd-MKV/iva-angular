@@ -26,6 +26,7 @@ import { KeyboardShortcutHandler } from '../../shared/constants/keyboard-shortcu
 import { BaseErrorHandlerComponent } from '../../core/components/base-error-handler.component';
 import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { CameraService } from '../camera/camera.service';
+import { mapSearchParamsToAPI } from '../../shared/utils/api-params.mapper';
 
 @Component({
   selector: 'app-event-list',
@@ -57,6 +58,16 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
   
   // Event filters configuration
   eventFilters: FilterConfig[] = [
+    {
+      key: 'gender',
+      label: 'Giới tính',
+      options: [
+        { label: 'Tất cả', value: '' },
+        { label: 'Nam', value: 'male' },
+        { label: 'Nữ', value: 'female' }
+      ],
+      defaultValue: ''
+    },
     {
       key: 'vehicleType',
       label: 'Loại phương tiện',
@@ -294,9 +305,11 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
         // Tìm filter camera trong eventFilters và cập nhật options
         const cameraFilter = this.eventFilters.find(filter => filter.key === 'cameraSn');
         if (cameraFilter) {
+          // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+          const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
           cameraFilter.options = [
             { label: 'Tất cả Camera', value: '' },
-            ...cameras
+            ...filteredCameras
           ];
         }
       },
@@ -709,8 +722,8 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
             recordsReceived: response.data.records?.length || 0,
             totalItems: this.totalItems,
             totalPages: this.totalPages,
-            pageSize: this.pageSize,
-            pageIndex: this.pageIndex,
+            size: this.pageSize,
+            current: this.pageIndex,
             pageNumber: this.pageNumber,
             shouldShow: this.shouldShowPagination,
             currentPageItems: this.tableData.length
@@ -768,38 +781,39 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
   // New search bar handler
   handleSearch(searchParams: any) {
     console.log('Search params:', searchParams);
-    // Map search params to API query format
+    
+    // Use mapper utility to convert UI params to API format
+    const apiParams = mapSearchParamsToAPI(searchParams);
+    
+    // Build queryFormModel from mapped params
     this.queryFormModel = [];
     
+    // Add mapped params
+    if (apiParams.gender) {
+      this.queryFormModel.push({ key: 'gender', value: apiParams.gender });
+    }
+    if (apiParams.cameraSn) {
+      this.queryFormModel.push({ key: 'cameraSn', value: apiParams.cameraSn });
+    }
+    if (apiParams.fromUtc) {
+      this.queryFormModel.push({ key: 'fromUtc', value: apiParams.fromUtc });
+    }
+    if (apiParams.toUtc) {
+      this.queryFormModel.push({ key: 'toUtc', value: apiParams.toUtc });
+    }
+    
+    // Add other searchParams that aren't in mapper
     if (searchParams.eventType) {
       this.queryFormModel.push({ key: 'eventType', value: searchParams.eventType });
     }
-    
     if (searchParams.vehicleType) {
       this.queryFormModel.push({ key: 'vehicleType', value: searchParams.vehicleType });
     }
-    
-    if (searchParams.cameraSn) {
-      this.queryFormModel.push({ key: 'cameraSn', value: searchParams.cameraSn });
-    }
-    
     if (searchParams.behavior) {
       this.queryFormModel.push({ key: 'behavior', value: searchParams.behavior });
     }
-    
     if (searchParams.plateNumber) {
       this.queryFormModel.push({ key: 'plateNumber', value: searchParams.plateNumber });
-    }
-    
-    if (searchParams.startDate && searchParams.endDate) {
-      this.queryFormModel.push({ 
-        key: 'startDate', 
-        value: searchParams.startDate.toISOString().split('T')[0]
-      });
-      this.queryFormModel.push({ 
-        key: 'endDate', 
-        value: searchParams.endDate.toISOString().split('T')[0]
-      });
     }
     
     this.pageNumber = 0;

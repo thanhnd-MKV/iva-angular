@@ -4,18 +4,10 @@ import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/materia
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Router } from '@angular/router';
 import { SSEService } from '../../../core/services/sse.service';
+import { NotificationService, NotificationItem } from '../../services/notification.service';
 import { Subscription } from 'rxjs';
-
-export interface NotificationItem {
-  id: number;
-  type: 'alarm' | 'event' | 'info' | 'warning';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  data?: any;
-}
 
 @Component({
   selector: 'app-notification-popup',
@@ -28,16 +20,44 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
   notifications: NotificationItem[] = [];
   unreadCount = 0;
   private sseSubscription?: Subscription;
+  private notificationSubscription?: Subscription;
+
+  // Virtual scrolling properties
+  displayedNotifications: NotificationItem[] = [];
+  private readonly ITEM_HEIGHT = 130; // Approximate height of each notification card
+  private readonly BUFFER_SIZE = 10; // Increased buffer for smoother scroll
+  private readonly VISIBLE_ITEMS = 10; // Number of items visible at once
+  private startIndex = 0;
+  private endIndex = this.VISIBLE_ITEMS + this.BUFFER_SIZE * 2;
+  scrollOffset = 0;
+  totalHeight = 0;
+  
+  // Throttle scroll updates
+  private scrollTimeout: any = null;
+  private rafId: number | null = null;
+  private lastScrollTop = 0;
 
   constructor(
     public dialogRef: MatDialogRef<NotificationPopupComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private sseService: SSEService
+    private sseService: SSEService,
+    private notificationService: NotificationService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
-    // Load initial notifications from localStorage
-    this.loadNotifications();
+    console.log('🎬 [POPUP] Component initialized');
+    console.log('📊 [POPUP] Initial state:', {
+      startIndex: this.startIndex,
+      endIndex: this.endIndex,
+      displayedCount: this.displayedNotifications.length
+    });
+    
+    // Load notifications from API instead of localStorage
+    this.loadNotificationsFromAPI();
+    
+    // Subscribe to notification changes
+    this.subscribeToNotifications();
     
     // Subscribe to SSE for real-time updates
     this.subscribeToSSE();
@@ -47,28 +67,54 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
     if (this.sseSubscription) {
       this.sseSubscription.unsubscribe();
     }
-  }
-
-  private loadNotifications(): void {
-    const stored = localStorage.getItem('notifications');
-    if (stored) {
-      try {
-        this.notifications = JSON.parse(stored);
-        this.unreadCount = this.notifications.filter(n => !n.read).length;
-      } catch (e) {
-        console.error('Error loading notifications:', e);
-        this.notifications = [];
-        this.unreadCount = 0;
-      }
-    } else {
-      // No stored notifications - start empty
-      this.notifications = [];
-      this.unreadCount = 0;
+    if (this.notificationSubscription) {
+      this.notificationSubscription.unsubscribe();
+    }
+    // Cleanup animation frame
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+    }
+    // Cleanup scroll timeout
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
     }
   }
 
-  private saveNotifications(): void {
-    localStorage.setItem('notifications', JSON.stringify(this.notifications));
+  private loadNotificationsFromAPI(): void {
+    console.log('🌐 [POPUP] Loading notifications from API...');
+    this.notificationService.loadNotificationsFromAPI().subscribe({
+      next: (notifications) => {
+        console.log('✅ [POPUP] Loaded notifications from API:', notifications.length);
+        this.notifications = notifications;
+        this.unreadCount = notifications.filter(n => !n.read).length;
+        console.log('🔄 [POPUP] Before updateDisplayedNotifications:', {
+          total: this.notifications.length,
+          startIndex: this.startIndex,
+          endIndex: this.endIndex
+        });
+        this.updateDisplayedNotifications();
+        console.log('✨ [POPUP] After updateDisplayedNotifications:', {
+          displayedCount: this.displayedNotifications.length,
+          totalHeight: this.totalHeight,
+          scrollOffset: this.scrollOffset
+        });
+      },
+      error: (error) => {
+        console.error('❌ [POPUP] Error loading notifications:', error);
+        this.notifications = [];
+        this.unreadCount = 0;
+        this.updateDisplayedNotifications();
+      }
+    });
+  }
+
+  private subscribeToNotifications(): void {
+    this.notificationSubscription = this.notificationService.notifications$.subscribe(notifications => {
+      this.notifications = notifications;
+      this.unreadCount = notifications.filter(n => !n.read).length;
+      console.log('🔄 [POPUP] Notifications updated:', this.notifications.length, 'unread:', this.unreadCount);
+      this.updateDisplayedNotifications();
+    });
   }
 
   private subscribeToSSE(): void {
@@ -87,16 +133,27 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
   }
 
   private handleSSEEvent(event: any): void {
-    console.log('� Processing SSE event:', event);
+    console.log('🔔 [BELL] Processing SSE event:', JSON.stringify(event, null, 2));
     
     if (!event) {
-      console.warn('⚠️ Empty event received');
+      console.warn('⚠️ [BELL] Empty event received');
       return;
     }
 
-    // Get event type
-    const eventType = event.type;
-    console.log('🏷️ Event type:', eventType);
+    // Get event type - check both 'event' and 'type' fields
+    const eventType = event.event || event.type;
+    console.log('🏷️ [BELL] Event type detected:', eventType, '| event.event =', event.event, '| event.type =', event.type);
+
+    // *** FILTER: ONLY PROCESS ALARM EVENTS FOR BELL NOTIFICATION ***
+    const isAlarm = eventType === 'alarm' || eventType === 'ALARM:event';
+    console.log(`🔍 [BELL] Filter check: eventType="${eventType}", isAlarm=${isAlarm}`);
+    
+    if (!isAlarm) {
+      console.log(`🔇 [BELL] ❌ FILTERED OUT: ${eventType} (bell only shows alarm events)`);
+      return;
+    }
+
+    console.log(`✅ [BELL] ✓ ALARM EVENT PASSED - Will create notification for: ${eventType}`);
 
     // Skip connectionStatus events
     if (eventType === 'connectionStatus') {
@@ -104,152 +161,8 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Parse event data
-    let eventData = event.data;
-    console.log('📦 Raw event data:', eventData, 'Type:', typeof eventData);
-
-    // Parse data if it's a string
-    if (typeof eventData === 'string') {
-      try {
-        eventData = JSON.parse(eventData);
-        console.log('✅ Parsed event data:', eventData);
-      } catch (e) {
-        console.error('❌ Could not parse event data:', e);
-        return;
-      }
-    }
-
-    // Extract dataChanges
-    const dataChanges = eventData?.dataChanges || {};
-    console.log('🔄 Data changes:', dataChanges);
-
-    const newNotification: NotificationItem = {
-      id: Date.now() + Math.random(),
-      type: this.mapEventType(eventType),
-      title: this.formatTitle(eventType, dataChanges),
-      message: this.formatMessage(eventType, dataChanges, eventData),
-      time: this.formatTime(new Date().toISOString()),
-      read: false,
-      data: { type: eventType, changes: dataChanges, full: eventData }
-    };
-
-    console.log('✅ Created notification:', newNotification);
-
-    // Add to beginning of list
-    this.notifications.unshift(newNotification);
-    
-    // Keep only last 50 notifications
-    if (this.notifications.length > 50) {
-      this.notifications = this.notifications.slice(0, 50);
-    }
-
-    this.unreadCount = this.notifications.filter(n => !n.read).length;
-    this.saveNotifications();
-  }
-
-  private formatTitle(eventType: string, dataChanges: any): string {
-    const titles: { [key: string]: string } = {
-      'alarm': 'Cảnh báo',
-      'trafficViolation': 'Vi phạm giao thông',
-      'objectRecognition': 'Nhận diện đối tượng',
-      'pedestrianTraffic': 'Thống kê người đi bộ',
-      'trafficVolume': 'Lưu lượng giao thông'
-    };
-    
-    return titles[eventType] || eventType || 'Thông báo mới';
-  }
-
-  private formatMessage(eventType: string, dataChanges: any, fullData: any): string {
-    console.log('💬 Formatting message for:', eventType, 'Changes:', dataChanges);
-
-    switch (eventType) {
-      case 'alarm':
-        return 'Phát hiện cảnh báo từ hệ thống';
-      
-      case 'trafficViolation':
-        return 'Phát hiện vi phạm giao thông';
-      
-      case 'objectRecognition':
-        const parts: string[] = [];
-        
-        if (dataChanges.gender) {
-          const genderKey = Object.keys(dataChanges.gender)[0];
-          const genderMap: { [key: string]: string } = {
-            'Male': 'Nam',
-            'Female': 'Nữ'
-          };
-          parts.push(genderMap[genderKey] || genderKey);
-        }
-        
-        if (dataChanges.complexion) {
-          const complexionKey = Object.keys(dataChanges.complexion)[0];
-          const complexionMap: { [key: string]: string } = {
-            'Asian': 'Châu Á',
-            'White': 'Da trắng',
-            'Black': 'Da đen'
-          };
-          parts.push(complexionMap[complexionKey] || complexionKey);
-        }
-        
-        if (dataChanges.age) {
-          const ageKey = Object.keys(dataChanges.age)[0];
-          parts.push(`${ageKey} tuổi`);
-        }
-        
-        return parts.length > 0 
-          ? `Phát hiện: ${parts.join(', ')}`
-          : 'Phát hiện đối tượng mới';
-      
-      case 'pedestrianTraffic':
-        if (dataChanges.inTotal !== undefined) {
-          return `${dataChanges.inTotal} người vào`;
-        }
-        if (dataChanges.outTotal !== undefined) {
-          return `${dataChanges.outTotal} người ra`;
-        }
-        return 'Cập nhật lưu lượng người';
-      
-      case 'trafficVolume':
-        return 'Cập nhật lưu lượng giao thông';
-      
-      default:
-        console.warn('⚠️ Unknown event type:', eventType);
-        return `Sự kiện: ${eventType}`;
-    }
-  }
-
-  private mapEventType(eventType: string): 'alarm' | 'event' | 'info' | 'warning' {
-    if (!eventType) return 'info';
-    
-    const type = eventType.toLowerCase();
-    
-    if (type.includes('alarm')) {
-      return 'alarm';
-    }
-    if (type.includes('violation') || type.includes('vi phạm')) {
-      return 'warning';
-    }
-    if (type.includes('traffic') || type.includes('pedestrian') || type.includes('object')) {
-      return 'event';
-    }
-    return 'info';
-  }
-
-  private formatTime(timestamp: string): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (minutes < 1) return 'Vừa xong';
-    if (minutes < 60) return `${minutes} phút trước`;
-    if (hours < 24) return `${hours} giờ trước`;
-    if (days < 7) return `${days} ngày trước`;
-    
-    return date.toLocaleDateString('vi-VN');
+    // Use NotificationService to add new notification
+    this.notificationService.addNotificationFromSSE(event);
   }
 
   close(): void {
@@ -257,29 +170,74 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
   }
 
   markAllAsRead(): void {
-    this.notifications.forEach(n => n.read = true);
-    this.unreadCount = 0;
-    this.saveNotifications();
+    this.notificationService.markAllAsRead();
   }
 
   handleNotificationClick(notification: NotificationItem): void {
-    notification.read = true;
-    this.unreadCount = this.notifications.filter(n => !n.read).length;
-    this.saveNotifications();
-    // TODO: Navigate to detail or perform action
-    console.log('Notification clicked:', notification);
+    console.log('🔔 [NOTIFICATION CLICK] Full notification object:', notification);
+    console.log('📦 [NOTIFICATION CLICK] notification.data:', notification.data);
+    
+    this.notificationService.markAsRead(notification.id);
+    
+    // Extract event ID from notification data
+    // Case 1: From API - notification.data is the event object directly, has 'id' field
+    // Case 2: From SSE - notification.data has structure { type, changes, full: eventData }
+    let eventId: any;
+    let eventData: any;
+    
+    if (notification.data?.full) {
+      // From SSE
+      eventData = notification.data.full;
+      eventId = eventData.id;
+      console.log('📦 [SSE] Extracted eventId from data.full.id:', eventId);
+    } else if (notification.data?.id) {
+      // From API
+      eventData = notification.data;
+      eventId = eventData.id;
+      console.log('📦 [API] Extracted eventId from data.id:', eventId);
+    } else {
+      // Fallback to notification.id (might be wrong but for debugging)
+      eventId = notification.id;
+      console.log('⚠️ [FALLBACK] Using notification.id:', eventId);
+    }
+    
+    console.log('🆔 [NOTIFICATION CLICK] Final eventId:', eventId, 'Type:', typeof eventId);
+    console.log('📋 [NOTIFICATION CLICK] Event data:', eventData);
+    
+    if (eventId) {
+      // Check if event has suspectId - if yes, use object-management route
+      const suspectId = eventData?.suspectId || eventData?.objectId;
+      console.log('🎯 [NOTIFICATION CLICK] SuspectId/ObjectId:', suspectId);
+      
+      // Close popup
+      this.dialogRef.close();
+      
+      if (suspectId) {
+        // Has suspect - navigate to object-management event detail
+        console.log('🔔 [NOTIFICATION CLICK] Navigating to /object-management/event-detail/' + eventId + ' (from object: ' + suspectId + ')');
+        this.router.navigate(['/object-management/event-detail', eventId], {
+          state: {
+            fromNotification: true,
+            returnUrl: `/object-management/events/${suspectId}`
+          }
+        });
+      } else {
+        // No suspect - navigate to regular event detail
+        console.log('🔔 [NOTIFICATION CLICK] Navigating to /event/detail/' + eventId);
+        this.router.navigate(['/event/detail', eventId], {
+          state: {
+            fromNotification: true
+          }
+        });
+      }
+    } else {
+      console.error('❌ [NOTIFICATION CLICK] No valid event ID found in notification:', notification);
+    }
   }
 
   deleteNotification(notification: NotificationItem, event: Event): void {
     event.stopPropagation();
-    const index = this.notifications.indexOf(notification);
-    if (index > -1) {
-      this.notifications.splice(index, 1);
-      if (!notification.read) {
-        this.unreadCount--;
-      }
-      this.saveNotifications();
-    }
+    this.notificationService.deleteNotification(notification.id);
   }
 
   getIconName(type: string): string {
@@ -290,5 +248,106 @@ export class NotificationPopupComponent implements OnInit, OnDestroy {
       warning: 'error_outline'
     };
     return icons[type] || 'notifications';
+  }
+
+  onImageError(event: any): void {
+    console.error('Failed to load notification image:', event.target.src);
+    event.target.style.display = 'none';
+  }
+
+  formatEventTime(timestamp: string): string {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  getEventTypeName(eventType: string): string {
+    const typeMap: { [key: string]: string } = {
+      'Line_Cross': 'Vượt vạch',
+      'Intrusion': 'Xâm nhập',
+      'Loitering': 'Lảng vảng',
+      'Tailgating': 'Theo đuôi',
+      'Parking': 'Đỗ xe trái phép'
+    };
+    return typeMap[eventType] || eventType;
+  }
+
+  /**
+   * Handle scroll event for virtual scrolling
+   * Throttled and optimized for smooth performance
+   */
+  onScroll(event: Event): void {
+    const element = event.target as HTMLElement;
+    const scrollTop = element.scrollTop;
+    
+    // Skip if scroll hasn't moved much
+    if (Math.abs(scrollTop - this.lastScrollTop) < 10) {
+      return;
+    }
+    this.lastScrollTop = scrollTop;
+    
+    // Cancel previous animation frame
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+    }
+    
+    // Use requestAnimationFrame for smooth updates
+    this.rafId = requestAnimationFrame(() => {
+      this.updateVisibleRange(scrollTop);
+      this.rafId = null;
+    });
+  }
+  
+  /**
+   * Update visible range of items based on scroll position
+   */
+  private updateVisibleRange(scrollTop: number): void {
+    // Calculate which items should be visible
+    const newStartIndex = Math.floor(scrollTop / this.ITEM_HEIGHT);
+    const newEndIndex = Math.min(
+      newStartIndex + this.VISIBLE_ITEMS + (this.BUFFER_SIZE * 2),
+      this.notifications.length
+    );
+
+    // Only update if the visible range changed significantly
+    const threshold = Math.floor(this.BUFFER_SIZE / 2);
+    if (Math.abs(newStartIndex - this.startIndex) >= threshold) {
+      this.startIndex = Math.max(0, newStartIndex - this.BUFFER_SIZE);
+      this.endIndex = newEndIndex;
+      this.updateDisplayedNotifications();
+    }
+  }
+
+  /**
+   * Update the list of notifications to display
+   * and calculate the scroll offset for proper positioning
+   */
+  private updateDisplayedNotifications(): void {
+    // Calculate total height for scrollbar
+    this.totalHeight = this.notifications.length * this.ITEM_HEIGHT;
+    
+    // Get slice of notifications to render
+    this.displayedNotifications = this.notifications.slice(this.startIndex, this.endIndex);
+    
+    // Calculate offset to position items correctly
+    this.scrollOffset = this.startIndex * this.ITEM_HEIGHT;
+    
+    console.log(`📜 [VIRTUAL SCROLL] Total: ${this.notifications.length} | Rendering: ${this.startIndex}-${this.endIndex} | Displayed: ${this.displayedNotifications.length} items`);
+    console.log(`📏 [VIRTUAL SCROLL] Total Height: ${this.totalHeight}px | Offset: ${this.scrollOffset}px`);
+  }
+  
+  /**
+   * TrackBy function for ngFor to improve performance
+   * Prevents unnecessary re-renders of unchanged items
+   */
+  trackByNotificationId(index: number, notification: NotificationItem): string | number {
+    return notification.id;
   }
 }

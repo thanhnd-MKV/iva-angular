@@ -27,6 +27,7 @@ import { BaseErrorHandlerComponent } from '../../core/components/base-error-hand
 import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { CameraService } from '../camera/camera.service';
 import { TrackingMapComponent, TrackingLocation } from '../../shared/components/tracking-map/tracking-map.component';
+import { mapSearchParamsToAPI } from '../../shared/utils/api-params.mapper';
 
 @Component({
   selector: 'app-traffic-event',
@@ -327,9 +328,11 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
         // Tìm filter camera trong eventFilters và cập nhật options
         const cameraFilter = this.eventFilters.find(filter => filter.key === 'cameraSn');
         if (cameraFilter) {
+          // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+          const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
           cameraFilter.options = [
             { label: 'Tất cả Camera', value: '' },
-            ...cameras
+            ...filteredCameras
           ];
         }
       },
@@ -860,9 +863,26 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       this.disableTrackingMode();
     }
     
-    // Map search params to API query format
+    // Use mapper utility to convert UI params to API format
+    const apiParams = mapSearchParamsToAPI(searchParams);
+    
+    // Build queryFormModel from mapped params
     this.queryFormModel = [];
     
+    // Add mapped params
+    if (apiParams.cameraSn) {
+      this.queryFormModel.push({ key: 'cameraSn', value: apiParams.cameraSn });
+    }
+    
+    if (apiParams.fromUtc) {
+      this.queryFormModel.push({ key: 'fromUtc', value: apiParams.fromUtc });
+    }
+    
+    if (apiParams.toUtc) {
+      this.queryFormModel.push({ key: 'toUtc', value: apiParams.toUtc });
+    }
+    
+    // Add other searchParams that aren't in mapper
     if (searchParams.eventType) {
       this.queryFormModel.push({ key: 'eventType', value: searchParams.eventType });
     }
@@ -871,27 +891,12 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       this.queryFormModel.push({ key: 'vehicleType', value: searchParams.vehicleType });
     }
     
-    if (searchParams.cameraSn) {
-      this.queryFormModel.push({ key: 'cameraSn', value: searchParams.cameraSn });
-    }
-    
     if (searchParams.behavior) {
       this.queryFormModel.push({ key: 'behavior', value: searchParams.behavior });
     }
     
     if (searchParams.plateNumber) {
       this.queryFormModel.push({ key: 'plateNumber', value: searchParams.plateNumber });
-    }
-    
-    if (searchParams.startDate && searchParams.endDate) {
-      this.queryFormModel.push({ 
-        key: 'startDate', 
-        value: searchParams.startDate.toISOString().split('T')[0]
-      });
-      this.queryFormModel.push({ 
-        key: 'endDate', 
-        value: searchParams.endDate.toISOString().split('T')[0]
-      });
     }
     
     this.pageNumber = 0;

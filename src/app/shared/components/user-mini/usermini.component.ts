@@ -35,7 +35,7 @@ export class UserMiniComponent implements OnInit {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        this.username = user.userName || 'Unknown';
+        this.username = user.realName || 'Unknown';
         this.userEmail = user.email || user.userName + '@iva.com';
       } catch (e) {
         console.warn('Lỗi parse session user:', e);

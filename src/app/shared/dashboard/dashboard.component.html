@@ -3,7 +3,7 @@
     <!-- Tất cả loại Camera Filter -->
     <div class="filter-btn-wrapper">
       <button class="filter-btn camera-btn" [class.active]="showCategoryFilter" (click)="toggleCategoryFilter()">
-        <mat-icon class="btn-icon">category</mat-icon>
+        <img src="assets/icon/camera.svg" alt="Camera" class="btn-icon">
         <span>{{ getCategoryFilterLabel() }}</span>
         <mat-icon class="dropdown-icon">expand_more</mat-icon>
       </button>
@@ -30,7 +30,6 @@
     <!-- Trạng thái Filter -->
     <div class="filter-btn-wrapper">
       <button class="filter-btn status-btn" [class.active]="showStatusFilter" (click)="toggleStatusFilter()">
-        <mat-icon class="btn-icon">power_settings_new</mat-icon>
         <span>{{ getStatusFilterLabel() }}</span>
         <mat-icon class="dropdown-icon">expand_more</mat-icon>
       </button>
@@ -57,7 +56,7 @@
     <!-- Khu vực Filter -->
     <div class="filter-btn-wrapper">
       <button class="filter-btn location-btn" [class.active]="showLocationFilter" (click)="toggleLocationFilter()">
-        <mat-icon class="btn-icon">place</mat-icon>
+    <img src="assets/icon/location.svg" alt="Location" class="btn-icon">
         <span>{{ getLocationFilterLabel() }}</span>
         <mat-icon class="dropdown-icon">expand_more</mat-icon>
       </button>
@@ -83,14 +82,6 @@
       <span>Xóa bộ lọc</span>
     </button>
   </div>
-  
-  <div class="filter-right">
-    <!-- Date Range Picker -->
-    <app-date-range-picker 
-      (dateRangeSelected)="onDateRangeSelected($event)"
-      (dateRangeCleared)="onDateRangeCleared()">
-    </app-date-range-picker>
-  </div>
 </div>
 
 <div class="dashboard-container">
@@ -103,23 +94,22 @@
     <div class="camera-list-content" *ngIf="!loadingCameras">
       <div class="camera-card" *ngFor="let camera of filteredCameras">
         <div class="card-top">
-          <h2 class="camera-name">{{ camera.name || camera.sn }}</h2>
+          <h2 class="camera-name">{{ camera.cameraName || camera.sn }}</h2>
           <div class="actions">
             <div class="status-badge" 
                  [class.status-on]="camera.connectionStatus === 1"
-                 [class.status-off]="camera.connectionStatus === 0"
-                 (click)="toggleCameraStatus(camera)">
+                 [class.status-off]="camera.connectionStatus === 0">
               <div class="dot" [class.dot-green]="camera.connectionStatus === 1" [class.dot-red]="camera.connectionStatus === 0"></div>
               {{ camera.connectionStatus === 1 ? 'ON' : 'OFF' }}
             </div>
-            <button class="settings-btn" (click)="openCameraSettings(camera)">
+            <button class="settings-btn" >
               <mat-icon>settings</mat-icon>
             </button>
           </div>
         </div>
         <div class="card-bottom">
           <div class="camera-info">
-            <mat-icon class="cam-icon">{{ getCategoryIcon(camera.category) }}</mat-icon>
+            <img src="assets/icon/camera.svg" alt="Category" class="info-icon">
             {{ getCategoryLabel(camera.category) }}
           </div>
           <div class="event-info">

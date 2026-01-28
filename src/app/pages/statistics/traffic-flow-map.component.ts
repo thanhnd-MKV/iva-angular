@@ -20,11 +20,14 @@ interface CameraLocation {
   name: string;
   count: number;
   cameraCode: string;
-  address: string;                    // Địa chỉ camera từ API
-  violationCount?: number;           // totalTrafficViolation từ API
-  totalTrafficDetected?: number;     // Tổng phương tiện từ API
-  totalPersonDetected?: number;      // Tổng người từ API
-  cameraType?: 'TRAFFIC' | 'PERSON'; // Loại camera từ API
+  address: string;                         // Địa chỉ camera từ API
+  violationCount?: number;                // totalTrafficViolation từ API (deprecated, use totalTrafficViolation)
+  totalTrafficViolation?: number;         // Tổng vi phạm giao thông từ API (cho TRAFFIC camera)
+  totalTrafficDetected?: number;          // Tổng phương tiện từ API
+  totalPersonDetected?: number;           // Tổng người phát hiện từ API (cho PERSON camera)
+  faceRecognition?: number;               // Tổng khuôn mặt nhận diện từ API (cho FACE camera)
+  cameraType?: 'TRAFFIC' | 'PERSON' | 'FACE'; // Loại camera từ API (deprecated, use type)
+  type?: 'TRAFFIC' | 'PERSON' | 'FACE';   // Loại camera từ API
 }
 
 @Component({
@@ -59,15 +62,19 @@ interface CameraLocation {
         (mapInitialized)="onMapInitialized()"
         (zoomChanged)="onZoomChanged()">
         
-        <!-- Markers -->
-        <ng-container *ngFor="let marker of visibleMarkers; let i = index; trackBy: trackByMarkerId">
-          <map-marker 
-            *ngIf="marker.position && isFinite(marker.position.lat) && isFinite(marker.position.lng)"
-            [position]="marker.position"
-            [options]="getMarkerOptions(marker)"
-            [title]="marker.label"
-            (mapClick)="onMarkerClick(marker, i)">
-          </map-marker>
+        <!-- Markers - Only render when fully prepared -->
+        <ng-container *ngIf="markersReady">
+          <ng-container *ngFor="let marker of visibleMarkers; let i = index; trackBy: trackByMarkerId">
+            <!-- Debug: Log every marker render attempt -->
+            {{ logMarkerRender(marker, i) }}
+            <map-marker 
+              *ngIf="marker.position && isFinite(marker.position.lat) && isFinite(marker.position.lng)"
+              [position]="marker.position"
+              [options]="getMarkerOptions(marker)"
+              [title]="marker.label"
+              (mapClick)="onMarkerClick(marker, i)">
+            </map-marker>
+          </ng-container>
         </ng-container>
         
         <!-- Info Window -->
@@ -77,16 +84,16 @@ interface CameraLocation {
               <h4 class="info-title">{{ selectedMarker.area || selectedMarker.label }}</h4>
               <button class="traffic-icon-btn">
                 <img src="assets/icon/cameraIcon.svg" alt="Camera" class="icon-img">
-                <span>Giao thông</span>
+                <span>{{ getCameraTypeLabel(selectedMarker) }}</span>
               </button>
             </div>
             <div class="info-details">
               <div class="info-row">
                 <img src="assets/icon/carIcon.svg" alt="Car" class="info-icon-img">
-                <span class="info-label">Tổng phương tiện:</span>
+                <span class="info-label">{{ getCountLabel(selectedMarker) }}:</span>
                 <span class="info-value">{{ getTrafficCount(selectedMarker) | number }}</span>
               </div>
-              <div class="info-row">
+              <div class="info-row" *ngIf="isTrafficCamera(selectedMarker)">
                 <img src="assets/icon/warningIcon.svg" alt="Warning" class="info-icon-img">
                 <span class="info-label">Tổng số vi phạm:</span>
                 <span class="info-value">{{ getViolationCount(selectedMarker) | number }}</span>
@@ -316,6 +323,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   @Input() mapZoom?: number; // Optional external zoom control
 
   isLoading = true;
+  markersReady = false; // Flag to track if markers are fully prepared and ready to render
   center: google.maps.LatLngLiteral = { lat: 15.6, lng: 107.0 }; // Default center
   zoom = 10; // Default zoom - Start at MEDIUM level to show individual cameras
   
@@ -395,19 +403,14 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       // 1. Preload icons first
       await this.preloadMarkerIcons();
       
-      // 2. Convert camera data if available
+      // 2. Convert camera data if available and prepare all markers
       if (this.cameraLocations && this.cameraLocations.length > 0) {
-        this.convertCameraLocationsToMarkers();
-        
-        // 3. Update markers after icons are ready
-        this.updateMarkersForZoomLevel();
+        await this.prepareAllMarkersBeforeRender();
+      } else {
+        // 3. Hide loading state even if no data
+        this.isLoading = false;
+        this.cdr.detectChanges();
       }
-      
-      // 4. Hide loading state
-      this.isLoading = false;
-      
-      // 5. Trigger change detection
-      this.cdr.detectChanges();
       
       console.log('✅ Map initialization complete');
     } catch (error) {
@@ -497,6 +500,39 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
           count: loc.count
         })));
         
+        // ===== NEW: Log full camera data including cameraCode and counts =====
+        console.log('📍 [TrafficFlowMap] FULL camera data received from parent:');
+        currentValue.forEach((loc: any, i: number) => {
+          console.log(`  [${i}] ${loc.cameraCode} (${loc.type}):`, {
+            lat: loc.lat,
+            lng: loc.lng,
+            count: loc.count,
+            totalTrafficDetected: loc.totalTrafficDetected,
+            totalTrafficViolation: loc.totalTrafficViolation,
+            totalPersonDetected: loc.totalPersonDetected,
+            faceRecognition: loc.faceRecognition,
+            address: loc.address
+          });
+        });
+        
+        // Special debug for ACVN248240000046
+        const targetCamera = currentValue.find((loc: any) => loc.cameraCode === 'ACVN248240000046');
+        if (targetCamera) {
+          console.log('🎯🎯🎯 Found ACVN248240000046 in received data:', {
+            cameraCode: targetCamera.cameraCode,
+            type: targetCamera.type,
+            count: targetCamera.count,
+            totalTrafficDetected: targetCamera.totalTrafficDetected,
+            totalTrafficViolation: targetCamera.totalTrafficViolation,
+            lat: targetCamera.lat,
+            lng: targetCamera.lng,
+            address: targetCamera.address
+          });
+        } else {
+          console.warn('❌ ACVN248240000046 NOT FOUND in received data!');
+        }
+        // ===== END NEW =====
+        
         // Check for invalid data from parent
         const invalidInputs = currentValue.filter((loc: any) => 
           !loc.lat || !loc.lng || 
@@ -515,28 +551,46 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       if (JSON.stringify(currentValue) !== JSON.stringify(previousValue)) {
         console.log('🗺️ [TrafficFlowMapComponent] Processing camera location changes...');
         
-        // Clear icon caches but KEEP markers cache
+        // Clear ALL caches including markers cache to force rebuild with new data
         this.markerOptionsCache.clear();
         this.badgeIconCache.clear();
-        // KHÔNG clear markersCache - giữ markers đã build
+        this.markersCache.clear(); // ✅ Clear markers cache to force rebuild with new counts
         
-        // If icons are already loaded, convert and update
+        console.log('🗺️ [TrafficFlowMapComponent] ✅ Cleared all caches (marker options, badge icons, markers)');
+        
+        // Reset markers ready flag
+        this.markersReady = false;
+        
+        // If icons are already loaded, prepare for rendering
         if (this.loadedMarkerIcons.size > 0) {
-          this.convertCameraLocationsToMarkers();
-          this.updateMarkersForZoomLevel();
-          this.isLoading = false;
-          this.cdr.detectChanges();
+          // First auto-zoom if needed, THEN prepare markers
+          if (!this.mapCenter && !this.mapZoom && this.cameraLocations && this.cameraLocations.length > 0) {
+            console.log('🗺️ Auto-zooming to cameras FIRST, then will prepare markers...');
+            this.autoZoomToCameras();
+            // Wait for zoom to complete before preparing markers
+            setTimeout(() => {
+              console.log('🗺️ Auto-zoom complete, now preparing markers for final zoom level...');
+              this.prepareAllMarkersBeforeRender();
+            }, 800); // Wait for zoom animation + bounds adjustment
+          } else {
+            // No auto-zoom needed, prepare markers immediately
+            this.prepareAllMarkersBeforeRender();
+          }
         } else {
           // Icons not loaded yet, initialize map now
           console.log('🗺️ [TrafficFlowMapComponent] Icons not loaded, initializing map...');
           this.initializeMap();
-        }
-        
-        // Only auto-zoom if parent didn't provide explicit center/zoom
-        if (!this.mapCenter && !this.mapZoom && this.cameraLocations && this.cameraLocations.length > 0) {
-          setTimeout(() => {
-            this.autoZoomToCameras();
-          }, 100); // Reduced delay
+          
+          // Auto-zoom after map init
+          if (!this.mapCenter && !this.mapZoom && this.cameraLocations && this.cameraLocations.length > 0) {
+            setTimeout(() => {
+              this.autoZoomToCameras();
+              // Prepare markers after zoom
+              setTimeout(() => {
+                this.prepareAllMarkersBeforeRender();
+              }, 800);
+            }, 100);
+          }
         }
       }
     }
@@ -596,6 +650,44 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
           }
         }
       }, 500);
+    }
+  }
+
+  /**
+   * Prepare all markers completely before rendering to avoid display issues
+   */
+  private async prepareAllMarkersBeforeRender() {
+    console.log('🗺️ [prepareAllMarkersBeforeRender] ========== Starting to prepare all markers ==========');
+    
+    try {
+      // Step 1: Convert camera locations to marker data
+      console.log('📍 Step 1: Converting camera locations to markers...');
+      this.convertCameraLocationsToMarkers();
+      
+      // Step 2: Build markers for current zoom level
+      console.log('📍 Step 2: Building markers for current zoom level...');
+      this.updateMarkersForZoomLevel();
+      
+      // Step 3: Mark as ready and hide loading
+      this.markersReady = true;
+      this.isLoading = false;
+      
+      console.log('✅ [prepareAllMarkersBeforeRender] All markers prepared and ready!');
+      console.log('✅ Visible markers count:', this.visibleMarkers.length);
+      
+      // Step 4: Force render with markers
+      this.cdr.detectChanges();
+      
+      // Double-check render after a tick
+      setTimeout(() => {
+        console.log('✅ [prepareAllMarkersBeforeRender] Second render check, visible markers:', this.visibleMarkers.length);
+        this.cdr.detectChanges();
+      }, 0);
+      
+    } catch (error) {
+      console.error('❌ [prepareAllMarkersBeforeRender] Error preparing markers:', error);
+      this.isLoading = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -672,10 +764,32 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
             address: location.address || ''
           };
           
+          // Debug log for marker creation (especially ACVN248240000046)
+          if (location.cameraCode === 'ACVN248240000046') {
+            console.log('🎯 Created marker for ACVN248240000046:', {
+              markerCameraCode: marker.cameraCode,
+              markerCount: marker.count,
+              markerPosition: marker.position,
+              locationCameraCode: location.cameraCode,
+              locationCount: location.count,
+              locationTotalTrafficDetected: (location as any).totalTrafficDetected,
+              locationType: (location as any).type
+            });
+          }
+          
           validMarkers.push(marker);
       });
       
       this.cameraLevelData = validMarkers;
+      console.log('📍 Created', validMarkers.length, 'camera level markers');
+      
+      // Log the created markers for ACVN248240000046
+      const acvnMarker = validMarkers.find(m => m.cameraCode === 'ACVN248240000046');
+      if (acvnMarker) {
+        console.log('🎯 ACVN248240000046 marker in cameraLevelData:', acvnMarker);
+      } else {
+        console.warn('❌ ACVN248240000046 marker NOT FOUND in cameraLevelData!');
+      }
       
       // Create individual camera markers (for high zoom)
       this.individualCameras = [];
@@ -961,14 +1075,17 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
           
           this.zoom = currentZoom;
           
-          // CHỈ rebuild markers khi zoom LEVEL thay đổi (LOW ↔ MEDIUM ↔ HIGH)
+          console.log('🔍 [onZoomChanged] Zoom changed:', this.zoom, '| Level:', newZoomLevel, '| Markers ready:', this.markersReady);
+          
+          // Rebuild markers khi zoom LEVEL thay đổi (LOW ↔ MEDIUM ↔ HIGH)
           if (oldZoomLevel !== newZoomLevel) {
             this.markerOptionsCache.clear();  // Clear icon cache
+            this.markersCache.clear();         // Clear markers cache to force rebuild
             this.updateMarkersForZoomLevel();
           } else {
-            // Cùng level, chỉ update kích thước icon
-            this.markerOptionsCache.clear();  // Update icon sizes only
-            this.cdr.detectChanges();
+            // Cùng level, vẫn cần update để đảm bảo markers hiển thị đúng
+            this.markerOptionsCache.clear();  // Update icon sizes
+            this.updateMarkersForZoomLevel(); // Force update markers
           }
         }
       }
@@ -980,24 +1097,19 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     console.log('🗺️ [TrafficFlowMapComponent] Current zoom:', this.zoom);
     console.log('🗺️ [TrafficFlowMapComponent] Individual cameras count:', this.individualCameras?.length || 0);
     console.log('🗺️ [TrafficFlowMapComponent] Camera level data count:', this.cameraLevelData?.length || 0);
+    console.log('🗺️ [TrafficFlowMapComponent] Current visible markers:', this.visibleMarkers?.length || 0);
     
     const zoomLevel = this.mapMarkerService.getZoomLevel(this.zoom);
     console.log(`🗺️ [TrafficFlowMapComponent] Zoom Level: ${zoomLevel} (${this.zoom})`);
-    
-    // Check cache first - if we have cached markers for this zoom level, use them
-    if (this.markersCache.has(zoomLevel)) {
-      console.log('🗺️ ✅ Using cached markers for zoom level:', zoomLevel);
-      this.visibleMarkers = this.markersCache.get(zoomLevel)!;
-      this.cdr.detectChanges();
-      return;
-    }
     
     // Check if we have data to display - use cameraLevelData as fallback
     const dataSource = this.individualCameras?.length > 0 ? this.individualCameras : this.cameraLevelData;
     
     if (!dataSource || dataSource.length === 0) {
+      console.warn('🗺️ [TrafficFlowMapComponent] ⚠️ No data source available!');
       // Don't clear if we already have markers showing
       if (this.visibleMarkers.length > 0) {
+        console.log('🗺️ [TrafficFlowMapComponent] No data but keeping existing markers');
         return;
       }
       this.visibleMarkers = [];
@@ -1005,13 +1117,15 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       return;
     }
     
+    console.log('🗺️ [TrafficFlowMapComponent] ✅ Using data source with', dataSource.length, 'items');
+    
     // Use the best data source available
     const camerasToUse = this.individualCameras?.length > 0 ? this.individualCameras : this.cameraLevelData;
     
     // Store previous markers count for comparison
     const previousCount = this.visibleMarkers.length;
     
-    // Build new markers based on zoom level
+    // Build new markers based on zoom level (always rebuild, no cache check)
     let newMarkers: MarkerData[] = [];
     
     // Level 1: LOW zoom (< 9) - Show regional clusters with event-total-zoom0.svg
@@ -1073,14 +1187,14 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       console.log(`🗺️ [TrafficFlowMapComponent] ✅ Level 3 (HIGH): Built ${newMarkers.length} cameras with detail`);
     }
     
-    // Final safety check before caching and rendering
+    // Final safety check before rendering
     const invalidMarkers = newMarkers.filter(m => 
       !m.position || !isFinite(m.position.lat) || isNaN(m.position.lat) || 
       !isFinite(m.position.lng) || isNaN(m.position.lng)
     );
     
     if (invalidMarkers.length > 0) {
-      console.error('🗺️ [TrafficFlowMapComponent] ❌ Removing', invalidMarkers.length, 'invalid markers before caching');
+      console.error('🗺️ [TrafficFlowMapComponent] ❌ Removing', invalidMarkers.length, 'invalid markers before rendering');
       
       // Remove invalid markers
       newMarkers = newMarkers.filter(m => 
@@ -1089,14 +1203,19 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       );
     }
     
-    // Cache the built markers for this zoom level
-    this.markersCache.set(zoomLevel, newMarkers);
-    console.log(`🗺️ ✅ Cached ${newMarkers.length} markers for zoom level: ${zoomLevel}`);
+    console.log(`🗺️ [TrafficFlowMapComponent] 📍 About to set ${newMarkers.length} markers to visibleMarkers`);
+    console.log(`🗺️ [TrafficFlowMapComponent] 📍 First 3 markers:`, newMarkers.slice(0, 3).map(m => ({
+      id: m.id,
+      lat: m.position.lat,
+      lng: m.position.lng,
+      count: m.count
+    })));
     
     // Update visible markers (atomic swap - prevents flickering)
-    this.visibleMarkers = newMarkers;
+    this.visibleMarkers = [...newMarkers]; // Use spread to create new array reference
     
-    console.log(`🗺️ [TrafficFlowMapComponent] Marker count: ${previousCount} → ${this.visibleMarkers.length}`);
+    console.log(`🗺️ [TrafficFlowMapComponent] ✅ Marker count: ${previousCount} → ${this.visibleMarkers.length}`);
+    console.log(`🗺️ [TrafficFlowMapComponent] ✅ visibleMarkers array reference:`, this.visibleMarkers.length, 'items');
     
     // Log ALL markers that will be rendered (only first 5 to avoid spam)
     console.log('🗺️ [TrafficFlowMapComponent] 📍 Sample markers (first 5):', 
@@ -1109,8 +1228,12 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       }))
     );
     
-    // Force change detection
+    // Force change detection multiple times to ensure Angular renders the markers
     this.cdr.detectChanges();
+    setTimeout(() => {
+      this.cdr.detectChanges();
+      console.log('🗺️ [TrafficFlowMapComponent] ✅ Forced second change detection');
+    }, 0);
   }
 
   getCircleRadius(marker: MarkerData): number {
@@ -1187,7 +1310,7 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       
       // For MEDIUM and HIGH zoom, create composite icon with badge (only if count > 0)
       if ((zoomLevel === ZoomLevel.MEDIUM || zoomLevel === ZoomLevel.HIGH) && marker.count > 0) {
-        const displayCount = marker.count > 999 ? `${(marker.count / 1000).toFixed(1)}k` : marker.count.toString();
+        const displayCount = marker.count.toString();
         const compositeIconUrl = this.createIconWithBadge(iconUrl, displayCount, size);
         
         icon = {
@@ -1325,6 +1448,27 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   }
 
   onMarkerClick(marker: MarkerData, index: number) {
+    console.log('🖱️ Marker clicked:', {
+      cameraCode: marker.cameraCode,
+      label: marker.label,
+      count: marker.count,
+      level: marker.level,
+      position: marker.position
+    });
+    
+    // Debug: Check if this camera exists in cameraLocations
+    if (marker.cameraCode) {
+      const cameraData = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      console.log('🖱️ Camera data in cameraLocations:', cameraData);
+      
+      if (marker.cameraCode === 'ACVN248240000046') {
+        console.log('🎯🎯🎯 ACVN248240000046 clicked!');
+        console.log('🎯 Marker:', marker);
+        console.log('🎯 Camera in cameraLocations:', cameraData);
+        console.log('🎯 All cameraLocations:', this.cameraLocations);
+      }
+    }
+    
     this.selectedMarker = marker;
     this.selectedMarkerIndex = index;
     
@@ -1345,29 +1489,88 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
    * Get traffic count for marker - lookup from cameraLocations
    */
   getTrafficCount(marker: MarkerData): number {
-    // For cluster markers or direct data, use marker's own data
-    if (marker.count !== undefined) {
-      // Find corresponding camera location data
-      const camera = this.cameraLocations.find(c => 
-        c.cameraCode === marker.cameraCode || 
-        (c.lat === marker.position.lat && c.lng === marker.position.lng)
-      );
-      return camera?.totalTrafficDetected || camera?.count || marker.count || 0;
+    console.log('🔍 getTrafficCount called with marker:', {
+      cameraCode: marker.cameraCode,
+      label: marker.label,
+      position: marker.position
+    });
+    
+    // Find corresponding camera location data by cameraCode (exact match)
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      console.log('🔍 Found camera:', camera);
+      
+      if (camera) {
+        // For TRAFFIC cameras, return totalTrafficDetected (lưu lượng giao thông)
+        if (camera.type === 'TRAFFIC') {
+          const count = camera.totalTrafficDetected || 0;
+          console.log('✅ TRAFFIC camera, returning totalTrafficDetected:', count);
+          return count;
+        }
+        // For PERSON cameras, return totalPersonDetected
+        if (camera.type === 'PERSON') {
+          const count = camera.totalPersonDetected || 0;
+          console.log('✅ PERSON camera, returning totalPersonDetected:', count);
+          return count;
+        }
+        // For FACE cameras, return faceRecognition (nhận diện khuôn mặt)
+        if (camera.type === 'FACE') {
+          const count = camera.faceRecognition || 0;
+          console.log('✅ FACE camera, returning faceRecognition:', count);
+          return count;
+        }
+        console.warn('⚠️ Unknown camera type:', camera.type);
+        return 0;
+      } else {
+        console.warn('⚠️ Camera not found for cameraCode:', marker.cameraCode);
+      }
     }
     
-    return 0;
+    // For aggregate markers (cluster/district/city), sum all cameras at this position
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
+    );
+    
+    if (camerasAtPosition.length > 0) {
+      return camerasAtPosition.reduce((sum, cam) => {
+        if (cam.type === 'TRAFFIC') {
+          return sum + (cam.totalTrafficDetected || 0);
+        }
+        if (cam.type === 'PERSON') {
+          return sum + (cam.totalPersonDetected || 0);
+        }
+        if (cam.type === 'FACE') {
+          return sum + (cam.faceRecognition || 0);
+        }
+        return sum;
+      }, 0);
+    }
+    
+    return marker.count || 0;
   }
 
   /**
    * Get violation count for marker - lookup from cameraLocations
    */
   getViolationCount(marker: MarkerData): number {
-    // Find corresponding camera location data by code or position
-    const camera = this.cameraLocations.find(c => 
-      c.cameraCode === marker.cameraCode || 
-      (c.lat === marker.position.lat && c.lng === marker.position.lng)
+    // Find corresponding camera location data by cameraCode (exact match)
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      return camera?.totalTrafficViolation || 0;
+    }
+    
+    // For aggregate markers, sum all cameras at this position
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
     );
-    return camera?.violationCount || 0;
+    
+    if (camerasAtPosition.length > 0) {
+      return camerasAtPosition.reduce((sum, cam) => sum + (cam.totalTrafficViolation || 0), 0);
+    }
+    
+    return 0;
   }
 
   /**
@@ -1385,6 +1588,98 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     
     // Cuối cùng dùng area
     return marker.area || '';
+  }
+
+  /**
+   * Check if marker is a traffic camera
+   */
+  isTrafficCamera(marker: MarkerData): boolean {
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      return camera?.type === 'TRAFFIC';
+    }
+    
+    // For aggregate markers, check if any camera at this position is TRAFFIC
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
+    );
+    
+    return camerasAtPosition.some(cam => cam.type === 'TRAFFIC');
+  }
+
+  /**
+   * Get camera type label for display
+   */
+  getCameraTypeLabel(marker: MarkerData): string {
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      if (camera) {
+        if (camera.type === 'TRAFFIC') return 'Giao thông';
+        if (camera.type === 'PERSON') return 'Đối tượng người';
+        if (camera.type === 'FACE') return 'Nhận diện khuôn mặt';
+      }
+    }
+    
+    // For aggregate markers with mixed types
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
+    );
+    
+    const hasTraffic = camerasAtPosition.some(cam => cam.type === 'TRAFFIC');
+    const hasPerson = camerasAtPosition.some(cam => cam.type === 'PERSON');
+    const hasFace = camerasAtPosition.some(cam => cam.type === 'FACE');
+    
+    const typeCount = [hasTraffic, hasPerson, hasFace].filter(Boolean).length;
+    if (typeCount > 1) {
+      return 'Hỗn hợp';
+    } else if (hasTraffic) {
+      return 'Giao thông';
+    } else if (hasPerson) {
+      return 'Đối tượng người';
+    } else if (hasFace) {
+      return 'Nhận diện khuôn mặt';
+    }
+    
+    return 'Camera';
+  }
+
+  /**
+   * Get count label based on camera type
+   */
+  getCountLabel(marker: MarkerData): string {
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      if (camera) {
+        if (camera.type === 'TRAFFIC') return 'Tổng lưu lượng giao thông';
+        if (camera.type === 'PERSON') return 'Tổng người phát hiện';
+        if (camera.type === 'FACE') return 'Tổng khuôn mặt nhận diện';
+      }
+    }
+    
+    // For aggregate markers
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
+    );
+    
+    const hasTraffic = camerasAtPosition.some(cam => cam.type === 'TRAFFIC');
+    const hasPerson = camerasAtPosition.some(cam => cam.type === 'PERSON');
+    const hasFace = camerasAtPosition.some(cam => cam.type === 'FACE');
+    
+    const typeCount = [hasTraffic, hasPerson, hasFace].filter(Boolean).length;
+    if (typeCount > 1) {
+      return 'Tổng phát hiện';
+    } else if (hasTraffic) {
+      return 'Tổng lưu lượng giao thông';
+    } else if (hasPerson) {
+      return 'Tổng người phát hiện';
+    } else if (hasFace) {
+      return 'Tổng khuôn mặt nhận diện';
+    }
+    
+    return 'Tổng';
   }
 
   /**
@@ -1428,6 +1723,21 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   
   trackByMarkerId(index: number, marker: MarkerData): string {
     return marker.id;
+  }
+  
+  logMarkerRender(marker: MarkerData, index: number): string {
+    console.log(`🎨 [Template Render] Marker ${index}:`, {
+      id: marker.id,
+      label: marker.label,
+      position: marker.position,
+      lat: marker.position?.lat,
+      lng: marker.position?.lng,
+      latFinite: isFinite(marker.position?.lat),
+      lngFinite: isFinite(marker.position?.lng),
+      count: marker.count,
+      markersReady: this.markersReady
+    });
+    return ''; // Return empty string for template
   }
   
   isFinite(value: any): boolean {

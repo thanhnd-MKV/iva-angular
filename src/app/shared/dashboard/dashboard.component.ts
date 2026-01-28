@@ -10,7 +10,6 @@ import { CameraService } from '../../pages/camera/camera.service';
 import { SSEService } from '../../core/services/sse.service';
 import { LocationService, LocationOption } from '../services/location.service';
 import { CountUpDirective } from '../directives/count-up.directive';
-import { DateRangePickerComponent } from '../date-picker-ranger/date-range-picker.component';
 import { Router, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -24,8 +23,7 @@ import { filter } from 'rxjs/operators';
     MatIconModule,
     MatProgressSpinnerModule,
     TrafficFlowMapComponent,
-    CountUpDirective,
-    DateRangePickerComponent
+    CountUpDirective
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
@@ -37,12 +35,6 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   selectedStatusFilter = '';
   selectedLocationFilter = '';
   cameraSearchText = '';
-  
-  // Date range filter - default to today
-  selectedTimeRange = 'today';
-  customDateRange: { start: Date | null; end: Date | null } = { start: null, end: null };
-  fromDate: Date | null = null;
-  toDate: Date | null = null;
   
   // Dropdown states
   showCategoryFilter = false;
@@ -88,9 +80,6 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     
     // Mark dashboard as active
     this.isDashboardActive = true;
-    
-    // Set default date range to today
-    this.initializeDateRange();
     
     this.loadCameraList();
     this.loadLocations();
@@ -173,6 +162,7 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   getCategoryFilterLabel(): string {
     if (this.selectedCategoryFilter === 'TRAFFIC') return 'Giao thông';
     if (this.selectedCategoryFilter === 'PERSON') return 'Đối tượng người';
+    if (this.selectedCategoryFilter === 'FACE') return 'Nhận diện khuôn mặt';
     return 'Tất cả loại Camera';
   }
   
@@ -183,41 +173,12 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   }
   
   getLocationFilterLabel(): string {
-    return this.selectedLocationFilter || 'Tất cả khu vực';
+    return this.selectedLocationFilter || 'Khu vực';
   }
   
   filterCameras(): void {
-    this.filteredCameras = this.cameras.filter(camera => {
-      // Filter by category
-      if (this.selectedCategoryFilter && camera.category !== this.selectedCategoryFilter) {
-        return false;
-      }
-      
-      // Filter by status
-      if (this.selectedStatusFilter === 'online' && camera.connectionStatus !== 1) {
-        return false;
-      }
-      if (this.selectedStatusFilter === 'offline' && camera.connectionStatus !== 0) {
-        return false;
-      }
-      
-      // Filter by location
-      if (this.selectedLocationFilter && camera.location !== this.selectedLocationFilter) {
-        return false;
-      }
-      
-      // Filter by search text
-      if (this.cameraSearchText) {
-        const searchLower = this.cameraSearchText.toLowerCase();
-        const nameMatch = camera.name?.toLowerCase().includes(searchLower);
-        const snMatch = camera.sn?.toLowerCase().includes(searchLower);
-        if (!nameMatch && !snMatch) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
+    // Backend now handles filtering, so we just reload data from API
+    this.loadCameraList();
   }
   
   clearFilters(): void {
@@ -225,54 +186,14 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     this.selectedStatusFilter = '';
     this.selectedLocationFilter = '';
     this.cameraSearchText = '';
-    this.initializeDateRange(); // Reset to today
-    this.filterCameras();
-    this.loadCameraList(); // Reload with default date
+    this.loadCameraList();
   }
   
   hasActiveFilters(): boolean {
     return this.selectedCategoryFilter !== '' || 
            this.selectedStatusFilter !== '' || 
            this.selectedLocationFilter !== '' || 
-           this.cameraSearchText !== '' ||
-           this.selectedTimeRange !== 'today';
-  }
-  
-  // Initialize date range to today
-  private initializeDateRange(): void {
-    const now = new Date();
-    this.fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    this.toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    this.selectedTimeRange = 'today';
-    console.log('📅 Date range initialized to today:', {
-      fromDate: this.fromDate,
-      toDate: this.toDate
-    });
-  }
-  
-  // Handle date range selection from picker
-  onDateRangeSelected(dateRange: { startDate: Date; endDate: Date }): void {
-    console.log('📅 Date range selected:', dateRange);
-    this.fromDate = new Date(dateRange.startDate);
-    this.fromDate.setHours(0, 0, 0, 0);
-    this.toDate = new Date(dateRange.endDate);
-    this.toDate.setHours(23, 59, 59, 999);
-    this.selectedTimeRange = 'custom';
-    this.customDateRange = {
-      start: this.fromDate,
-      end: this.toDate
-    };
-    
-    // Reload data with new date range
-    this.loadCameraList();
-  }
-  
-  // Handle date range cleared
-  onDateRangeCleared(): void {
-    console.log('📅 Date range cleared, resetting to today');
-    this.initializeDateRange();
-    this.customDateRange = { start: null, end: null };
-    this.loadCameraList();
+           this.cameraSearchText !== '';
   }
   
   // Load camera list
@@ -280,15 +201,26 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     console.log('📡 loadCameraList() - Starting to call getHomepageStats API...');
     this.loadingCameras = true;
     
-    // Prepare API params with date range
+    // Build filter params for backend
     const params: any = {};
-    if (this.fromDate && this.toDate) {
-      params.fromUtc = this.fromDate.toISOString();
-      params.toUtc = this.toDate.toISOString();
-      console.log('📅 API params with date range:', params);
+    
+    if (this.selectedCategoryFilter) {
+      params.category = this.selectedCategoryFilter;
     }
     
-    console.log('🌐 Calling API: /api/admin/events/stats/homepage');
+    if (this.selectedStatusFilter) {
+      params.status = this.selectedStatusFilter;
+    }
+    
+    if (this.selectedLocationFilter) {
+      params.location = this.selectedLocationFilter;
+    }
+    
+    if (this.cameraSearchText) {
+      params.cameraSn = this.cameraSearchText;
+    }
+    
+    console.log('🌐 Calling API: /api/admin/events/stats/homepage with params:', params);
     this.dashboardService.getHomepageStats(params).subscribe({
       next: (response) => {
         console.log('📊 Homepage stats response:', response);
@@ -353,40 +285,114 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   }
   
   private updateCameraLocations(locations: any[]): void {
-    this.cameraLocations = [];
+    const newLocations: any[] = [];
+    const coordMap = new Map<string, number>(); // Track duplicate coordinates
     
     locations.forEach((location: any) => {
       if (location.cameraInfo && Array.isArray(location.cameraInfo)) {
         location.cameraInfo.forEach((camera: any) => {
           if (camera.latitude && camera.longitude) {
-            // Calculate total count based on camera type
-            const count = camera.cameraType === 'PERSON' 
-              ? (camera.totalPersonDetected || 0)
-              : (camera.totalTrafficDetected || 0) + (camera.totalTrafficViolation || 0);
+            // Calculate badge count based on camera type:
+            // TRAFFIC camera: show totalTrafficDetected (lưu lượng giao thông)
+            // PERSON camera: show totalPersonDetected (phát hiện người)
+            // FACE camera: show faceRecognition (nhận diện khuôn mặt)
+            // Note: Vi phạm (totalTrafficViolation) hiển thị trong InfoWindow, KHÔNG phải badge count
+            let count = 0;
+            if (camera.cameraType === 'TRAFFIC') {
+              count = camera.totalTrafficDetected || 0;
+            } else if (camera.cameraType === 'PERSON') {
+              count = camera.totalPersonDetected || 0;
+            } else if (camera.cameraType === 'FACE') {
+              count = camera.faceRecognition || 0;
+            }
             
-            this.cameraLocations.push({
-              name: location.location || camera.address, // Ưu tiên tên location chung
+            // FIX DUPLICATE GPS: Apply small offset for duplicate coordinates
+            let lat = camera.latitude;
+            let lng = camera.longitude;
+            const coordKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+            
+            if (coordMap.has(coordKey)) {
+              // Duplicate detected! Apply offset (0.0001° ≈ 11 meters)
+              const offsetCount = coordMap.get(coordKey)!;
+              lat += offsetCount * 0.0001;  // Move slightly north
+              lng += offsetCount * 0.0001;  // Move slightly east
+              coordMap.set(coordKey, offsetCount + 1);
+              console.warn(`⚠️ Duplicate GPS fixed: ${camera.cameraSn} offset by ${offsetCount * 11}m from ${coordKey}`);
+            } else {
+              coordMap.set(coordKey, 1);
+            }
+            
+            const cameraLocation = {
+              name: camera.address || camera.cameraName || location.location,
               cameraSn: camera.cameraSn,
               cameraCode: camera.cameraSn,
-              lat: camera.latitude,
-              lng: camera.longitude,
+              lat: lat,
+              lng: lng,
               count: count,
               type: camera.cameraType,
-              address: camera.address || location.location, // Lưu address chi tiết cho info window
+              address: camera.address || location.location,
               totalPersonDetected: camera.totalPersonDetected || 0,
               totalTrafficDetected: camera.totalTrafficDetected || 0,
               totalTrafficViolation: camera.totalTrafficViolation || 0,
+              faceRecognition: camera.faceRecognition || 0,
               totalIn: camera.totalPersonDetected || 0,
               totalOut: camera.totalTrafficDetected || 0,
               locationName: location.location
-            });
+            };
+            
+            newLocations.push(cameraLocation);
+            
+            // Debug log for specific camera
+            if (camera.cameraSn === 'ACVN248240000046') {
+              console.log('🎯 Found ACVN248240000046:', {
+                type: camera.cameraType,
+                lat: camera.latitude,
+                lng: camera.longitude,
+                count: count,
+                traffic: camera.totalTrafficDetected,
+                violation: camera.totalTrafficViolation,
+                person: camera.totalPersonDetected,
+                face: camera.faceRecognition,
+                location: location.location
+              });
+            }
           }
         });
       }
     });
     
+    // Use spread operator to create new array reference for OnPush change detection
+    this.cameraLocations = [...newLocations];
+    
     console.log('📍 Updated camera locations:', this.cameraLocations.length);
-    console.log('📍 Sample camera:', this.cameraLocations[0]);
+    console.log('📍 TRAFFIC cameras:', this.cameraLocations.filter(c => c.type === 'TRAFFIC').length);
+    console.log('📍 PERSON cameras:', this.cameraLocations.filter(c => c.type === 'PERSON').length);
+    console.log('📍 FACE cameras:', this.cameraLocations.filter(c => c.type === 'FACE').length);
+    
+    // Log detailed camera info including count/badge values
+    console.log('📍 Detailed camera info with badge counts:');
+    this.cameraLocations.forEach((cam, index) => {
+      console.log(`  [${index}] ${cam.cameraSn} (${cam.type}):`, {
+        lat: cam.lat.toFixed(6),
+        lng: cam.lng.toFixed(6),
+        badgeCount: cam.count,
+        totalPersonDetected: cam.totalPersonDetected,
+        totalTrafficDetected: cam.totalTrafficDetected,
+        totalTrafficViolation: cam.totalTrafficViolation,
+        faceRecognition: cam.faceRecognition,
+        location: cam.locationName,
+        address: cam.address
+      });
+    });
+    
+    // Log all camera coordinates after duplicate fix
+    console.log('📍 All camera coordinates (after duplicate GPS fix):');
+    this.cameraLocations.forEach((cam, index) => {
+      console.log(`  [${index}] ${cam.cameraSn} (${cam.type}): ${cam.lat.toFixed(6)}, ${cam.lng.toFixed(6)} | count: ${cam.count} | name: ${cam.name}`);
+    });
+    
+    console.log('📍 Total cameras:', this.cameraLocations.length);
+    console.log('✅ All cameras ready to display on map with unique GPS positions');
   }
 
   exportReport(): void {
@@ -396,39 +402,68 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   
   // Camera list methods
   private extractCamerasFromLocations(locations: any[]): void {
-    this.cameras = [];
+    const newCameras: any[] = [];
     const locationSet = new Set<string>();
     
     locations.forEach((location: any) => {
       if (location.cameraInfo && Array.isArray(location.cameraInfo)) {
         location.cameraInfo.forEach((camera: any) => {
-          // Calculate event count based on camera type
-          const eventCount = camera.cameraType === 'PERSON'
-            ? (camera.totalPersonDetected || 0)
-            : (camera.totalTrafficDetected || 0) + (camera.totalTrafficViolation || 0);
+          // Calculate event count based on camera type:
+          // TRAFFIC camera: show totalTrafficDetected (lưu lượng giao thông)
+          // PERSON camera: show totalPersonDetected (phát hiện người)
+          // FACE camera: show faceRecognition (nhận diện khuôn mặt)
+          // Note: Vi phạm (totalTrafficViolation) hiển thị riêng trong InfoWindow
+          let eventCount = 0;
+          if (camera.cameraType === 'TRAFFIC') {
+            eventCount = camera.totalTrafficDetected || 0;
+          } else if (camera.cameraType === 'PERSON') {
+            eventCount = camera.totalPersonDetected || 0;
+          } else if (camera.cameraType === 'FACE') {
+            eventCount = camera.faceRecognition || 0;
+          }
           
-          this.cameras.push({
+          const cameraData = {
             id: camera.cameraSn,
             sn: camera.cameraSn,
-            name: location.location || camera.address || camera.cameraName, // Ưu tiên tên location chung
+            name: camera.address || camera.cameraName || location.location,
             category: camera.cameraType,
-            connectionStatus: 1,
+            connectionStatus: camera.connectionStatus !== undefined ? camera.connectionStatus : 1,
             location: location.location,
-            address: camera.address || location.location, // Lưu address chi tiết cho info window
+            address: camera.address || location.location,
             latitude: camera.latitude,
             longitude: camera.longitude,
             eventCount: eventCount,
             totalPersonDetected: camera.totalPersonDetected || 0,
             totalTrafficDetected: camera.totalTrafficDetected || 0,
-            totalTrafficViolation: camera.totalTrafficViolation || 0
-          });
+            totalTrafficViolation: camera.totalTrafficViolation || 0,
+            faceRecognition: camera.faceRecognition || 0
+          };
+          
+          newCameras.push(cameraData);
+          
+          // Debug log for specific camera
+          if (camera.cameraSn === 'ACVN248240000046') {
+            console.log('🎯 Extracted ACVN248240000046 to cameras list:', {
+              category: cameraData.category,
+              eventCount: cameraData.eventCount,
+              lat: cameraData.latitude,
+              lng: cameraData.longitude
+            });
+          }
         });
       }
     });
     
+    // Use spread operator to create new array reference
+    this.cameras = [...newCameras];
     this.totalCameras = this.cameras.length;
-    this.filterCameras();
+    // Backend already filtered, so set filteredCameras directly
+    this.filteredCameras = [...newCameras];
+    
     console.log('📷 Extracted cameras from locations:', this.totalCameras);
+    console.log('📷 TRAFFIC cameras:', this.cameras.filter(c => c.category === 'TRAFFIC').length);
+    console.log('📷 PERSON cameras:', this.cameras.filter(c => c.category === 'PERSON').length);
+    console.log('📷 FACE cameras:', this.cameras.filter(c => c.category === 'FACE').length);
   }
   
   getCategoryIcon(category: string): string {
@@ -436,7 +471,10 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   }
   
   getCategoryLabel(category: string): string {
-    return category === 'PERSON' ? 'Đối tượng người' : 'Giao thông';
+    if (category === 'PERSON') return 'Đối tượng người';
+    if (category === 'TRAFFIC') return 'Giao thông';
+    if (category === 'FACE') return 'Nhận diện khuôn mặt';
+    return category;
   }
   
   toggleCameraStatus(camera: any): void {
@@ -575,9 +613,10 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
         );
         if (location) {
           location.totalTrafficDetected = (location.totalTrafficDetected || 0) + cameraTrafficCount;
+          // Update count: PERSON shows totalPersonDetected, TRAFFIC shows totalTrafficDetected only
           location.count = location.type === 'TRAFFIC' 
-            ? location.totalTrafficDetected + (location.totalTrafficViolation || 0)
-            : location.count;
+            ? location.totalTrafficDetected
+            : location.totalPersonDetected;
           console.log(`📍 Updated camera ${cameraSn} traffic to ${location.totalTrafficDetected}`);
         }
         
@@ -585,9 +624,10 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
         const camera = this.cameras.find(cam => cam.sn === cameraSn);
         if (camera) {
           camera.totalTrafficDetected = (camera.totalTrafficDetected || 0) + cameraTrafficCount;
+          // Update eventCount: PERSON shows totalPersonDetected, TRAFFIC shows totalTrafficDetected only
           camera.eventCount = camera.category === 'TRAFFIC'
-            ? camera.totalTrafficDetected + (camera.totalTrafficViolation || 0)
-            : camera.eventCount;
+            ? camera.totalTrafficDetected
+            : camera.totalPersonDetected;
         }
       });
       
@@ -614,9 +654,10 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
       const location = this.cameraLocations.find(loc => loc.cameraSn === data.cameraSn);
       if (location) {
         location.totalTrafficDetected = data.totalTrafficDetected;
+        // Update count: TRAFFIC shows totalTrafficDetected only
         location.count = location.type === 'TRAFFIC' 
-          ? (data.totalTrafficDetected || 0) + (location.totalTrafficViolation || 0)
-          : location.count;
+          ? data.totalTrafficDetected
+          : location.totalPersonDetected;
       }
     }
   }
@@ -651,9 +692,7 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
         );
         if (location) {
           location.totalTrafficViolation = (location.totalTrafficViolation || 0) + cameraViolationCount;
-          if (location.type === 'TRAFFIC') {
-            location.count = (location.totalTrafficDetected || 0) + location.totalTrafficViolation;
-          }
+          // Count doesn't include violations - keep existing count
           console.log(`📍 Updated camera ${cameraSn} violations to ${location.totalTrafficViolation}`);
         }
         
@@ -661,9 +700,7 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
         const camera = this.cameras.find(cam => cam.sn === cameraSn);
         if (camera) {
           camera.totalTrafficViolation = (camera.totalTrafficViolation || 0) + cameraViolationCount;
-          camera.eventCount = camera.category === 'TRAFFIC'
-            ? (camera.totalTrafficDetected || 0) + camera.totalTrafficViolation
-            : camera.eventCount;
+          // eventCount doesn't include violations - keep existing eventCount
         }
       });
       
@@ -690,9 +727,7 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
       const location = this.cameraLocations.find(loc => loc.cameraSn === data.cameraSn);
       if (location) {
         location.totalTrafficViolation = data.totalTrafficViolation;
-        if (location.type === 'TRAFFIC') {
-          location.count = (location.totalTrafficDetected || 0) + data.totalTrafficViolation;
-        }
+        // Count doesn't include violations
       }
     }
   }

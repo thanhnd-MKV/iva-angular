@@ -151,8 +151,8 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
 
   // Current search params
   currentSearchParams: ObjectSearchParams = {
-    page: 1,
-    pageSize: 10
+    current: 1,
+    size: 10
   };
 
   constructor(
@@ -172,7 +172,10 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
-    if (!target.closest('.filter-btn-wrapper')) {
+    // Check if click is outside dropdown buttons and dropdown content
+    if (!target.closest('.filter-btn-wrapper') && 
+        !target.closest('.dropdown-menu') &&
+        !target.closest('.filter-dropdown')) {
       this.showGroupTypeDropdown = false;
       this.showDataSourceDropdown = false;
     }
@@ -226,10 +229,10 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
   onSearch() {
     this.currentPage = 0;
     this.currentSearchParams = {
-      page: 1,
-      pageSize: this.pageSize,
+      current: 1,
+      size: this.pageSize,
       searchText: this.searchText,
-      groupType: this.selectedGroupType,
+      trackingType: this.selectedGroupType, // Use trackingType for API filtering
       dataSource: this.selectedDataSource
     };
     this.loadObjectList();
@@ -288,9 +291,13 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
   onPageChange(page: number) {
     this.currentPage = page;
     
-    this.currentSearchParams.page = this.currentPage + 1;
+    // Update current page in search params and keep all filter params
+    this.currentSearchParams = {
+      ...this.currentSearchParams,
+      current: this.currentPage + 1
+    };
     
-    this.loadData();
+    this.loadObjectList();
   }
 
   // Selection handlers
@@ -397,9 +404,14 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
   getGroupBadgeClass(trackingType: string): string {
     // Map trackingType to badge classes
     const categoryMap: { [key: string]: string } = {
+      'Vip': 'badge-vip',
+      'VIP': 'badge-vip',
+      'VeryVip': 'badge-veryvip',
+      'Criminal': 'badge-blacklist',
+      'Blacklist': 'badge-blacklist',
       'Truy nã': 'badge-blacklist',
-      'Giám sát': 'badge-vip',
-      'VIP': 'badge-guest'
+      'Khach': 'badge-guest',
+      'Giám sát': 'badge-guest'
     };
     return categoryMap[trackingType] || 'badge-guest';
   }

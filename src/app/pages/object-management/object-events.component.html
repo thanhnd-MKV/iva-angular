@@ -30,6 +30,15 @@
         (rowClick)="handleRowClick($event)"
         (refresh)="onRetry()">
       </app-base-table>
+      
+      <!-- Pagination -->
+      <app-custom-paginator 
+        *ngIf="shouldShowPagination"
+        [totalItems]="totalItems"
+        [pageSize]="pageSize"
+        [currentPage]="pageIndex"
+        (pageChange)="onPageChange($event)">
+      </app-custom-paginator>
     </div>
 
     <!-- Tracking Map Section -->

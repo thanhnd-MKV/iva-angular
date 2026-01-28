@@ -21,6 +21,7 @@ export class HeaderComponent implements OnInit {
   eventId = ''; // Event ID for detail page
   isEventDetailPage = false; // Flag to show event ID
   isObjectManagementPage = false; // Flag for object management pages
+  isFromObjectManagement = false; // Flag to check if coming from object management
 
   constructor(
     private router: Router,
@@ -53,10 +54,14 @@ export class HeaderComponent implements OnInit {
   updateBreadcrumb() {
     const route = this.route;
     this.pageTitle = this.getTitleFromRoute(route);
+    
+    // Check if it's event detail from object management
+    this.isFromObjectManagement = this.router.url.includes('/object-management/event-detail/');
+    
     this.parentTitle = this.getParentTitle(this.router.url);
     
     // Check if it's event detail page and extract event ID
-    this.isEventDetailPage = this.router.url.includes('/event/detail/');
+    this.isEventDetailPage = this.router.url.includes('/event/detail/') || this.isFromObjectManagement;
     if (this.isEventDetailPage) {
       const urlParts = this.router.url.split('/');
       this.eventId = urlParts[urlParts.length - 1] || '';
@@ -65,7 +70,7 @@ export class HeaderComponent implements OnInit {
     }
     
     // Check if it's object management page (not the list page itself)
-    this.isObjectManagementPage = this.router.url.includes('/object-management/') && !this.router.url.endsWith('/object-management');
+    this.isObjectManagementPage = (this.router.url.includes('/object-management/') && !this.router.url.endsWith('/object-management')) || this.isFromObjectManagement;
     
     this.titleService.setTitle(this.pageTitle);
   }
@@ -79,7 +84,10 @@ export class HeaderComponent implements OnInit {
   }
 
   getParentTitle(url: string): string {
-    if (url.includes('/event/')) {
+    // Priority check for object-management event detail
+    if (url.includes('/object-management/event-detail/')) {
+      return 'Quản lý đối tượng';
+    } else if (url.includes('/event/')) {
       return 'Quản lý sự kiện';
     } else if (url.includes('/thong-ke/')) {
       return 'Thống kê sự kiện';
@@ -95,7 +103,10 @@ export class HeaderComponent implements OnInit {
 
   // Navigate back to previous page using browser history or specific route
   navigateToParent() {
-    if (this.isObjectManagementPage) {
+    if (this.isFromObjectManagement) {
+      // If from object management event detail, go back using history (to preserve the object events page)
+      this.location.back();
+    } else if (this.isObjectManagementPage) {
       this.router.navigate(['/object-management']);
     } else {
       this.location.back();

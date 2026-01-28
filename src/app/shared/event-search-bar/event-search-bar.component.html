@@ -1,32 +1,16 @@
 <div class="event-search-bar">
-  <!-- Row 1: Time Dropdown + Search Input + Clear Button -->
+  <!-- Row 1: Date Picker + Search Input + Clear Button -->
   <div class="search-row-1">
     <div class="left-section">
-      <!-- Time Range Dropdown -->
-      <div class="filter-dropdown time-dropdown" (clickOutside)="showTimeDropdown = false">
-        <button class="dropdown-trigger" (click)="toggleTimeDropdown()">
-          <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          <span class="trigger-label">{{ getTimeRangeLabel() }}</span>
-          <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M6 9l6 6 6-6"/>
-          </svg>
-        </button>
-        <div class="dropdown-menu" *ngIf="showTimeDropdown">
-          <div *ngFor="let option of timeRanges" 
-               class="dropdown-item"
-               [class.selected]="selectedTimeRange === option.value"
-               (click)="selectTimeRange(option)">
-            <span class="item-label">{{ option.label }}</span>
-            <svg *ngIf="selectedTimeRange === option.value" class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5"/>
-            </svg>
-          </div>
-        </div>
+      <!-- Date Range Picker -->
+      <div class="date-picker-wrapper">
+        <app-date-range-picker
+          #dateRangePicker
+          [forceCompactMode]="true"
+          [forceRightAlign]="false"
+          (dateRangeSelected)="onDateRangeSelected($event)"
+          (dateRangeCleared)="onDateRangeCleared()">
+        </app-date-range-picker>
       </div>
 
       <!-- Search Field Dropdown (nếu có searchFieldOptions) -->
@@ -63,17 +47,6 @@
           [(ngModel)]="searchValue"
           (keypress)="onSearchKeyPress($event)">
       </div>
-      
-      <!-- Custom Date Range Picker -->
-      <div class="custom-date-picker" *ngIf="showCustomDatePicker">
-        <app-date-range-picker
-          #dateRangePicker
-          [forceCompactMode]="true"
-          [forceRightAlign]="true"
-          (dateRangeSelected)="onDateRangeSelected($event)"
-          (dateRangeCleared)="onDateRangeCleared()">
-        </app-date-range-picker>
-      </div>
     </div>
 
     <div class="right-section">
@@ -87,7 +60,7 @@
   </div>
 
   <!-- Row 2: Filter Dropdowns + Search Buttons -->
-  <div class="search-row-2" [class.expanded]="showAdvancedFilters">
+  <div class="search-row-2" *ngIf="showAdvancedSearch" [class.expanded]="showAdvancedFilters">
     <!-- Toggle button khi chưa mở rộng -->
     <div class="collapsed-view" *ngIf="!showAdvancedFilters">
       <button class="advanced-search-toggle-btn" (click)="toggleAdvancedFilters()">

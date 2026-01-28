@@ -376,18 +376,23 @@
 }
 
 .group-badge.badge-vip {
-  background-color: #E3F2FD;
-  color: #1976D2;
+  background-color: #DBEAFE;
+  color: #2563EB;
+}
+
+.group-badge.badge-veryvip {
+  background-color: #EDE9FE;
+  color: #7C3AED;
 }
 
 .group-badge.badge-blacklist {
-  background-color: #FFEBEE;
-  color: #D32F2F;
+  background-color: #FEE2E2;
+  color: #DC2626;
 }
 
 .group-badge.badge-guest {
-  background-color: #F5F5F5;
-  color: #616161;
+  background-color: #F3F4F6;
+  color: #6B7280;
 }
 
 /* DateTime Cell */

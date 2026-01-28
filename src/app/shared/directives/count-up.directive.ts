@@ -65,7 +65,7 @@ export class CountUpDirective implements OnChanges, OnDestroy {
       // Easing function (ease-out cubic for smooth deceleration)
       const easeProgress = 1 - Math.pow(1 - progress, 3);
       
-      const current = Math.round(start + (difference * easeProgress));
+      const current = Math.floor(start + (difference * easeProgress));
       this.currentDisplayValue = current;
       this.el.nativeElement.textContent = `${this.prefix}${current}${this.suffix}`;
 

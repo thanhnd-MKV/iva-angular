@@ -14,14 +14,14 @@ export interface UISearchParams {
 
 export interface APIQueryParams {
   isSuspect?: string;
-  personId?: string;
+  suspectId?: string;
   recognitionThreshold?: number;
   gender?: string;
   cameraSn?: string;
   fromUtc?: string;
   toUtc?: string;
   page?: number;
-  pageSize?: number;
+  size?: number;
   [key: string]: any;
 }
 
@@ -29,19 +29,17 @@ export interface APIQueryParams {
  * Map UI search parameters to API query parameters
  * 
  * @param searchParams - Parameters from event-search-bar component
- * @param options - Additional options like personId, page, pageSize
+ * @param options - Additional options like , page, pageSize
  * @returns Mapped API query parameters
  * 
  * @example
- * const apiParams = mapSearchParamsToAPI(searchParams, { personId: '1', page: 0 });
- * // Result: { isSuspect: 'true', personId: '1', recognitionThreshold: 0.7, gender: 'male', fromUtc: '...', toUtc: '...' }
  */
 export function mapSearchParamsToAPI(
   searchParams: UISearchParams,
   options?: {
-    personId?: string;
+    suspectId?: string;
     page?: number;
-    pageSize?: number;
+    size?: number;
     includeSuspectFilter?: boolean;
   }
 ): APIQueryParams {
@@ -54,17 +52,17 @@ export function mapSearchParamsToAPI(
     apiParams.isSuspect = 'true';
   }
 
-  // Add personId if provided
-  if (options?.personId) {
-    apiParams.personId = options.personId;
+  // Add suspectId if provided
+  if (options?.suspectId) {
+    apiParams.suspectId = options.suspectId;
   }
 
   // Add pagination
   if (options?.page !== undefined) {
     apiParams.page = options.page;
   }
-  if (options?.pageSize !== undefined) {
-    apiParams.pageSize = options.pageSize;
+  if (options?.size !== undefined) {
+    apiParams.size = options.size;
   }
 
   // Map threshold (from slider, 0-1)
@@ -112,21 +110,3 @@ export function mapSearchParamsToAPI(
   return apiParams;
 }
 
-/**
- * Example usage in components:
- * 
- * ```typescript
- * import { mapSearchParamsToAPI } from '../../shared/utils/api-params.mapper';
- * 
- * onSearch(searchParams: any) {
- *   const apiParams = mapSearchParamsToAPI(searchParams, {
- *     personId: this.objectId,
- *     page: 0,
- *     pageSize: 50,
- *     includeSuspectFilter: true
- *   });
- *   
- *   this.objectService.getRelatedEvents(this.objectId, apiParams).subscribe(...);
- * }
- * ```
- */

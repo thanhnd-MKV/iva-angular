@@ -41,7 +41,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   // SSE for real-time traffic volume updates
   private sseSubscription?: Subscription;
   private routerSubscription?: Subscription;
-  private readonly SSE_CHANNEL = 'alarm';
+  private readonly SSE_CHANNEL = 'traffic-volume';
   private isPageActive = false;
   
   // Filter state
@@ -91,6 +91,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   mapCenter = { lat: 14.0583, lng: 108.2772 }; // Vietnam center for country view
   mapZoom = 5; // Start with country overview
   cameraLocations: any[] = [];
+  mapKey = 0; // Force map recreation on data change
   
   // Summary cards data - Different metrics for traffic flow (3 columns as per design)
   summaryCards = [
@@ -183,11 +184,8 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
             size: 11
           },
           callback: function(value) {
-            // Format large numbers (e.g., 1000 → 1k)
+            // Display full numbers without abbreviation
             if (typeof value === 'number') {
-              if (value >= 1000) {
-                return (value / 1000).toFixed(1) + 'k';
-              }
               return value;
             }
             return value;
@@ -261,28 +259,36 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   }
 
   private loadCameraOptions(): void {
+    console.log('📷 Loading camera options from /api/admin/camera/list...');
     this.cameraService.getCameraOptions().subscribe({
       next: (cameras) => {
-        this.cameraOptions = [
-          { label: 'Tất cả Camera', value: '' },
-          ...cameras
-        ];
+        this.cameraOptions = cameras; // Already includes "Tất cả Camera"
+        console.log('✅ Camera options loaded:', this.cameraOptions.length);
       },
       error: (error) => {
-        console.error('Error loading camera options:', error);
+        console.error('❌ Error loading camera options:', error);
       }
     });
   }
   
   private loadLocationOptions(): void {
-    console.log('Loading location options from service...');
-    this.locationService.getLocations().subscribe({
-      next: (locations) => {
-        this.locationOptions = locations;
-        console.log('✅ Location options loaded:', this.locationOptions.length);
+    console.log('📍 Loading location options from /api/admin/camera/camera-with-location...');
+    this.cameraService.getCamerasWithLocation().subscribe({
+      next: (data) => {
+        // Map locations from API response
+        this.locationOptions = [
+          { label: 'Tất cả khu vực', value: '' },
+          ...data.locations.map(location => ({
+            label: location,
+            value: location
+          }))
+        ];
+        console.log('✅ Location options loaded:', this.locationOptions.length, 'locations');
       },
       error: (error) => {
-        console.error('Error loading location options:', error);
+        console.error('❌ Error loading location options:', error);
+        // Fallback to default
+        this.locationOptions = [{ label: 'Tất cả khu vực', value: '' }];
       }
     });
   }
@@ -678,8 +684,8 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
         total: cams.reduce((sum, c) => sum + c.total, 0)
       })));
       
-      // Convert groups to map locations format
-      this.cameraLocations = Object.entries(coordGroups).map(([coordKey, cameras], groupIndex) => {
+      // Convert groups to map locations format - use spread operator for new array reference
+      this.cameraLocations = [...Object.entries(coordGroups).map(([coordKey, cameras], groupIndex) => {
         const totalCount = cameras.reduce((sum, cam) => sum + cam.total, 0);
         const locationNames = [...new Set(cameras.map(c => c.locationName))].join(', ');
         
@@ -708,7 +714,10 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
         });
         
         return markerData;
-      });
+      })];
+      
+      // Increment mapKey to force map recreation
+      this.mapKey++;
       
       console.log('🗺️ ✅ Final camera locations (markers):', this.cameraLocations.length);
       console.log('🗺️ 🗺️ Complete markers list:', this.cameraLocations.map((loc, i) => ({ 
@@ -752,6 +761,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
         // Reset to default Vietnam overview
         this.mapCenter = { lat: 14.0583, lng: 108.2772 };
         this.mapZoom = 5;
+        this.mapKey++;
         this.cdr.detectChanges();
       }
     }
@@ -1073,9 +1083,76 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
     // Use API provided values - support both new and old formats
     const totalVehicles = apiData.totalVehicles || 0;
     
-    // Most common vehicle type
-    const mostCommonVehicleType = apiData.mostCommonVehicleType || apiData.mostCommonVehicleClass || 'Motor';
-    const mostCommonVehicleCount = apiData.mostCommonVehicleCount || apiData.mostCommonVehicleClassCount || 0;
+    // Most common vehicle type - try to get from API first
+    let mostCommonVehicleType = apiData.mostCommonVehicleType || apiData.mostCommonVehicleClass;
+    let mostCommonVehicleCount = apiData.mostCommonVehicleCount || apiData.mostCommonVehicleClassCount || 0;
+    
+    // If API doesn't provide mostCommonVehicleType, calculate from chart data
+    if (!mostCommonVehicleType) {
+      const vehicleCounts: { [key: string]: number } = {};
+      
+      // Check hourly data
+      if (apiData.hourlyData && typeof apiData.hourlyData === 'object') {
+        console.log('📊 Processing hourlyData for vehicle type calculation');
+        Object.values(apiData.hourlyData).forEach((vehicles: any) => {
+          if (vehicles && typeof vehicles === 'object') {
+            Object.entries(vehicles).forEach(([type, count]: [string, any]) => {
+              if (type !== 'Unknown') { // Exclude Unknown
+                vehicleCounts[type] = (vehicleCounts[type] || 0) + (count || 0);
+              }
+            });
+          }
+        });
+      } else if (apiData.hourlyBreakdown && Array.isArray(apiData.hourlyBreakdown)) {
+        console.log('📊 Processing hourlyBreakdown for vehicle type calculation');
+        apiData.hourlyBreakdown.forEach((hour: any) => {
+          if (hour.vehicles) {
+            Object.entries(hour.vehicles).forEach(([type, count]: [string, any]) => {
+              if (type !== 'Unknown') { // Exclude Unknown
+                vehicleCounts[type] = (vehicleCounts[type] || 0) + (count || 0);
+              }
+            });
+          }
+        });
+      } else if (apiData.dailyBreakdown && Array.isArray(apiData.dailyBreakdown)) {
+        console.log('📊 Processing dailyBreakdown for vehicle type calculation');
+        apiData.dailyBreakdown.forEach((day: any) => {
+          if (day.vehicles) {
+            Object.entries(day.vehicles).forEach(([type, count]: [string, any]) => {
+              if (type !== 'Unknown') { // Exclude Unknown
+                vehicleCounts[type] = (vehicleCounts[type] || 0) + (count || 0);
+              }
+            });
+          }
+        });
+      } else {
+        console.warn('⚠️ No vehicle breakdown data available in API response');
+        console.log('📊 API data structure:', Object.keys(apiData));
+      }
+      
+      // Find vehicle type with highest count
+      let maxCount = 0;
+      Object.entries(vehicleCounts).forEach(([type, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommonVehicleType = type;
+          mostCommonVehicleCount = count;
+        }
+      });
+      
+      console.log('📊 Calculated vehicle counts from data:', vehicleCounts);
+      console.log('📊 Most common vehicle:', mostCommonVehicleType, 'with count:', mostCommonVehicleCount);
+      
+      // If still no data, don't set default yet - will handle below
+      if (Object.keys(vehicleCounts).length === 0) {
+        console.warn('⚠️ Could not calculate vehicle type distribution - no breakdown data in API');
+      }
+    }
+    
+    // Default to Motor if still no data
+    if (!mostCommonVehicleType) {
+      mostCommonVehicleType = 'Motor';
+    }
     
     // Peak hour/day
     const peakHour = apiData.peakHour;
@@ -1097,29 +1174,44 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       isHourlyData: !!isHourlyData
     });
 
+    // Format display values for cards with proper null handling
+    const vehicleTypeDisplay = mostCommonVehicleType 
+      ? this.getVehicleTypeLabel(mostCommonVehicleType.toLowerCase()) 
+      : '--';
+    
+    const peakHourDisplay = isHourlyData 
+      ? (peakHour !== undefined && peakHour !== null ? this.formatPeakHourRange(peakHour) : '--') 
+      : (peakDay ? `Ngày ${peakDay}` : '--');
+
+    console.log('📊 Card display values:', {
+      vehicleType: vehicleTypeDisplay,
+      peakHour: peakHourDisplay,
+      peakHourRaw: peakHour
+    });
+
     // Process summary cards data
     this.summaryCards = [
       {
         title: 'Tổng số phương tiện',
-        value: totalVehicles,
+        value: totalVehicles || 0,
         change: 0,
         isPositive: true,
         color: 'blue'
       },
       {
         title: 'Phương tiện chiếm tỉ lệ cao nhất',
-        value: mostCommonVehicleCount,
+        value: 0, // Template displays subtitle instead
         change: 0,
         isPositive: true,
-        subtitle: this.getVehicleTypeLabel(mostCommonVehicleType.toLowerCase()) || 'Xe máy',
+        subtitle: vehicleTypeDisplay,
         color: 'green'
       },
       {
         title: isHourlyData ? 'Giờ cao điểm giao thông' : 'Ngày cao điểm giao thông',
-        value: isHourlyData ? peakHourCount : peakDayCount,
+        value: 0, // Template displays subtitle instead
         change: 0,
         isPositive: true,
-        subtitle: isHourlyData ? (peakHour !== undefined ? `${peakHour}:00` : 'N/A') : (peakDay ? `Ngày ${peakDay}` : 'N/A'),
+        subtitle: peakHourDisplay,
         color: 'purple'
       }
     ];
@@ -1255,7 +1347,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
           borderRadius: 2
         },
         {
-          label: 'Xe buýt',
+          label: 'Xe bus',
           data: xeBusData,
           backgroundColor: '#A78BFA', // Purple 
           borderWidth: 0,
@@ -1347,10 +1439,15 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       'car': 'Ô tô',
       'motor': 'Xe máy',
       'truck': 'Xe tải',
-      'bus': 'Xe buýt',
+      'bus': 'Xe bus',
       'unknown': 'Khác'
     };
     return labels[type] || type;
+  }
+
+  private formatPeakHourRange(peakHour: number): string {
+    // Format peak hour (e.g., 14 -> "14h")
+    return `${peakHour}h`;
   }
 
   toggleChartLegend(): void {
@@ -1536,21 +1633,29 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       next: (message) => {
         console.log(`📨 SSE Data [${this.SSE_CHANNEL}]:`, message);
         
-        // TEMPORARILY DISABLED - Check what event types BE is sending
-        // Filter: Only process TRAFFIC:frame for traffic volume
-        /*
+        // CRITICAL: Filter by event type - only process TRAFFIC events
         const eventType = message.event || 'message';
-        if (eventType !== 'TRAFFIC:frame') {
-          console.log(`🔇 Filtered out event type: ${eventType} (expected: TRAFFIC:frame)`);
+        if (!eventType.startsWith('TRAFFIC:')) {
+          console.log(`🔇 Filtered out event type: ${eventType} (expected: TRAFFIC:*)`);
           return;
         }
-        */
         
+        console.log(`✅ Processing TRAFFIC event: ${eventType}`);
         this.handleSSEUpdate(message.data || message);
       },
       error: (error) => {
+        // Check if it's SSE format error from backend
+        const isSSEFormatError = error?.message?.includes('Invalid SSE endpoint') || 
+                                 error?.message?.includes('application/json');
+        
+        if (isSSEFormatError) {
+          console.warn(`⚠️ SSE not available [${this.SSE_CHANNEL}]: Backend returned JSON instead of event-stream. Running without real-time updates.`);
+          // Don't reconnect if backend doesn't support SSE
+          return;
+        }
+        
         console.error(`❌ SSE Error [${this.SSE_CHANNEL}]:`, error);
-        // Auto reconnect after 5 seconds if page is still active
+        // Auto reconnect after 5 seconds if page is still active and not format error
         if (this.isPageActive) {
           setTimeout(() => {
             console.log(`🔄 Reconnecting to ${this.SSE_CHANNEL}...`);
@@ -1622,7 +1727,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
                 'Motor': 'Xe máy',
                 'Car': 'Xe ô tô',
                 'Truck': 'Xe tải',
-                'Bus': 'Xe buýt',
+                'Bus': 'Xe bus',
                 'Bicycle': 'Xe đạp'
               };
               highestCard.subtitle = vehicleTypeMap[maxVehicleType] || maxVehicleType;
@@ -1670,7 +1775,8 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
         }
       }
       
-      // CRITICAL: Force immediate UI update
+      // CRITICAL: Force immediate UI update with both markForCheck and detectChanges
+      this.cdr.markForCheck();
       this.cdr.detectChanges();
       console.log('✅ UI updated with SSE data');
     } catch (error) {
@@ -1682,6 +1788,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       const totalCard = this.summaryCards.find(c => c.title === 'Tổng số phương tiện');
       if (totalCard) {
         totalCard.value = data.totalVehicles;
+        this.cdr.markForCheck();
         this.cdr.detectChanges();
       }
     }
@@ -1690,6 +1797,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       const location = this.cameraLocations.find(loc => loc.cameraCode === data.cameraSn);
       if (location) {
         location.count = data.totalTrafficDetected;
+        this.cdr.markForCheck();
         this.cdr.detectChanges();
       }
     }

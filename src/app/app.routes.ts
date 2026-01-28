@@ -18,7 +18,7 @@ export const appRoutes: Routes = [
     children: [
       {
         path: 'dashboard',
-        title: 'Dashboard',
+        title: 'Trang chủ',
         canActivate: [PermissionGuard],
         loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
         data: {
@@ -69,28 +69,28 @@ export const appRoutes: Routes = [
       },
       {
         path: 'thong-ke/person-recognition',
-        title: 'Person Recognition',
+        title: 'Đối tượng ra vào',
         // canActivate: [PermissionGuard],
         // data: { permissions: ['thong-ke:person-recognition'] },
         loadComponent: () => import('./pages/statistics/person-recognition.component').then(m => m.PersonRecognitionComponent)
       },
       {
         path: 'thong-ke/entry-exit-flow',
-        title: 'Entry Exit Flow',
+        title: 'Lưu lượng ra vào',
         // canActivate: [PermissionGuard],
         // data: { permissions: ['thong-ke:entry-exit-flow'] },
         loadComponent: () => import('./pages/statistics/entry-exit-flow.component').then(m => m.EntryExitFlowComponent)
       },
       {
         path: 'thong-ke/traffic-flow',
-        title: 'Traffic Flow',
+        title: 'Lưu lượng giao thông',
         // canActivate: [PermissionGuard],
         // data: { permissions: ['thong-ke:traffic-flow'] },
         loadComponent: () => import('./pages/statistics/traffic-flow.component').then(m => m.TrafficFlowComponent)
       },
       {
         path: 'thong-ke/traffic-violation',
-        title: 'Traffic Violation',
+        title: 'Vi phạm giao thông',
         // canActivate: [PermissionGuard],
         // data: { permissions: ['thong-ke:traffic-violation'] },
         loadComponent: () => import('./pages/statistics/traffic-violation.component').then(m => m.TrafficViolationComponent)
@@ -121,7 +121,7 @@ export const appRoutes: Routes = [
         title: 'Chi tiết đối tượng',
         // canActivate: [PermissionGuard],
         // data: { permissions: ['object-management:detail'] },
-        loadComponent: () => import('./pages/object-management/object-detail.component').then(m => m.ObjectDetailComponent)
+        loadComponent: () => import('./pages/object-management/object-form.component').then(m => m.ObjectFormComponent)
       },
       {
         path: 'object-management/add',
@@ -145,6 +145,13 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./pages/object-management/object-events.component').then(m => m.ObjectEventsComponent)
       },
       {
+        path: 'object-management/event-detail/:id',
+        title: 'Chi tiết sự kiện',
+        // canActivate: [PermissionGuard],
+        // data: { permissions: ['object-management:event-detail'] },
+        loadComponent: () => import('./pages/event/event-detail-page.component').then(m => m.EventDetailPageComponent)
+      },
+      {
         path: 'notification-test',
         title: 'Test SSE Notification',
         // canActivate: [PermissionGuard],
@@ -158,7 +165,7 @@ export const appRoutes: Routes = [
       },
       {
         path: '',
-        title: 'Dashboard',
+        title: 'Trang chủ',
         redirectTo: 'dashboard',
         pathMatch: 'full'
       },

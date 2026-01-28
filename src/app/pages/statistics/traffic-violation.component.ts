@@ -60,6 +60,9 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
     'Wrong_Way_Driving': 'Đi sai làn',
     'No_Helmet': 'Không đội mũ bảo hiểm',
     'Phone_Use': 'Dùng điện thoại khi lái',
+    'Wrong_Parking': 'Đỗ xe sai',
+    'Speeding': 'Vượt quá tốc độ',
+    'No_Seatbelt': 'Không thắt dây an toàn',
     'Unknown': 'Vi phạm khác',
     'Other': 'Vi phạm khác'
   };
@@ -75,6 +78,12 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
     'Không đội mũ bảo hiểm': '#10B981',
     'Phone_Use': '#F59E0B',
     'Dùng điện thoại khi lái': '#F59E0B',
+    'Wrong_Parking': '#EC4899',
+    'Đỗ xe sai': '#EC4899',
+    'Speeding': '#F97316',
+    'Vượt quá tốc độ': '#F97316',
+    'No_Seatbelt': '#14B8A6',
+    'Không thắt dây an toàn': '#14B8A6',
     'Unknown': '#06B6D4',
     'Other': '#06B6D4',
     'Vi phạm khác': '#06B6D4'
@@ -346,9 +355,11 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
   private loadCameraOptions(): void {
     this.cameraService.getCameraOptions().subscribe({
       next: (cameras) => {
+        // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+        const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
         this.cameraOptions = [
           { label: 'Tất cả Camera', value: '' },
-          ...cameras
+          ...filteredCameras
         ];
       },
       error: (error) => {
@@ -534,8 +545,22 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
 
     console.log('Loading violation data with params:', params);
 
+    // Calculate number of days in range
+    const fromDate = new Date(fromUtc);
+    const toDate = new Date(toUtc);
+    const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Choose API endpoint based on date range
+    // If more than 1 day, use by-day API for daily breakdown
+    // If single day, use statistics API for detailed hourly data
+    const statisticsEndpoint = daysDiff > 1 
+      ? '/api/admin/events/traffic-violation/by-day'
+      : '/api/admin/events/traffic-violation/statistics';
+    
+    console.log(`📅 Date range: ${daysDiff} day(s) - Using endpoint: ${statisticsEndpoint}`);
+
     // Call both APIs and merge data
-    const statisticsCall = this.http.get('/api/admin/events/traffic-violation/statistics', { params });
+    const statisticsCall = this.http.get(statisticsEndpoint, { params });
     const statsCall = this.http.get('/api/admin/events/traffic-violation/stats', { params });
 
     // Call statistics API for chart and summary data
@@ -1604,12 +1629,33 @@ export class TrafficViolationComponent implements OnInit, OnDestroy {
   private updateSummaryCardValue(cardIndex: number, newValue: number, skipAnimation: boolean = false): void {
     const oldValue = this.summaryCards[cardIndex].value;
     
+    console.log(`🔢 [Card ${cardIndex}] Updating value:`, { old: oldValue, new: newValue, skipAnimation });
+    
     if (oldValue !== newValue && typeof oldValue === 'number') {
       this.summaryCards[cardIndex].value = newValue;
+      
+      // ALWAYS animate for SSE updates (skipAnimation only for initial load)
       if (!skipAnimation) {
+        console.log(`✨ [Card ${cardIndex}] Triggering animation from ${oldValue} to ${newValue}`);
         this.animateNumberDigits(cardIndex, oldValue, newValue);
+      } else {
+        // Update digits without animation (initial load)
+        const digits = newValue.toString().split('');
+        this.cardDigits[cardIndex] = digits.map((d, idx) => ({ 
+          digit: d, 
+          animate: false, 
+          key: idx 
+        }));
+        this.summaryDisplayValues[cardIndex] = newValue;
       }
-      this.cdr.detectChanges();
+      
+      // Use markForCheck() for OnPush strategy - more reliable than detectChanges()
+      this.cdr.markForCheck();
+      
+      // Also trigger detectChanges to ensure immediate update
+      setTimeout(() => {
+        this.cdr.detectChanges();
+      }, 0);
     }
   }
 

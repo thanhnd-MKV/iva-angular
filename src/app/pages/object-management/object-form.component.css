@@ -154,8 +154,20 @@
   padding-right: 36px;
 }
 
-.form-group select.select-blacklist {
-  color: #dc2626;
+.form-group select.select-blacklist,
+.form-group select option[value="Blacklist"],
+.form-group select option[value="Criminal"] {
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.form-group select option[value="Vip"] {
+  color: #2563EB;
+  font-weight: 600;
+}
+
+.form-group select option[value="VeryVip"] {
+  color: #7C3AED;
   font-weight: 600;
 }
 
@@ -321,6 +333,46 @@
 .btn-save:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-edit,
+.btn-trace {
+  min-width: 150px;
+  padding: 10px 20px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  height: 40px;
+  transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-edit:hover,
+.btn-trace:hover {
+  background: #1d4ed8;
+}
+
+.btn-edit mat-icon,
+.btn-trace mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.btn-trace {
+  background: #059669;
+  min-width: 220px;
+}
+
+.btn-trace:hover {
+  background: #047857;
 }
 
 /* Responsive */

@@ -80,8 +80,11 @@ export class SSEService {
       }
 
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('text/event-stream')) {
-        throw new Error(`Invalid SSE endpoint - received ${contentType}`);
+      console.log('📡 SSE Response content-type:', contentType);
+      
+      // Chấp nhận cả text/event-stream và application/json
+      if (!contentType || (!contentType.includes('text/event-stream') && !contentType.includes('application/json'))) {
+        console.warn(`⚠️ Unexpected content-type: ${contentType}, but will try to connect anyway`);
       }
 
       console.log('✅ Global SSE Connected');
@@ -444,9 +447,17 @@ export class SSEService {
                 try {
                   const parsed = JSON.parse(data);
                   
-                  // Filter: Only emit alarm events
+                  // Filter: Allow multiple event types for statistics screens
                   const eventType = currentEvent || 'message';
-                  const shouldEmit = eventType === 'alarm' || eventType === 'ALARM:event';
+                  const allowedEvents = [
+                    'alarm', 
+                    'ALARM:event',
+                    'objectRecognition',
+                    'pedestrianTraffic',
+                    'trafficVolume',
+                    'trafficViolation'
+                  ];
+                  const shouldEmit = allowedEvents.includes(eventType);
                   
                   if (shouldEmit) {
                     console.log(`📨 SSE Multi [${names.join(', ')}] PASSED filter - type: ${eventType}`, parsed);

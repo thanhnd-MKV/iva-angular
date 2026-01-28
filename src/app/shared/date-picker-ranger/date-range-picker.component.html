@@ -1,8 +1,11 @@
 <div class="daterangepicker-container" (click)="$event.stopPropagation()">
   <div #inputWrapperRef class="input-wrapper" (click)="toggleCalendar()">
-    <span class="calendar-icon"></span>
-    <input type="text" [value]="formattedDateRange" readonly placeholder="Chọn ngày">
+    <img src="../../../assets/icon/note.svg" alt="Calendar Icon" class="calendar-icon">
+    <input type="text" [value]="formattedDateRange" readonly placeholder="Chọn thời gian">
     <span *ngIf="startDate || endDate" class="clear-icon" (click)="clearData(); $event.stopPropagation()">×</span>
+       <img src="../../../assets/icon/drop-down.svg" 
+         alt="Dropdown Icon" 
+         class="dropdown-icon">
   </div>
   
   <div #popupRef 
@@ -12,7 +15,11 @@
        [class.popup-top]="popupPosition === 'top'"
        *ngIf="isOpen">
     <div class="calendar-header">
-      <button class="nav-arrow" (click)="changeMonth(-1)">&lt;</button>
+      <!-- <button class="nav-arrow" (click)="changeMonth(-1)">&lt;</button> -->
+      <img src="../../../assets/icon/arr-l.svg"
+           alt="Previous Month" 
+           class="nav-arrow" 
+           (click)="changeMonth(-1)">
 
       <div class="month-year-displays">
         <div class="calendar-controls">
@@ -62,7 +69,11 @@
         </div>
       </div>
 
-      <button class="nav-arrow" (click)="changeMonth(1)">&gt;</button>
+      <!-- <button class="nav-arrow" (click)="changeMonth(1)">&gt;</button> -->
+      <img src="../../../assets/icon/arr-r.svg" 
+           alt="Next Month" 
+           class="nav-arrow" 
+           (click)="changeMonth(1)">
     </div>
 
     <div class="calendars-wrapper">

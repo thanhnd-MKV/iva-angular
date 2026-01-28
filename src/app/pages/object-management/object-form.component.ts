@@ -35,6 +35,7 @@ import { DatePickerComponent } from '../../shared/date-picker/date-picker.compon
 export class ObjectFormComponent extends BaseErrorHandlerComponent implements OnInit {
   objectForm: FormGroup;
   isEditMode = false;
+  isViewMode = false; // View mode for detail page
   isLoading = false;
   isSaving = false;
   objectId: string = '';
@@ -42,10 +43,9 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
   uploadedFiles: File[] = []; // For API upload
 
   groupTypes = [
-    { value: 'Vip', label: 'VIP' },
-    { value: 'VeryVip', label: 'VIP cao cấp' },
-    { value: 'Criminal', label: 'Tội phạm' },
-    { value: 'Blacklist', label: 'Danh sách đen' }
+    { value: 'VIP', label: 'VIP' },
+    { value: 'Khách', label: 'Khách' },
+    { value: 'Blacklist', label: 'Blacklist' }
   ];
 
   dataSources = [
@@ -84,10 +84,19 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
 
   protected initializeComponent(): void {
     this.objectId = this.route.snapshot.paramMap.get('id') || '';
-    this.isEditMode = !!this.objectId;
+    const currentUrl = this.router.url;
     
-    if (this.isEditMode) {
+    // Determine mode based on route
+    this.isViewMode = currentUrl.includes('/detail/');
+    this.isEditMode = currentUrl.includes('/edit/') || (!!this.objectId && !this.isViewMode);
+    
+    if (this.objectId) {
       this.loadObjectData();
+    }
+    
+    // Disable form in view mode
+    if (this.isViewMode) {
+      this.objectForm.disable();
     }
   }
 
@@ -101,7 +110,21 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
     this.isLoading = true;
     this.objectService.getObjectById(this.objectId).subscribe({
       next: (data) => {
-        this.objectForm.patchValue(data);
+        // Map API response to form fields
+        this.objectForm.patchValue({
+          name: data.fullName,
+          objectId: data.objectId,
+          groupType: data.trackingType,
+          dataSource: data.dataSource,
+          cccdNumber: data.citizenId,
+          nationality: data.nationality,
+          cccdIssueDate: data.citizenIdIssuedDate,
+          cccdIssuePlace: data.citizenIdIssuedPlace,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender === 'Nam' ? 'male' : (data.gender === 'Nữ' ? 'female' : data.gender),
+          origin: data.hometown,
+          residence: data.permanentResidence
+        });
         this.uploadedImages = data.images || [];
         this.isLoading = false;
       },
@@ -173,14 +196,17 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
       // Create mode - use multipart/form-data format
       const personData = {
         fullName: this.objectForm.value.name,
+        objectId: this.objectForm.value.objectId, // ID đối tượng (không phải id tự sinh từ BE)
         trackingType: this.objectForm.value.groupType,
         gender: this.objectForm.value.gender || 'male',
         // Optional fields
-        cccdNumber: this.objectForm.value.cccdNumber,
+        citizenId: this.objectForm.value.cccdNumber,
         nationality: this.objectForm.value.nationality,
+        citizenIdIssuedDate: this.objectForm.value.cccdIssueDate,
+        citizenIdIssuedPlace: this.objectForm.value.cccdIssuePlace,
         dateOfBirth: this.objectForm.value.dateOfBirth,
-        origin: this.objectForm.value.origin,
-        residence: this.objectForm.value.residence
+        hometown: this.objectForm.value.origin,
+        permanentResidence: this.objectForm.value.residence
       };
       
       const apiData = {
@@ -190,9 +216,19 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
       
       var request = this.objectService.createObject(apiData);
     } else {
-      // Edit mode - use existing format
+      // Edit mode - map form to API format
       const formData = {
-        ...this.objectForm.value,
+        fullName: this.objectForm.value.name,
+        objectId: this.objectForm.value.objectId,
+        trackingType: this.objectForm.value.groupType,
+        citizenId: this.objectForm.value.cccdNumber,
+        nationality: this.objectForm.value.nationality,
+        citizenIdIssuedDate: this.objectForm.value.cccdIssueDate,
+        citizenIdIssuedPlace: this.objectForm.value.cccdIssuePlace,
+        dateOfBirth: this.objectForm.value.dateOfBirth,
+        gender: this.objectForm.value.gender,
+        hometown: this.objectForm.value.origin,
+        permanentResidence: this.objectForm.value.residence,
         images: this.uploadedImages
       };
       var request = this.objectService.updateObject(this.objectId, formData);
@@ -225,5 +261,13 @@ export class ObjectFormComponent extends BaseErrorHandlerComponent implements On
 
   goBack() {
     this.router.navigate(['/object-management']);
+  }
+
+  editObject() {
+    this.router.navigate(['/object-management/edit', this.objectId]);
+  }
+
+  viewRelatedEvents() {
+    this.router.navigate(['/object-management/events', this.objectId]);
   }
 }

@@ -309,7 +309,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       },
       { 
         data: Array(24).fill(0),
-        label: 'Khác', 
+        label: 'Chưa xác định', 
         borderColor: '#3b82f6', 
         backgroundColor: 'transparent',
         tension: 0.4,
@@ -424,10 +424,10 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       
       // Update value
       this.summaryCards[index].value = newValue;
-      this.cdr.markForCheck();
       
       // Animate if it's a number (but skip if initial load)
       if (!skipAnimation && typeof newValue === 'number' && typeof oldValue === 'number') {
+        console.log(`✨ [Card ${index}] Triggering animation from ${oldValue} to ${newValue}`);
         this.animateNumberDigits(index, oldValue, newValue);
       } else if (skipAnimation && typeof newValue === 'number') {
         // CRITICAL: Update cardDigits directly without animation
@@ -436,6 +436,14 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
         this.summaryDisplayValues[index] = newValue;
         console.log(`📊 Updated cardDigits[${index}] directly (no animation):`, this.cardDigits[index]);
       }
+      
+      // Use markForCheck() for OnPush strategy - more reliable than detectChanges()
+      this.cdr.markForCheck();
+      
+      // Also trigger detectChanges to ensure immediate update
+      setTimeout(() => {
+        this.cdr.detectChanges();
+      }, 0);
       
       console.log('✅ Card updated', skipAnimation ? '(no animation)' : '');
     }
@@ -531,9 +539,11 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
   private loadCameraOptions(): void {
     this.cameraService.getCameraOptions().subscribe({
       next: (cameras) => {
+        // Filter out any "Tất cả Camera" from cameras to avoid duplicates
+        const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
         this.cameraOptions = [
           { label: 'Tất cả Camera', value: '' },
-          ...cameras
+          ...filteredCameras
         ];
       },
       error: (error) => {
@@ -780,8 +790,8 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
         const count = ageRange[ageKey] || 0;
         totalCount += count;
         
-        // Display "Khác" for Unknown in the chart and legend
-        const displayLabel = ageKey === 'Unknown' ? 'Khác' : ageKey;
+        // Display "Chưa xác định" for Unknown in the chart and legend
+        const displayLabel = ageKey === 'Unknown' ? 'Chưa xác định' : ageKey;
         
         // Store count with displayLabel as key for legend
         this.ageGroupCounts[displayLabel] = count;
@@ -874,7 +884,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
           },
           { 
             data: unknownData,
-            label: 'Khác', 
+            label: 'Chưa xác định', 
             borderColor: '#f59e0b', 
             backgroundColor: 'transparent',
             tension: 0.4,
@@ -994,7 +1004,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
           },
           { 
             data: unknownData,
-            label: 'Khác', 
+            label: 'Chưa xác định', 
             borderColor: '#f59e0b', 
             backgroundColor: 'transparent',
             tension: 0.4,
@@ -1114,7 +1124,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     });
     
     // Find dominant age group (exclude Unknown)
-    let dominantAgeGroup = '20-29t';
+    let dominantAgeGroup: string | number = '20-29t';
     let maxAgeCount = 0;
     Object.entries(data.age_range).forEach(([ageRange, count]) => {
       // Skip Unknown age group
@@ -1124,16 +1134,26 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       }
     });
     
+    // If no data found, set to 0
+    if (maxAgeCount === 0) {
+      dominantAgeGroup = 0;
+      console.log('⚠️ No age range data - setting dominant age group to 0');
+    }
+    
     // Update only changed values to avoid unnecessary animations
     console.log('🎯 ABOUT TO UPDATE CARDS:', { 
       totalCount, 
       maxCount, 
       dominantAgeGroup,
+      skipAnimation: isDayView,
       currentCards: this.summaryCards.map(c => ({ title: c.title, value: c.value }))
     });
-    this.updateSummaryCardValue(0, totalCount, true);
-    this.updateSummaryCardValue(1, maxCount, true);
-    this.updateSummaryCardValue(2, dominantAgeGroup, true);
+    
+    // Pass skipAnimation based on isDayView (skip animation for initial load, animate for SSE updates)
+    this.updateSummaryCardValue(0, totalCount, isDayView);
+    this.updateSummaryCardValue(1, maxCount, isDayView);
+    this.updateSummaryCardValue(2, dominantAgeGroup, isDayView);
+    
     console.log('✅ AFTER UPDATE CARDS:', {
       currentCards: this.summaryCards.map(c => ({ title: c.title, value: c.value }))
     });
@@ -1174,7 +1194,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
         },
         { 
           data: unknownCount,
-          label: 'Khác', 
+          label: 'Chưa xác định', 
           borderColor: '#3b82f6', 
           backgroundColor: 'transparent',
           tension: 0.4,
@@ -1341,7 +1361,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     const labels = this.donutChartData.labels as string[];
     
     // Use the same color array as in updateDonutChartFromAgeRange
-    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Khác'];
+    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Chưa xác định'];
     const allColors = ['#8b5cf6', '#f97316', '#84cc16', '#ec4899', '#3b82f6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#9ca3af'];
     
     // Map each label to its original color based on age group order
@@ -1350,7 +1370,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       const displayLabel = label;
       let colorIndex = ageGroupsOrder.indexOf(displayLabel);
       
-      // If not found directly, might need to handle "Unknown" vs "Khác" mapping
+      // If not found directly, might need to handle "Unknown" vs "Chưa xác định" mapping
       if (colorIndex === -1) {
         colorIndex = 0; // Default color
       }

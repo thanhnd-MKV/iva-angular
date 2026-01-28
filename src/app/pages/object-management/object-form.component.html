@@ -117,13 +117,31 @@
 
         <!-- Form Actions -->
         <div class="form-actions">
-          <button class="btn-cancel" type="button" (click)="onCancel()" [disabled]="isSaving">
-            Hủy
-          </button>
-          <button class="btn-save" type="submit" [disabled]="isSaving">
-            <span *ngIf="!isSaving">{{ isEditMode ? 'Lưu chỉnh sửa' : 'Lưu' }}</span>
-            <span *ngIf="isSaving">Đang lưu...</span>
-          </button>
+          <!-- View Mode Actions (Detail page) -->
+          <ng-container *ngIf="isViewMode">
+            <button class="btn-cancel" type="button" (click)="onCancel()">
+              Quay lại
+            </button>
+            <button class="btn-trace" type="button" (click)="viewRelatedEvents()">
+              <mat-icon>timeline</mat-icon>
+              Truy vết sự kiện liên quan
+            </button>
+            <button class="btn-edit" type="button" (click)="editObject()">
+              <mat-icon>edit</mat-icon>
+              Chỉnh sửa
+            </button>
+          </ng-container>
+
+          <!-- Edit/Add Mode Actions -->
+          <ng-container *ngIf="!isViewMode">
+            <button class="btn-cancel" type="button" (click)="onCancel()" [disabled]="isSaving">
+              Hủy
+            </button>
+            <button class="btn-save" type="submit" [disabled]="isSaving">
+              <span *ngIf="!isSaving">{{ isEditMode ? 'Lưu chỉnh sửa' : 'Lưu' }}</span>
+              <span *ngIf="isSaving">Đang lưu...</span>
+            </button>
+          </ng-container>
         </div>
       </form>
     </div>

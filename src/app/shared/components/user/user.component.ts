@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../../core/services/auth.service';
 import { UnderDevelopmentService } from '../../services/under-development.service';
 import { NotificationPopupComponent } from '../notification-popup/notification-popup.component';
+import { NotificationService } from '../../services/notification.service';
 import { SSEService } from '../../../core/services/sse.service';
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { Subscription } from 'rxjs';
@@ -35,12 +36,14 @@ export class UserComponent implements OnInit, OnDestroy {
   isNotificationOpen = false;
   notificationCount = 0;
   private sseSubscription?: Subscription;
+  private notificationCountSubscription?: Subscription;
   
   constructor(
     private authService: AuthService,
     private router: Router,
     private dialog: MatDialog,
     private sseService: SSEService,
+    private notificationService: NotificationService,
     public underDevService: UnderDevelopmentService
   ) {}
 
@@ -49,15 +52,18 @@ export class UserComponent implements OnInit, OnDestroy {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        this.username = user.userName || 'Unknown';
+        this.username = user.realName || 'Unknown';
         this.userEmail = user.email || user.userName + '@iva.com';
       } catch (e) {
         console.warn('Lỗi parse session user:', e);
       }
     }
     
-    // Load initial notification count
-    this.updateNotificationCount();
+    // Load notifications from API on init
+    this.loadNotificationsFromAPI();
+    
+    // Subscribe to notification count changes
+    this.subscribeToNotificationCount();
     
     // Subscribe to SSE to update badge in real-time
     this.subscribeToSSE();
@@ -67,29 +73,49 @@ export class UserComponent implements OnInit, OnDestroy {
     if (this.sseSubscription) {
       this.sseSubscription.unsubscribe();
     }
+    if (this.notificationCountSubscription) {
+      this.notificationCountSubscription.unsubscribe();
+    }
   }
 
-  private subscribeToSSE(): void {
-    this.sseSubscription = this.sseService.getGlobalStream().subscribe({
-      next: () => {
-        // Update count when new notification arrives
-        this.updateNotificationCount();
+  private loadNotificationsFromAPI(): void {
+    console.log('🌐 [USER-BELL] Loading notifications from API...');
+    this.notificationService.loadNotificationsFromAPI().subscribe({
+      next: (notifications) => {
+        console.log('✅ [USER-BELL] Loaded notifications:', notifications.length);
+      },
+      error: (error) => {
+        console.error('❌ [USER-BELL] Error loading notifications:', error);
       }
     });
   }
 
-  private updateNotificationCount(): void {
-    const stored = localStorage.getItem('notifications');
-    if (stored) {
-      try {
-        const notifications = JSON.parse(stored);
-        this.notificationCount = notifications.filter((n: any) => !n.read).length;
-      } catch (e) {
-        this.notificationCount = 0;
+  private subscribeToNotificationCount(): void {
+    this.notificationCountSubscription = this.notificationService.unreadCount$.subscribe(count => {
+      this.notificationCount = count;
+      console.log('🔔 [USER-BELL] Unread count updated:', count);
+    });
+  }
+
+  private subscribeToSSE(): void {
+    this.sseSubscription = this.sseService.getGlobalStream().subscribe({
+      next: (event) => {
+        console.log('🔔 [USER-BELL] Received SSE event:', event);
+        
+        // *** FILTER: ONLY PROCESS ALARM EVENTS FOR BELL ***
+        const eventType = event.event || event.type;
+        const isAlarm = eventType === 'alarm' || eventType === 'ALARM:event';
+        
+        console.log('🔍 [USER-BELL] Event type:', eventType, 'isAlarm:', isAlarm);
+        
+        if (isAlarm) {
+          console.log('✅ [USER-BELL] Alarm event - adding to notification service');
+          this.notificationService.addNotificationFromSSE(event);
+        } else {
+          console.log('🔇 [USER-BELL] Non-alarm event filtered:', eventType);
+        }
       }
-    } else {
-      this.notificationCount = 0;
-    }
+    });
   }
 
   toggleMenu() {
@@ -114,10 +140,7 @@ export class UserComponent implements OnInit, OnDestroy {
       backdropClass: 'notification-backdrop'
     });
     
-    // Update count after dialog closes
-    dialogRef.afterClosed().subscribe(() => {
-      this.updateNotificationCount();
-    });
+    // No need to update count after dialog closes - using Observable now
   }
 
   closeNotifications() {

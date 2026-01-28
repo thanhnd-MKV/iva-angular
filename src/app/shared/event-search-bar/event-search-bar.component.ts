@@ -52,21 +52,7 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   currentDateTime: string = '';
   private dateTimeInterval: any;
   
-  // Show custom date picker
-  showCustomDatePicker: boolean = false;
-
-  // Time ranges - always available
-  timeRanges: FilterOption[] = [
-    { label: 'Chọn thời gian', value: '' },
-    { label: 'Hôm nay', value: 'today' },
-    { label: 'Hôm qua', value: 'yesterday' },
-    { label: '7 ngày qua', value: 'last7days' },
-    { label: '30 ngày qua', value: 'last30days' },
-    { label: 'Tuỳ chỉnh', value: 'custom' }
-  ];
-  
   // Dynamic selected values
-  selectedTimeRange: string = '';
   selectedFilters: { [key: string]: string } = {};
   searchValue: string = ''; // Internal value, emitted with key from searchFieldName
   selectedSearchField: string = ''; // Selected search field
@@ -81,7 +67,7 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   showImageUploadDropdown = false; // Toggle dropdown visibility
   
   // Threshold for image search
-  threshold: number = 70;
+  threshold: number = 50;
   showThresholdDropdown = false;
 
   get thresholdPercentage(): string {
@@ -89,7 +75,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   }
 
   // Dynamic dropdown states
-  showTimeDropdown = false;
   dropdownStates: { [key: string]: boolean } = {};
   showAdvancedFilters = true;
 
@@ -137,11 +122,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   }
 
   // Toggle dropdowns
-  toggleTimeDropdown() {
-    this.showTimeDropdown = !this.showTimeDropdown;
-    this.closeAllDropdowns('time');
-  }
-
   toggleDropdown(filterKey: string) {
     this.dropdownStates[filterKey] = !this.dropdownStates[filterKey];
     this.closeAllDropdowns(filterKey);
@@ -167,7 +147,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   }
 
   closeAllDropdowns(except?: string) {
-    if (except !== 'time') this.showTimeDropdown = false;
     if (except !== 'imageUpload') this.showImageUploadDropdown = false;
     if (except !== 'threshold') this.showThresholdDropdown = false;
     if (except !== 'searchField') this.showSearchFieldDropdown = false;
@@ -179,75 +158,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   }
 
   // Select options
-  selectTimeRange(option: FilterOption) {
-    this.selectedTimeRange = option.value;
-    this.showTimeDropdown = false;
-    
-    // Show date picker if "Tùy chỉnh" is selected
-    if (option.value === 'custom') {
-      this.showCustomDatePicker = true;
-    } else {
-      this.showCustomDatePicker = false;
-      
-      // Auto-calculate dates for preset time ranges
-      console.log('🔧 Calculating dates for time range:', option.value);
-      const now = new Date();
-      console.log('  Current time:', now.toISOString());
-      
-      switch (option.value) {
-        case 'today':
-          this.startDate = new Date();
-          this.startDate.setHours(0, 0, 0, 0);
-          this.endDate = new Date();
-          this.endDate.setHours(23, 59, 59, 999);
-          console.log('  ✅ TODAY calculated:');
-          console.log('    startDate:', this.startDate.toISOString());
-          console.log('    endDate:', this.endDate.toISOString());
-          break;
-        case 'yesterday':
-          this.startDate = new Date();
-          this.startDate.setDate(this.startDate.getDate() - 1);
-          this.startDate.setHours(0, 0, 0, 0);
-          this.endDate = new Date();
-          this.endDate.setDate(this.endDate.getDate() - 1);
-          this.endDate.setHours(23, 59, 59, 999);
-          console.log('  ✅ YESTERDAY calculated:');
-          console.log('    startDate:', this.startDate.toISOString());
-          console.log('    endDate:', this.endDate.toISOString());
-          break;
-        case 'last7days':
-          this.startDate = new Date();
-          this.startDate.setDate(this.startDate.getDate() - 7);
-          this.startDate.setHours(0, 0, 0, 0);
-          this.endDate = new Date();
-          this.endDate.setHours(23, 59, 59, 999);
-          console.log('  ✅ LAST 7 DAYS calculated:');
-          console.log('    startDate:', this.startDate.toISOString());
-          console.log('    endDate:', this.endDate.toISOString());
-          break;
-        case 'last30days':
-          this.startDate = new Date();
-          this.startDate.setDate(this.startDate.getDate() - 30);
-          this.startDate.setHours(0, 0, 0, 0);
-          this.endDate = new Date();
-          this.endDate.setHours(23, 59, 59, 999);
-          console.log('  ✅ LAST 30 DAYS calculated:');
-          console.log('    startDate:', this.startDate.toISOString());
-          console.log('    endDate:', this.endDate.toISOString());
-          break;
-        default:
-          // Clear dates if no time range selected
-          this.startDate = null;
-          this.endDate = null;
-          console.log('  ⚠️ No time range, dates cleared');
-      }
-      
-      console.log('📅 Final dates set:');
-      console.log('  - startDate:', this.startDate);
-      console.log('  - endDate:', this.endDate);
-    }
-  }
-
   selectFilter(filterKey: string, option: FilterOption) {
     this.selectedFilters[filterKey] = option.value;
     this.dropdownStates[filterKey] = false;
@@ -260,11 +170,6 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   }
 
   // Get selected label
-  getTimeRangeLabel(): string {
-    const selected = this.timeRanges.find(t => t.value === this.selectedTimeRange);
-    return selected ? selected.label : 'Chọn thời gian';
-  }
-
   getFilterLabel(filterKey: string): string {
     const filter = this.filters.find(f => f.key === filterKey);
     if (!filter) return '';
@@ -309,12 +214,10 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
 
   // Clear all filters
   clearFilters() {
-    this.selectedTimeRange = '';
     this.selectedFilters = {};
     this.searchValue = '';
     this.startDate = null;
     this.endDate = null;
-    this.showCustomDatePicker = false;
     this.uploadedImages = []; // Clear uploaded images
     this.threshold = 70; // Reset threshold
     
@@ -334,9 +237,7 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
 
   // Search handler
   onSearch() {
-    const searchParams: any = {
-      timeRange: this.selectedTimeRange
-    };
+    const searchParams: any = {};
     
     // Add search value with dynamic field name (from selected search field or default)
     if (this.searchValue) {

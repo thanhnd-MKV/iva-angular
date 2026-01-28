@@ -108,11 +108,18 @@
       <div class="map-card luu-luong-map">
         <h3 class="chart-title">Thống kê lưu lượng theo Camera</h3>
         <div class="map-wrapper">
+          <!-- Force recreate map when cameraLocations changes -->
           <app-traffic-flow-map 
+            *ngIf="cameraLocations && cameraLocations.length > 0"
+            [attr.data-key]="mapKey"
             [cameraLocations]="cameraLocations"
             [mapCenter]="mapCenter"
             [mapZoom]="mapZoom">
           </app-traffic-flow-map>
+          <div *ngIf="!cameraLocations || cameraLocations.length === 0" class="no-data-message">
+            <mat-icon>location_off</mat-icon>
+            <p>Không có dữ liệu camera</p>
+          </div>
         </div>
       </div>
     </div>

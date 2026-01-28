@@ -17,41 +17,79 @@
       </div>
     </div>
 
-    <!-- Notification List -->
-    <div class="notification-list">
+    <!-- Notification List with Virtual Scrolling -->
+    <div class="notification-list" (scroll)="onScroll($event)">
       <div *ngIf="notifications.length === 0" class="empty-state">
         <mat-icon class="empty-icon">notifications_none</mat-icon>
         <p class="empty-text">Không có thông báo nào</p>
       </div>
 
-      <div 
-        *ngFor="let notification of notifications" 
-        class="notification-card"
-        [class.unread]="!notification.read"
-        [class]="'notification-' + notification.type"
-        (click)="handleNotificationClick(notification)">
+      <!-- Virtual scroll container -->
+      <div *ngIf="notifications.length > 0" class="virtual-scroll-container" [style.height.px]="totalHeight">
+        <!-- Spacer to offset items -->
+        <div class="virtual-scroll-content" [style.transform]="'translateY(' + scrollOffset + 'px)'">
+          <div 
+            *ngFor="let notification of displayedNotifications; trackBy: trackByNotificationId" 
+            class="notification-card"
+            [class.unread]="!notification.read"
+            [class]="'notification-' + notification.type"
+            (click)="handleNotificationClick(notification)">
         
-        <div class="notification-icon-wrapper">
-          <mat-icon class="notification-icon">{{ getIconName(notification.type) }}</mat-icon>
-        </div>
+            <!-- Image on the left - with multiple fallback sources -->
+            <div class="notification-image-container" 
+                 *ngIf="notification.image || notification.data?.full?.croppedImagePath || notification.data?.full?.fullImagePath">
+              <img [src]="notification.image || notification.data?.full?.croppedImagePath || notification.data?.full?.fullImagePath" 
+                   alt="Ảnh sự kiện" 
+                   (error)="onImageError($event)" />
+            </div>
 
-        <div class="notification-content">
-          <div class="notification-header-row">
-            <h4 class="notification-title">{{ notification.title }}</h4>
-            <span class="notification-time">{{ notification.time }}</span>
+            <div class="notification-body">
+              <div class="notification-header">
+                <div class="notification-title-row">
+                  <mat-icon class="notification-icon">{{ getIconName(notification.type) }}</mat-icon>
+                  <h4 class="notification-title">{{ notification.title }}</h4>
+                </div>
+                <span class="notification-time">{{ notification.time }}</span>
+              </div>
+
+              <div class="notification-details">
+                <!-- Suspect Name -->
+                <div class="detail-row" *ngIf="notification.data?.full?.suspectName">
+                  <span class="detail-label">👤 Đối tượng:</span>
+                  <span class="detail-value">{{ notification.data.full.suspectName }}</span>
+                </div>
+
+                <!-- Location -->
+                <div class="detail-row" *ngIf="notification.location || notification.data?.full?.location">
+                  <span class="detail-label">📍 Vị trí:</span>
+                  <span class="detail-value">{{ notification.location || notification.data.full.location }}</span>
+                </div>
+
+                <!-- Event Time -->
+                <div class="detail-row" *ngIf="notification.eventTime || notification.data?.full?.eventTime">
+                  <span class="detail-label">🕐 Thời gian:</span>
+                  <span class="detail-value">{{ formatEventTime(notification.eventTime || notification.data.full.eventTime) }}</span>
+                </div>
+
+                <!-- Event Type -->
+                <div class="detail-row" *ngIf="notification.data?.full?.eventType">
+                  <span class="detail-label">⚠️ Loại:</span>
+                  <span class="detail-value event-type">{{ getEventTypeName(notification.data.full.eventType) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              mat-icon-button 
+              class="delete-btn"
+              (click)="deleteNotification(notification, $event)"
+              matTooltip="Xóa">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+
+            <div class="unread-indicator" *ngIf="!notification.read"></div>
           </div>
-          <p class="notification-message">{{ notification.message }}</p>
         </div>
-
-        <button 
-          mat-icon-button 
-          class="delete-btn"
-          (click)="deleteNotification(notification, $event)"
-          matTooltip="Xóa">
-          <mat-icon>delete_outline</mat-icon>
-        </button>
-
-        <div class="unread-indicator" *ngIf="!notification.read"></div>
       </div>
     </div>
   </div>
