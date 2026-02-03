@@ -140,7 +140,8 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
     { label: 'Tất cả nhóm', value: '' },
     { label: 'VIP', value: 'VIP' },
     { label: 'Khách', value: 'Khach' },
-    { label: 'Blacklist', value: 'Blacklist' }
+    { label: 'Blacklist', value: 'Blacklist' },
+    { label: 'Truy nã', value: 'Wanted' }
   ];
   
   dataSourceOptions = [
@@ -201,9 +202,17 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
         
         this.objectList = response.data.map((item: any) => {
           console.log('🖼️ Mapping item:', item.id, 'imagePath:', item.imagePath);
+          
+          // Parse imagePath: it's a comma-separated string, get first image
+          let firstImage = '/assets/images/no-image.png';
+          if (item.imagePath) {
+            const images = item.imagePath.split(',').map((url: string) => url.trim()).filter((url: string) => url);
+            firstImage = images.length > 0 ? images[0] : '/assets/images/no-image.png';
+          }
+          
           return {
             ...item,
-            image: item.imagePath || '/assets/images/no-image.png' // Map imagePath -> image with fallback
+            image: firstImage
           };
         });
         this.tableData = this.objectList;
@@ -409,6 +418,7 @@ export class ObjectListComponent extends BaseErrorHandlerComponent implements On
       'VeryVip': 'badge-veryvip',
       'Criminal': 'badge-blacklist',
       'Blacklist': 'badge-blacklist',
+      'Wanted': 'badge-blacklist',
       'Truy nã': 'badge-blacklist',
       'Khach': 'badge-guest',
       'Giám sát': 'badge-guest'

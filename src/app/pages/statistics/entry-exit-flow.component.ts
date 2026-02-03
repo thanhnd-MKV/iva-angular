@@ -636,6 +636,7 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
   }
   
   onDateRangeSelected(range: { startDate: Date; endDate: Date }): void {
+    this.selectedTimeRange = 'custom'; // Set to custom when date range is selected
     this.customDateRange = { start: range.startDate, end: range.endDate };
     this.isUserAction = true; // User action - hiển thị loading
     this.shouldAnimate = true; // Animate khi user action
@@ -1367,6 +1368,9 @@ export class EntryExitFlowComponent implements OnInit, OnDestroy {
   getTimeRangeLabel(): string {
     if (!this.selectedTimeRange || this.selectedTimeRange === 'today') {
       return 'Hôm nay';
+    }
+    if (this.selectedTimeRange === 'custom') {
+      return 'Tùy chỉnh';
     }
     const option = this.timeOptions.find(opt => opt.value === this.selectedTimeRange);
     return option ? option.label : 'Chọn thời gian';

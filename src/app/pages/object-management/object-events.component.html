@@ -5,11 +5,11 @@
     [showSearchInput]="true"
     [searchInputPlaceholder]="'Tìm kiếm (ID, biển số, ...)'"
     [searchFieldName]="'searchText'"
-    [showAdvancedSearch]="false"
+    [showAdvancedSearch]="true"
     [showImageUpload]="true"
     [showThresholdSlider]="true"
-    [displayOnlyImages]="objectData && objectData.avatarUrl ? [objectData.avatarUrl] : []"
-    [imageLabel]="objectData?.name || 'Đối tượng'"
+    [displayOnlyImages]="getDisplayImages()"
+    [imageLabel]="objectData?.name || objectData?.fullName || 'Đối tượng'"
     (searchTriggered)="onSearch($event)">
   </app-event-search-bar>
 

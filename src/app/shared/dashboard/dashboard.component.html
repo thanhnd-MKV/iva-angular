@@ -1,6 +1,24 @@
 <div class="filter-bar">
   <div class="filter-left">
-    <!-- Tất cả loại Camera Filter -->
+    <!-- Khu vực Filter -->
+    <div class="filter-btn-wrapper">
+      <button class="filter-btn location-btn" [class.active]="showLocationFilter" (click)="toggleLocationFilter()">
+        <img src="assets/icon/location.svg" alt="Location" class="btn-icon">
+        <span>{{ getLocationFilterLabel() }}</span>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </button>
+      
+      <div class="dropdown-menu location-dropdown" *ngIf="showLocationFilter">
+        <div class="dropdown-item" 
+             *ngFor="let location of locationOptions"
+             [class.selected]="selectedLocationFilter === location.value"
+             (click)="selectLocationFilter(location.value)">
+          {{ location.label }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Loại Camera Filter -->
     <div class="filter-btn-wrapper">
       <button class="filter-btn camera-btn" [class.active]="showCategoryFilter" (click)="toggleCategoryFilter()">
         <img src="assets/icon/camera.svg" alt="Camera" class="btn-icon">
@@ -12,7 +30,7 @@
         <div class="dropdown-item" 
              [class.selected]="selectedCategoryFilter === ''"
              (click)="selectCategoryFilter('')">
-          Tất cả loại Camera
+          Tất cả
         </div>
         <div class="dropdown-item" 
              [class.selected]="selectedCategoryFilter === 'TRAFFIC'"
@@ -53,31 +71,31 @@
       </div>
     </div>
 
-    <!-- Khu vực Filter -->
+    <!-- Camera Filter -->
     <div class="filter-btn-wrapper">
-      <button class="filter-btn location-btn" [class.active]="showLocationFilter" (click)="toggleLocationFilter()">
-    <img src="assets/icon/location.svg" alt="Location" class="btn-icon">
-        <span>{{ getLocationFilterLabel() }}</span>
+      <button class="filter-btn camera-select-btn" [class.active]="showCameraFilter" (click)="toggleCameraFilter()">
+        <span>Camera: {{ getCameraFilterLabel() }}</span>
         <mat-icon class="dropdown-icon">expand_more</mat-icon>
       </button>
       
-      <div class="dropdown-menu location-dropdown" *ngIf="showLocationFilter">
+      <div class="dropdown-menu camera-select-dropdown" *ngIf="showCameraFilter">
         <div class="dropdown-item" 
-             *ngFor="let location of locationOptions"
-             [class.selected]="selectedLocationFilter === location.value"
-             (click)="selectLocationFilter(location.value)">
-          {{ location.label }}
+             [class.selected]="selectedCameraFilter === ''"
+             (click)="selectCameraFilter('')">
+          Tất cả
+        </div>
+        <div class="dropdown-item" 
+             *ngFor="let camera of cameras"
+             [class.selected]="selectedCameraFilter === camera.sn"
+             (click)="selectCameraFilter(camera.sn)">
+          {{ camera.cameraName || camera.sn }}
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Search Box for Camera Name -->
-    <div class="search-box">
-      <mat-icon class="search-icon">search</mat-icon>
-      <input type="text" placeholder="Tên Camera" class="search-input" [(ngModel)]="cameraSearchText" (input)="onCameraSearch()">
-    </div>
-
-    <button class="filter-btn clear-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
+  <div class="filter-right">
+    <button class="filter-btn clear-btn" (click)="clearFilters()">
       <mat-icon class="btn-icon">close</mat-icon>
       <span>Xóa bộ lọc</span>
     </button>
@@ -92,7 +110,10 @@
     </div>
     
     <div class="camera-list-content" *ngIf="!loadingCameras">
-      <div class="camera-card" *ngFor="let camera of filteredCameras">
+      <div class="camera-card" 
+           [class.camera-offline]="camera.connectionStatus === 0" 
+           [class.camera-selected]="selectedCameraCode === camera.sn"
+           *ngFor="let camera of filteredCameras">
         <div class="card-top">
           <h2 class="camera-name">{{ camera.cameraName || camera.sn }}</h2>
           <div class="actions">
@@ -129,7 +150,11 @@
   <div class="map-section">
     <div class="map-card">
       <div class="map-wrapper">
-        <app-traffic-flow-map [cameraLocations]="cameraLocations"></app-traffic-flow-map>
+        <app-traffic-flow-map 
+          [cameraLocations]="cameraLocations"
+          (cameraSelected)="onCameraSelectedFromMap($event)"
+          (infoWindowClosed)="onInfoWindowClosed()">
+        </app-traffic-flow-map>
       </div>
     </div>
   </div>

@@ -43,10 +43,19 @@
         <input 
           type="text" 
           class="search-input" 
-          [placeholder]="'Nhập ' + getSearchFieldLabel().toLowerCase()"
+          [placeholder]="'Search... ' "
           [(ngModel)]="searchValue"
           (keypress)="onSearchKeyPress($event)">
       </div>
+
+      <!-- Search Button -->
+      <!-- <button class="search-btn" (click)="onSearch()" *ngIf="showSearchInput">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        Tìm kiếm
+      </button> -->
     </div>
 
     <div class="right-section">
@@ -132,7 +141,7 @@
 
         <!-- Threshold Slider (Hiển thị trực tiếp) -->
         <div *ngIf="showThresholdSlider" class="threshold-filter-inline">
-          <label class="threshold-label">Ngưỡng nhận diện</label>
+          <label class="threshold-label">Ngưỡng tương đồng nhận diện</label>
           <div class="slider-container">
             <input 
               type="range" 

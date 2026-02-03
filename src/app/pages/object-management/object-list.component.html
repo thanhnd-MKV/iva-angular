@@ -78,9 +78,10 @@
           <th class="th-name">Tên gọi</th>
           <th class="th-id">ID</th>
           <th class="th-group">Loại theo dõi</th>
+          <th class="th-source">Nguồn dữ liệu</th>
           <th class="th-count">Số lần xuất hiện</th>
           <th class="th-updated">Cập nhật gần nhất</th>
-          <th class="th-actions">Thao tác</th>
+          <th class="th-actions"></th>
         </tr>
       </thead>
       <tbody>
@@ -90,12 +91,13 @@
               (error)="handleImageError($event)">
           </td>
           <td class="td-name">{{ item.fullName || 'N/A' }}</td>
-          <td class="td-id">{{ item.id }}</td>
+          <td class="td-id">{{ item.objectId }}</td>
           <td class="td-group">
             <span class="group-badge" [ngClass]="getGroupBadgeClass(item.trackingType)">
               {{ item.trackingType }}
             </span>
           </td>
+          <td class="td-source">{{ item.dataSource || 'Đồng bộ' }}</td>
           <td class="td-count">{{ item.numberOfAppearances }}</td>
           <td class="td-updated">
             <div class="datetime-cell">
@@ -127,7 +129,7 @@
 
         <!-- Empty State -->
         <tr *ngIf="tableData.length === 0">
-          <td colspan="7" class="empty-state">
+          <td colspan="8" class="empty-state">
             <div class="empty-content">
               <mat-icon class="empty-icon">person_off</mat-icon>
               <p class="empty-text">Không tìm thấy đối tượng nào</p>

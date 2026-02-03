@@ -18,8 +18,32 @@ interface BeDataResponse {
   message: string | null;
   data: {
     age_range: { [key: string]: number };
-    gender: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } };
-    complexion: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } };
+    gender: { [hour: string]: { 
+      Female?: number; 
+      Male?: number; 
+      Unknown?: number;
+      'Nữ'?: number;
+      'Nam'?: number;
+      'Chưa xác định'?: number;
+      [key: string]: number | undefined;
+    } };
+    complexion: { [hour: string]: { 
+      White?: number; 
+      Black?: number; 
+      Asian?: number; 
+      Latino?: number; 
+      Indian?: number;
+      MiddleEastern?: number; 
+      Unknown?: number;
+      'Da trắng'?: number;
+      'Da đen'?: number;
+      'Châu Á'?: number;
+      'Ấn Độ'?: number;
+      'Trung Đông'?: number;
+      'La-tinh'?: number;
+      'Chưa xác định'?: number;
+      [key: string]: number | undefined;
+    } };
   };
 }
 
@@ -69,7 +93,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
   private baseData: BeDataResponse['data'] | null = null;
   
   // Data storage for incremental SSE updates
-  private genderData: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } } = {};
+  private genderData: BeDataResponse['data']['gender'] = {};
   private complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } } = {};
   private ageRangeData: { [key: string]: number } = {};
 
@@ -643,17 +667,22 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 3600 * 24));
     const apiEndpoint = daysDiff > 1 ? '/api/admin/events/human/by-day' : '/api/admin/events/human/by-hour-of-day';
     
-    console.log('Date range debug:', {
+    console.log('🔍 [Person Recognition] Loading statistics with params:', {
       fromDate: fromDate.toISOString(),
       toDate: toDate.toISOString(), 
       daysDiff,
       apiEndpoint,
       selectedTimeRange: this.selectedTimeRange,
-      hasCustomDates: !!(this.customStartDate && this.customEndDate)
+      hasCustomDates: !!(this.customStartDate && this.customEndDate),
+      params: params,
+      cameraSn: params.cameraSn,
+      location: params.location
     });
 
     this.http.get(apiEndpoint, { params }).subscribe({
       next: (response: any) => {
+        console.log('✅ [Person Recognition] API Response:', response);
+        console.log('📊 [Person Recognition] Response data:', response?.data);
         this.updateChartsWithApiData(response, daysDiff > 1);
         // Turn off all loading states
         this.isBarChartLoading = false;
@@ -770,8 +799,8 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
   }
 
   private updateDonutChartFromAgeRange(ageRange: { [key: string]: number }): void {
-    // Define age groups in correct order from youngest to oldest, plus Unknown at the end
-    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Unknown'];
+    // Define age groups in correct order from youngest to oldest, plus "Chưa xác định" at the end
+    const ageGroupsOrder = ['0-2', '3-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-100', 'Chưa xác định'];
     const allColors = ['#8b5cf6', '#f97316', '#84cc16', '#ec4899', '#3b82f6', '#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#9ca3af'];
     const allHoverColors = ['#7c3aed', '#ea580c', '#65a30d', '#db2777', '#2563eb', '#d97706', '#059669', '#0891b2', '#dc2626', '#6b7280'];
     
@@ -784,20 +813,19 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     let totalCount = 0;
     this.ageGroupCounts = {};
     
-    // Process in correct order from youngest to oldest, then Unknown
+    // Process in correct order from youngest to oldest, then "Chưa xác định"
     ageGroupsOrder.forEach((ageKey, index) => {
-      if (ageRange.hasOwnProperty(ageKey)) {
+      // Always process "Chưa xác định" even if not in backend data, check hasOwnProperty for others
+      if (ageRange.hasOwnProperty(ageKey) || ageKey === 'Chưa xác định') {
         const count = ageRange[ageKey] || 0;
         totalCount += count;
         
-        // Display "Chưa xác định" for Unknown in the chart and legend
-        const displayLabel = ageKey === 'Unknown' ? 'Chưa xác định' : ageKey;
+        // Store count with ageKey as key for legend (no mapping needed, BE returns Vietnamese now)
+        this.ageGroupCounts[ageKey] = count;
         
-        // Store count with displayLabel as key for legend
-        this.ageGroupCounts[displayLabel] = count;
-        
-        if (count > 0) {
-          sortedLabels.push(displayLabel);
+        // Always show "Chưa xác định" even if count = 0, only show others if count > 0
+        if (count > 0 || ageKey === 'Chưa xác định') {
+          sortedLabels.push(ageKey);
           sortedValues.push(count);
           sortedColors.push(allColors[index]);
           sortedHoverColors.push(allHoverColors[index]);
@@ -831,14 +859,14 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateLineChartFromGenderData(genderData: { [hour: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
+  private updateLineChartFromGenderData(genderData: BeDataResponse['data']['gender']): void {
     console.log('🔍 updateLineChartFromGenderData - genderData:', genderData);
     console.log('🔍 Sample hour data for hour 0:', genderData['0']);
     
     const hours = Array.from({length: 24}, (_, i) => i.toString());
-    const maleData = hours.map(hour => genderData[hour]?.Male || 0);
-    const femaleData = hours.map(hour => genderData[hour]?.Female || 0);
-    const unknownData = hours.map(hour => genderData[hour]?.Unknown || 0);
+    const maleData = hours.map(hour => genderData[hour]?.Nam || genderData[hour]?.Male || 0);
+    const femaleData = hours.map(hour => genderData[hour]?.['Nữ'] || genderData[hour]?.Female || 0);
+    const unknownData = hours.map(hour => genderData[hour]?.['Chưa xác định'] || genderData[hour]?.Unknown || 0);
     
     console.log('🔍 unknownData array:', unknownData);
     console.log('🔍 Total unknown:', unknownData.reduce((a, b) => a + b, 0));
@@ -900,19 +928,20 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateBarChartFromComplexionData(complexionData: { [hour: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
+  private updateBarChartFromComplexionData(complexionData: BeDataResponse['data']['complexion']): void {
     console.log('🔍 updateBarChartFromComplexionData - complexionData:', complexionData);
     console.log('🔍 Sample hour data for hour 0:', complexionData['0']);
     
     const hours = Array.from({length: 24}, (_, i) => i.toString());
     
-    const asianData = hours.map(hour => complexionData[hour]?.Asian || 0);
-    const whiteData = hours.map(hour => complexionData[hour]?.White || 0);
-    const indianData = hours.map(hour => complexionData[hour]?.Indian || 0);
-    const middleEasternData = hours.map(hour => complexionData[hour]?.MiddleEastern || 0);
-    const blackData = hours.map(hour => complexionData[hour]?.Black || 0);
-    const latinoData = hours.map(hour => complexionData[hour]?.Latino || 0);
-    const unknownData = hours.map(hour => complexionData[hour]?.Unknown || 0);
+    // Support both Vietnamese and English keys from backend
+    const asianData = hours.map(hour => complexionData[hour]?.['Châu Á'] || complexionData[hour]?.Asian || 0);
+    const whiteData = hours.map(hour => complexionData[hour]?.['Da trắng'] || complexionData[hour]?.White || 0);
+    const indianData = hours.map(hour => complexionData[hour]?.['Ấn Độ'] || complexionData[hour]?.Indian || 0);
+    const middleEasternData = hours.map(hour => complexionData[hour]?.['Trung Đông'] || complexionData[hour]?.MiddleEastern || 0);
+    const blackData = hours.map(hour => complexionData[hour]?.['Da đen'] || complexionData[hour]?.Black || 0);
+    const latinoData = hours.map(hour => complexionData[hour]?.['La-tinh'] || complexionData[hour]?.Latino || 0);
+    const unknownData = hours.map(hour => complexionData[hour]?.['Chưa xác định'] || complexionData[hour]?.Unknown || 0);
     
     console.log('🔍 unknownData for complexion:', unknownData);
     console.log('🔍 Total unknown complexion:', unknownData.reduce((a, b) => a + b, 0));
@@ -944,7 +973,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateLineChartFromGenderDataByDay(genderData: { [day: string]: { Female?: number; Male?: number; Unknown?: number } }): void {
+  private updateLineChartFromGenderDataByDay(genderData: BeDataResponse['data']['gender']): void {
     console.log('🔍 updateLineChartFromGenderDataByDay - genderData keys:', Object.keys(genderData));
     
     // For by-day view, use day labels instead of hour labels
@@ -960,9 +989,9 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       return date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
     });
     
-    const maleData = days.map(day => genderData[day]?.Male || 0);
-    const femaleData = days.map(day => genderData[day]?.Female || 0);
-    const unknownData = days.map(day => genderData[day]?.Unknown || 0);
+    const maleData = days.map(day => genderData[day]?.Nam || genderData[day]?.Male || 0);
+    const femaleData = days.map(day => genderData[day]?.['Nữ'] || genderData[day]?.Female || 0);
+    const unknownData = days.map(day => genderData[day]?.['Chưa xác định'] || genderData[day]?.Unknown || 0);
     
     // Update directly via chart instance for smooth updates
     if (this.lineChart?.chart) {
@@ -1020,7 +1049,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateBarChartFromComplexionDataByDay(complexionData: { [day: string]: { White?: number; Black?: number; Asian?: number; Latino?: number; Indian?: number; MiddleEastern?: number; Unknown?: number } }): void {
+  private updateBarChartFromComplexionDataByDay(complexionData: BeDataResponse['data']['complexion']): void {
     console.log('🔍 updateBarChartFromComplexionDataByDay - complexionData keys:', Object.keys(complexionData));
     
     // For by-day view, use day labels instead of hour labels
@@ -1036,13 +1065,13 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
       return date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
     });
     
-    const asianData = days.map(day => complexionData[day]?.Asian || 0);
-    const whiteData = days.map(day => complexionData[day]?.White || 0);
-    const indianData = days.map(day => complexionData[day]?.Indian || 0);
-    const middleEasternData = days.map(day => complexionData[day]?.MiddleEastern || 0);
-    const blackData = days.map(day => complexionData[day]?.Black || 0);
-    const latinoData = days.map(day => complexionData[day]?.Latino || 0);
-    const unknownData = days.map(day => complexionData[day]?.Unknown || 0);
+    const asianData = days.map(day => complexionData[day]?.['Châu Á'] || complexionData[day]?.Asian || 0);
+    const whiteData = days.map(day => complexionData[day]?.['Da trắng'] || complexionData[day]?.White || 0);
+    const indianData = days.map(day => complexionData[day]?.['Ấn Độ'] || complexionData[day]?.Indian || 0);
+    const middleEasternData = days.map(day => complexionData[day]?.['Trung Đông'] || complexionData[day]?.MiddleEastern || 0);
+    const blackData = days.map(day => complexionData[day]?.['Da đen'] || complexionData[day]?.Black || 0);
+    const latinoData = days.map(day => complexionData[day]?.['La-tinh'] || complexionData[day]?.Latino || 0);
+    const unknownData = days.map(day => complexionData[day]?.['Chưa xác định'] || complexionData[day]?.Unknown || 0);
     
     // Update directly via chart instance for smooth updates
     if (this.barChart?.chart) {
@@ -1092,7 +1121,12 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     const periodTotals: { period: string, total: number }[] = [];
     
     Object.entries(data.gender).forEach(([period, genderCount]) => {
-      const periodTotal = (genderCount.Male || 0) + (genderCount.Female || 0) + (genderCount.Unknown || 0);
+      // Support both English and Vietnamese keys
+      const male = genderCount.Nam || genderCount.Male || 0;
+      const female = genderCount['Nữ'] || genderCount.Female || 0;
+      const unknown = genderCount['Chưa xác định'] || genderCount.Unknown || 0;
+      
+      const periodTotal = male + female + unknown;
       periodTotals.push({ period, total: periodTotal });
       
       if (periodTotal > maxCount) {
@@ -1106,18 +1140,24 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     console.log('🔍 Top 5 periods with highest count:');
     sortedPeriods.slice(0, 5).forEach((p, i) => {
       const genderBreakdown = data.gender[p.period];
-      console.log(`  ${i + 1}. Period ${p.period}: ${p.total.toLocaleString()} (Male: ${genderBreakdown?.Male || 0}, Female: ${genderBreakdown?.Female || 0}, Unknown: ${genderBreakdown?.Unknown || 0})`);
+      const male = genderBreakdown?.Nam || genderBreakdown?.Male || 0;
+      const female = genderBreakdown?.['Nữ'] || genderBreakdown?.Female || 0;
+      const unknown = genderBreakdown?.['Chưa xác định'] || genderBreakdown?.Unknown || 0;
+      console.log(`  ${i + 1}. Period ${p.period}: ${p.total.toLocaleString()} (Nam: ${male}, Nữ: ${female}, Chưa xác định: ${unknown})`);
     });
     console.log('🔍 Peak period:', peakPeriod, 'with count:', maxCount.toLocaleString());
     
     // Verify calculation
     const peakGender = data.gender[peakPeriod];
-    const verifyTotal = (peakGender?.Male || 0) + (peakGender?.Female || 0) + (peakGender?.Unknown || 0);
+    const verifyMale = peakGender?.Nam || peakGender?.Male || 0;
+    const verifyFemale = peakGender?.['Nữ'] || peakGender?.Female || 0;
+    const verifyUnknown = peakGender?.['Chưa xác định'] || peakGender?.Unknown || 0;
+    const verifyTotal = verifyMale + verifyFemale + verifyUnknown;
     console.log('🔍 Verify peak calculation:', { 
       period: peakPeriod, 
-      male: peakGender?.Male || 0, 
-      female: peakGender?.Female || 0, 
-      unknown: peakGender?.Unknown || 0,
+      male: verifyMale, 
+      female: verifyFemale, 
+      unknown: verifyUnknown,
       calculatedTotal: verifyTotal,
       maxCount: maxCount,
       match: verifyTotal === maxCount ? '✅ CORRECT' : '❌ MISMATCH'
@@ -1128,7 +1168,7 @@ export class PersonRecognitionComponent implements OnInit, OnDestroy {
     let maxAgeCount = 0;
     Object.entries(data.age_range).forEach(([ageRange, count]) => {
       // Skip Unknown age group
-      if (ageRange !== 'Unknown' && count > maxAgeCount) {
+      if (ageRange !== 'Chưa xác định' && count > maxAgeCount) {
         maxAgeCount = count;
         dominantAgeGroup = ageRange + 't';
       }

@@ -10,7 +10,7 @@
 }
 
 .dropdown-icon {
-  font-size: 20px;
+  font-size: 18px;
   color: #9ca3af;
   margin-right: 4px;
   position: relative;
@@ -20,14 +20,13 @@
   display: flex;
   align-items: center;
   border-radius: 5px;
-  width: 170px;
   padding: 0 12px;
   cursor: pointer;
   background-color: #fff;
   transition: box-shadow 0.2s, border-color 0.2s;
   box-shadow: rgba(99, 99, 99, 0.2) 0px 1px 4px 0px;
   border: 1px solid #d1d5db;
-  height: 40px;
+  height: 26px;
 
   &:hover {
     border-color: #3b82f6;
@@ -59,7 +58,7 @@
   &::placeholder {
     color: #494949;
     font-weight: 400;
-    font-size: 16px;
+    font-size: 14px;
   }
 }
 
@@ -87,9 +86,10 @@
   padding: 16px;
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  width: 540px;
+  width: 680px;
   border: 1px solid #f0f0f0;
   background-color: #ffffff;
+  z-index: 9999;
 
   // Smart positioning to prevent overflow while keeping original style
   &.popup-right {
@@ -378,4 +378,39 @@
   color: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transform: scale(1.1);
+}
+
+.calendar-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  gap: 8px;
+}
+
+.btn-confirm {
+  padding: 8px 24px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #2563eb;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    background-color: #d1d5db;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }

@@ -339,6 +339,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   }
   
   onDateRangeSelected(range: { startDate: Date; endDate: Date }): void {
+    this.selectedTimeRange = 'custom'; // Set to custom when date range is selected
     this.customDateRange = { start: range.startDate, end: range.endDate };
     this.loadTrafficData();
   }
@@ -365,6 +366,9 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
   getTimeRangeLabel(): string {
     if (!this.selectedTimeRange || this.selectedTimeRange === 'today') {
       return 'Hôm nay';
+    }
+    if (this.selectedTimeRange === 'custom') {
+      return 'Tùy chỉnh';
     }
     const option = this.timeOptions.find(opt => opt.value === this.selectedTimeRange);
     return option ? option.label : 'Chọn thời gian';
@@ -875,14 +879,14 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
     }
 
     // Prepare datasets for chart
-    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus', 'Unknown'];
-    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#9CA3AF'];
+    const vehicleTypes = ['Xe buýt', 'Xe 2 bánh', 'Ô tô', 'Xe tải', 'Unknown'];
+    const colors = ['#A78BFA', '#34D399', '#60A5FA', '#FBBF24', '#9CA3AF'];
 
     // Get all hours for labels (0-23)
     const hours = Array.from({length: 24}, (_, i) => `${i}`);
 
     const datasets = vehicleTypes.map((type, index) => ({
-      label: this.getVehicleTypeLabel(type.toLowerCase()),
+      label: this.getVehicleTypeLabelFromVietnamese(type),
       data: hours.map((_, hourIndex) => {
         const hourData = hourlyBreakdown.find(h => h.hour === hourIndex);
         return hourData?.vehicles?.[type] || 0;
@@ -943,8 +947,8 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
     console.log('📅 Generated labels:', labels);
 
     // Prepare datasets for chart
-    const vehicleTypes = ['Car', 'Motor', 'Truck', 'Bus', 'Unknown'];
-    const colors = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#9CA3AF'];
+    const vehicleTypes = ['Xe buýt', 'Xe 2 bánh', 'Ô tô', 'Xe tải', 'Unknown'];
+    const colors = ['#A78BFA', '#34D399', '#60A5FA', '#FBBF24', '#9CA3AF'];
 
     // IMPORTANT: API returns day as 1-based sequential index (day 1 = first day in range, NOT calendar day)
     // Example: If searching 18/12 to 24/12, day:1 means 18/12, day:7 means 24/12
@@ -985,7 +989,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       });
 
       return {
-        label: this.getVehicleTypeLabel(type.toLowerCase()),
+        label: this.getVehicleTypeLabelFromVietnamese(type),
         data,
         backgroundColor: colors[index],
         borderWidth: 0,
@@ -1149,10 +1153,7 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       }
     }
     
-    // Default to Motor if still no data
-    if (!mostCommonVehicleType) {
-      mostCommonVehicleType = 'Motor';
-    }
+    // Don't set default - if no data, leave it null to show "--" in UI
     
     // Peak hour/day
     const peakHour = apiData.peakHour;
@@ -1175,13 +1176,14 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
     });
 
     // Format display values for cards with proper null handling
-    const vehicleTypeDisplay = mostCommonVehicleType 
-      ? this.getVehicleTypeLabel(mostCommonVehicleType.toLowerCase()) 
-      : '--';
+    // Only show vehicle type if there's actual data, otherwise show empty string
+    const vehicleTypeDisplay = (mostCommonVehicleType && totalVehicles > 0)
+      ? this.getVehicleTypeLabelFromVietnamese(mostCommonVehicleType) 
+      : '';
     
     const peakHourDisplay = isHourlyData 
-      ? (peakHour !== undefined && peakHour !== null ? this.formatPeakHourRange(peakHour) : '--') 
-      : (peakDay ? `Ngày ${peakDay}` : '--');
+      ? (peakHour !== undefined && peakHour !== null && totalVehicles > 0 ? this.formatPeakHourRange(peakHour) : '') 
+      : (peakDay && totalVehicles > 0 ? `Ngày ${peakDay}` : '');
 
     console.log('📊 Card display values:', {
       vehicleType: vehicleTypeDisplay,
@@ -1441,6 +1443,18 @@ export class TrafficFlowComponent implements OnInit, OnDestroy {
       'truck': 'Xe tải',
       'bus': 'Xe bus',
       'unknown': 'Khác'
+    };
+    return labels[type] || type;
+  }
+
+  private getVehicleTypeLabelFromVietnamese(type: string): string {
+    // Map Vietnamese keys from backend to display labels
+    const labels: { [key: string]: string } = {
+      'Xe buýt': 'Xe bus',
+      'Xe 2 bánh': 'Xe máy',
+      'Ô tô': 'Ô tô',
+      'Xe tải': 'Xe tải',
+      'Unknown': 'Khác'
     };
     return labels[type] || type;
   }

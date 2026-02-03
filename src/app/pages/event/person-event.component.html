@@ -1,11 +1,13 @@
 <app-event-search-bar 
   [filters]="eventFilters"
-  [showSearchInput]="true"
+  [searchFieldOptions]="searchFieldOptions"
+  [showSearchInput]="false"
   [searchInputPlaceholder]="'Tìm kiếm người (ID, tên, ...)'"
-  [searchFieldName]="'searchText'"
+  [searchFieldName]="'id'"
   [showAdvancedSearch]="true"
   [showImageUpload]="true"
   [showThresholdSlider]="true"
+  [disableThreshold]="true"
   (searchTriggered)="handleSearch($event)"
   (advancedSearchTriggered)="handleAdvancedSearch()">
 </app-event-search-bar>
@@ -25,6 +27,7 @@
       (view)="handleViewClick($event)"
       (imageClick)="handleImageClick($event)"
       (rowClick)="handleRowClick($event)"
+      (columnClick)="handleColumnClick($event)"
       (refresh)="onRetry()"
       (clearFilterData)="onClearFilterData()">
     </app-base-table>

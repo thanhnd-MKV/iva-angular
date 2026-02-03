@@ -62,9 +62,9 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
       key: 'gender',
       label: 'Giới tính',
       options: [
-        { label: 'Tất cả', value: '' },
-        { label: 'Nam', value: 'male' },
-        { label: 'Nữ', value: 'female' }
+        { label: 'Giới tính', value: '' },
+        { label: 'Nam', value: 'Nam' },
+        { label: 'Nữ', value: 'Nữ' }
       ],
       defaultValue: ''
     },
@@ -91,12 +91,20 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
       key: 'behavior',
       label: 'Hành vi',
       options: [
-        { label: 'Hành vi', value: '' },
-        { label: 'Vượt đèn đỏ', value: 'red_light' },
-        { label: 'Đi sai làn', value: 'wrong_lane' },
-        { label: 'Quá tốc độ', value: 'speeding' },
-        { label: 'Đỗ xe sai quy định', value: 'wrong_parking' },
-        { label: 'Không đội mũ bảo hiểm', value: 'no_helmet' }
+        { label: 'Tất cả', value: '' },
+        { label: 'Không xác định', value: 'Unknown' },
+        { label: 'Phát hiện khuôn mặt', value: 'Face_Detection' },
+        { label: 'Nhận diện khuôn mặt', value: 'Face_Recognition' },
+        { label: 'Nhận diện biển số', value: 'License_Plate_Recognition' },
+        { label: 'Đếm người theo zone', value: 'People_Count' },
+        { label: 'Phát hiện đám đông', value: 'Crowd_Detection' },
+        { label: 'Phát hiện xâm nhập', value: 'Intrusion' },
+        { label: 'Phát hiện vượt rào, đếm người vượt qua line', value: 'Line_Cross' },
+        { label: 'Lưu lượng giao thông', value: 'Traffic_Volume' },
+        { label: 'Phát hiện vượt đèn đỏ', value: 'Red_Light' },
+        { label: 'Phát hiện đi ngược chiều', value: 'Wrong_Way_Driving' },
+        { label: 'Phát hiện lấn làn', value: 'Lane_Violation' },
+        { label: 'Phát hiện dừng đỗ sai', value: 'Wrong_Parking' }
       ],
       defaultValue: ''
     }
@@ -104,10 +112,11 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
   
   // Search field options for dropdown
   searchFieldOptions = [
-    { label: 'ID', value: 'eventId' },
-    { label: 'Biển số xe', value: 'plateNumber' },
-    { label: 'Camera', value: 'cameraName' },
-    { label: 'Khu vực', value: 'location' }
+    { label: 'ID', value: 'id' },
+    { label: 'Loại sự kiện', value: 'eventType' },
+    { label: 'Camera', value: 'cameraSn' },
+    { label: 'Khu vực', value: 'location' },
+    { label: 'Thuộc tính', value: 'attribute' }
   ];
   
   queryFormModel: any = [];
@@ -117,7 +126,6 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
     'image',        // Hình ảnh
     'eventId',      // ID/ Phân loại (event ID)
     'attributes',   // Thuộc tính (attributes object)
-    'status',       // Trạng thái
     'startTime',    // Thời gian (eventTime/startTime)
     'cameraName',   // Camera (cameraName)
     'location',     // Vị trí
@@ -667,7 +675,13 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
     // KHÔNG reset pageNumber ở đây - chỉ reset khi filter thay đổi
     // pageNumber đã được set trong onPageChange() hoặc trong các filter methods
     
-    const cleanedQuery = this.getCleanedQuery(this.queryFormModel);
+    // Convert queryFormModel array to params object
+    const cleanedQuery: any = {};
+    this.queryFormModel.forEach((item: any) => {
+      if (item.value !== undefined && item.value !== null && item.value !== '') {
+        cleanedQuery[item.key] = item.value;
+      }
+    });
     
     // Add pagination parameters for server-side pagination
     const apiParams = {
@@ -784,37 +798,21 @@ export class EventListComponent extends BaseErrorHandlerComponent implements OnI
     
     // Use mapper utility to convert UI params to API format
     const apiParams = mapSearchParamsToAPI(searchParams);
+    console.log('🔍 Mapped API params:', apiParams);
     
     // Build queryFormModel from mapped params
     this.queryFormModel = [];
     
-    // Add mapped params
-    if (apiParams.gender) {
-      this.queryFormModel.push({ key: 'gender', value: apiParams.gender });
-    }
-    if (apiParams.cameraSn) {
-      this.queryFormModel.push({ key: 'cameraSn', value: apiParams.cameraSn });
-    }
-    if (apiParams.fromUtc) {
-      this.queryFormModel.push({ key: 'fromUtc', value: apiParams.fromUtc });
-    }
-    if (apiParams.toUtc) {
-      this.queryFormModel.push({ key: 'toUtc', value: apiParams.toUtc });
-    }
+    // Add ALL params from apiParams to queryFormModel
+    // This ensures all search fields (id, plateNumber, searchText, attribute, location, etc.) are included
+    Object.keys(apiParams).forEach(key => {
+      if (apiParams[key] !== undefined && apiParams[key] !== null && apiParams[key] !== '') {
+        this.queryFormModel.push({ key, value: apiParams[key] });
+        console.log(`✅ Added param: ${key} = ${apiParams[key]}`);
+      }
+    });
     
-    // Add other searchParams that aren't in mapper
-    if (searchParams.eventType) {
-      this.queryFormModel.push({ key: 'eventType', value: searchParams.eventType });
-    }
-    if (searchParams.vehicleType) {
-      this.queryFormModel.push({ key: 'vehicleType', value: searchParams.vehicleType });
-    }
-    if (searchParams.behavior) {
-      this.queryFormModel.push({ key: 'behavior', value: searchParams.behavior });
-    }
-    if (searchParams.plateNumber) {
-      this.queryFormModel.push({ key: 'plateNumber', value: searchParams.plateNumber });
-    }
+    console.log('📋 Final queryFormModel:', this.queryFormModel);
     
     this.pageNumber = 0;
     this.loadTableData();

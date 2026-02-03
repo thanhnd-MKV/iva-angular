@@ -38,7 +38,8 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   @Input() searchFieldName: string = 'plateNumber'; // Field name to emit: 'plateNumber' for traffic, 'searchText' for person/generic
   @Input() showAdvancedSearch: boolean = true;
   @Input() showImageUpload: boolean = false;  // Hiển thị upload ảnh
-  @Input() showThresholdSlider: boolean = false;  // Hiển thị ngưỡng nhận diện
+  @Input() showThresholdSlider: boolean = false;  // Hiển thị Ngưỡng tương đồng nhận diện
+  @Input() disableThreshold: boolean = false;  // Không truyền threshold vào API (nhưng vẫn hiển thị UI)
   @Input() searchFieldOptions: FilterOption[] = []; // Options for search field dropdown
   @Input() displayOnlyImages: string[] = []; // Ảnh chỉ để hiển thị, không cho upload/edit (dùng cho màn object-events)
   @Input() imageLabel: string = 'Đối tượng'; // Label cho ảnh hiển thị
@@ -205,11 +206,15 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   onDateRangeSelected(range: { startDate: Date, endDate: Date }) {
     this.startDate = range.startDate;
     this.endDate = range.endDate;
+    // Auto trigger search when date range is confirmed
+    this.onSearch();
   }
 
   onDateRangeCleared() {
     this.startDate = null;
     this.endDate = null;
+    // Auto trigger search when date range is cleared
+    this.onSearch();
   }
 
   // Clear all filters
@@ -239,10 +244,15 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
   onSearch() {
     const searchParams: any = {};
     
+    console.log('🔍 onSearch() called - selectedSearchField:', this.selectedSearchField, 'searchValue:', this.searchValue);
+    
     // Add search value with dynamic field name (from selected search field or default)
     if (this.searchValue) {
       const fieldName = this.selectedSearchField || this.searchFieldName;
       searchParams[fieldName] = this.searchValue;
+      console.log('🔍 Adding search value:', { fieldName, value: this.searchValue });
+    } else {
+      console.log('⚠️ No searchValue to add');
     }
     
     // Add dynamic filter values
@@ -264,8 +274,8 @@ export class EventSearchBarComponent implements OnInit, OnDestroy {
       console.log('⚠️ No dates to emit (startDate or endDate is null)');
     }
     
-    // Always add threshold when threshold slider is shown
-    if (this.showThresholdSlider) {
+    // Always add threshold when threshold slider is shown AND threshold is not disabled
+    if (this.showThresholdSlider && !this.disableThreshold) {
       searchParams.threshold = this.threshold / 100; // Convert 70 to 0.7
     }
     

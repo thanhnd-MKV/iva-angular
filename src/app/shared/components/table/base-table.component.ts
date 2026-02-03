@@ -616,31 +616,20 @@ export class BaseTableComponent implements OnInit, OnChanges {
         return value.toString();
       }
       
-      // Sử dụng cùng logic với formatDateTime
-      const timeStr = date.toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
+      // Format: dd/MM/yyyy HH:mm:ss with date part larger, time part smaller
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const seconds = date.getSeconds().toString().padStart(2, '0');
       
-      const dateStr = date.toLocaleDateString('vi-VN');
+      const datePart = `${day}/${month}/${year}`;
+      const timePart = `${hours}:${minutes}:${seconds}`;
       
-      // Kiểm tra nếu là thời gian 00:00 thì chỉ hiển thị ngày
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const seconds = date.getSeconds();
-      
-      const isZeroTime = hours === 0 && minutes === 0 && seconds === 0;
-      
-      if (isZeroTime) {
-        return `<div class="datetime-container date-only">
-          <span class="date-part">${dateStr}</span>
-        </div>`;
-      }
-      
-      return `<div class="datetime-container">
-        <span class="time-part">${timeStr}</span>
-        <span class="date-part">${dateStr}</span>
+      return `<div class="datetime-display">
+        <div class="date-large">${datePart}</div>
+        <div class="time-small">${timePart}</div>
       </div>`;
     } catch (error) {
       console.error('Error formatting date:', error);

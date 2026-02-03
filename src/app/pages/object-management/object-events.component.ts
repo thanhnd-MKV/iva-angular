@@ -758,7 +758,7 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
           name: error.name
         });
         this.trackingLoading = false;
-        this.snackBar.open('Lỗi kết nối SSE: ' + error.message, 'Đóng', { duration: 5000 });
+        // this.snackBar.open('Lỗi kết nối SSE: ' + error.message, 'Đóng', { duration: 5000 });
         this.cdr.detectChanges();
       },
       complete: () => {
@@ -857,5 +857,34 @@ export class ObjectEventsComponent extends BaseErrorHandlerComponent implements 
 
   private mapEventsToTableData(events: any[]): any[] {
     return events.map(event => this.mapSSEToTableData({ data: event }));
+  }
+
+  /**
+   * Get display images for the search bar
+   * Returns array of image URLs from objectData
+   */
+  getDisplayImages(): string[] {
+    if (!this.objectData) {
+      return [];
+    }
+
+    // Priority: images array > avatarUrl > imagePath
+    if (this.objectData.images && this.objectData.images.length > 0) {
+      console.log('📷 Display images from images array:', this.objectData.images);
+      return this.objectData.images;
+    }
+
+    if (this.objectData.avatarUrl) {
+      console.log('📷 Display images from avatarUrl:', [this.objectData.avatarUrl]);
+      return [this.objectData.avatarUrl];
+    }
+
+    if (this.objectData.imagePath) {
+      console.log('📷 Display images from imagePath:', [this.objectData.imagePath]);
+      return [this.objectData.imagePath];
+    }
+
+    console.log('📷 No display images available');
+    return [];
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -149,7 +149,14 @@ export class EventService {
   
   getListEvents(params: any): Observable<{ data: { records: EventData[]; total: number; size: number; current: number; pages: number } }> {
     console.log('🌐 EventService.getListEvents() called with params:', params);
+    console.log('� Params keys:', Object.keys(params));
+    console.log('📊 Params entries:', Object.entries(params));
     console.log('📡 Making HTTP GET request to:', this.apiUrl + '/page');
+    
+    // Create HttpParams to see serialization
+    const httpParams = new HttpParams({ fromObject: params });
+    console.log('🔗 Serialized query string:', httpParams.toString());
+    
     return this.http.get<{ data: { records: EventData[]; total: number; size: number; current: number; pages: number } }>(this.apiUrl + '/page', { params });
   }
 

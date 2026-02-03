@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, ChangeDetectorRef, AfterViewInit, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, ChangeDetectorRef, AfterViewInit, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GoogleMapsModule, GoogleMap, MapMarker, MapInfoWindow } from '@angular/google-maps';
 import { MapMarkerService, MarkerType, ZoomLevel, ClusterMarker } from '../../shared/services/map-marker.service';
@@ -72,7 +72,8 @@ interface CameraLocation {
               [position]="marker.position"
               [options]="getMarkerOptions(marker)"
               [title]="marker.label"
-              (mapClick)="onMarkerClick(marker, i)">
+              (mapClick)="onMarkerClick(marker, i)"
+              (mapMouseover)="onMarkerHover(marker, i)">
             </map-marker>
           </ng-container>
         </ng-container>
@@ -89,7 +90,7 @@ interface CameraLocation {
             </div>
             <div class="info-details">
               <div class="info-row">
-                <img src="assets/icon/carIcon.svg" alt="Car" class="info-icon-img">
+                <img [src]="getCountIcon(selectedMarker)" [alt]="getCountLabel(selectedMarker)" class="info-icon-img">
                 <span class="info-label">{{ getCountLabel(selectedMarker) }}:</span>
                 <span class="info-value">{{ getTrafficCount(selectedMarker) | number }}</span>
               </div>
@@ -321,6 +322,8 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
   @Input() cameraLocations: CameraLocation[] = [];
   @Input() mapCenter?: google.maps.LatLngLiteral; // Optional external center control
   @Input() mapZoom?: number; // Optional external zoom control
+  @Output() cameraSelected = new EventEmitter<string>();
+  @Output() infoWindowClosed = new EventEmitter<void>();
 
   isLoading = true;
   markersReady = false; // Flag to track if markers are fully prepared and ready to render
@@ -1467,6 +1470,9 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
         console.log('🎯 Camera in cameraLocations:', cameraData);
         console.log('🎯 All cameraLocations:', this.cameraLocations);
       }
+      
+      // Emit camera selected event
+      this.cameraSelected.emit(marker.cameraCode);
     }
     
     this.selectedMarker = marker;
@@ -1476,6 +1482,14 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
       const markerElement = this.markerElements.toArray()[index];
       if (markerElement) {
         this.infoWindow.open(markerElement);
+        
+        // Listen for info window close
+        const nativeInfoWindow = this.infoWindow.infoWindow;
+        if (nativeInfoWindow) {
+          google.maps.event.addListenerOnce(nativeInfoWindow, 'closeclick', () => {
+            this.infoWindowClosed.emit();
+          });
+        }
       }
     }, 0);
     
@@ -1483,6 +1497,36 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     if (this.mapElement && this.mapElement.googleMap) {
       this.mapElement.googleMap.panTo(marker.position);
     }
+  }
+
+  onMarkerHover(marker: MarkerData, index: number) {
+    console.log('👁️ Marker hovered:', {
+      cameraCode: marker.cameraCode,
+      label: marker.label
+    });
+    
+    // Emit camera selected event on hover
+    if (marker.cameraCode) {
+      this.cameraSelected.emit(marker.cameraCode);
+    }
+    
+    this.selectedMarker = marker;
+    this.selectedMarkerIndex = index;
+    
+    setTimeout(() => {
+      const markerElement = this.markerElements.toArray()[index];
+      if (markerElement) {
+        this.infoWindow.open(markerElement);
+        
+        // Listen for info window close - only emit event when user manually closes it
+        const nativeInfoWindow = this.infoWindow.infoWindow;
+        if (nativeInfoWindow) {
+          google.maps.event.addListenerOnce(nativeInfoWindow, 'closeclick', () => {
+            this.infoWindowClosed.emit();
+          });
+        }
+      }
+    }, 0);
   }
 
   /**
@@ -1643,6 +1687,37 @@ export class TrafficFlowMapComponent implements OnInit, AfterViewInit, OnChanges
     }
     
     return 'Camera';
+  }
+
+  /**
+   * Get icon for count label based on camera type
+   */
+  getCountIcon(marker: MarkerData): string {
+    if (marker.cameraCode) {
+      const camera = this.cameraLocations.find(c => c.cameraCode === marker.cameraCode);
+      if (camera) {
+        if (camera.type === 'TRAFFIC') return 'assets/icon/carIcon.svg';
+        if (camera.type === 'PERSON' || camera.type === 'FACE') return 'assets/icon/group.svg';
+      }
+    }
+    
+    // For aggregate markers, check types
+    const camerasAtPosition = this.cameraLocations.filter(c => 
+      Math.abs(c.lat - marker.position.lat) < 0.0001 && 
+      Math.abs(c.lng - marker.position.lng) < 0.0001
+    );
+    
+    const hasTraffic = camerasAtPosition.some(cam => cam.type === 'TRAFFIC');
+    const hasPerson = camerasAtPosition.some(cam => cam.type === 'PERSON' || cam.type === 'FACE');
+    
+    // If mixed or traffic, use car icon; if only person, use group icon
+    if (hasTraffic) {
+      return 'assets/icon/carIcon.svg';
+    } else if (hasPerson) {
+      return 'assets/icon/group.svg';
+    }
+    
+    return 'assets/icon/carIcon.svg'; // Default
   }
 
   /**

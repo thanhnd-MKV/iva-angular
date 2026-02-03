@@ -18,7 +18,7 @@ import { BaseTableComponent } from '../../shared/components/table/base-table.com
 import { Component, ViewChild, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { CustomPaginatorComponent } from '../../shared/custom-paginator/custom-paginator.component';
-import { EventSearchBarComponent, FilterConfig } from '../../shared/event-search-bar/event-search-bar.component';
+import { EventSearchBarComponent, FilterConfig, FilterOption } from '../../shared/event-search-bar/event-search-bar.component';
 import { ImageViewerComponent } from '../../shared/image-viewer/image-viewer.component';
 import { EventDetailPopupComponent } from '../../shared/event-detail-popup/event-detail-popup.component';
 import { MENU_ITEM_SETS, FilterMenuItem } from '../../shared/constants/filter-menu-items';
@@ -64,34 +64,42 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
       key: 'gender',
       label: 'Giới tính',
       options: [
-        { label: 'Tất cả', value: '' },
-        { label: 'Nam', value: 'male' },
-        { label: 'Nữ', value: 'female' }
+        { label: 'Giới tính', value: '' },
+        { label: 'Nam', value: 'Nam' },
+        { label: 'Nữ', value: 'Nữ' }
       ],
       defaultValue: ''
     },
-    {
-      key: 'topColor',
-      label: 'Màu áo',
-      options: [
-        { label: 'Tất cả', value: '' },
-        { label: 'Trắng', value: 'white' },
-        { label: 'Đen', value: 'black' },
-        { label: 'Đỏ', value: 'red' },
-        { label: 'Xanh dương', value: 'blue' },
-        { label: 'Xanh lá', value: 'green' },
-        { label: 'Vàng', value: 'yellow' }
-      ],
-      defaultValue: ''
-    },
+    // {
+    //   key: 'topColor',
+    //   label: 'Màu áo',
+    //   options: [
+    //     { label: 'Tất cả', value: '' },
+    //     { label: 'Trắng', value: 'white' },
+    //     { label: 'Đen', value: 'black' },
+    //     { label: 'Đỏ', value: 'red' },
+    //     { label: 'Xanh dương', value: 'blue' },
+    //     { label: 'Xanh lá', value: 'green' },
+    //     { label: 'Vàng', value: 'yellow' }
+    //   ],
+    //   defaultValue: ''
+    // },
     {
       key: 'cameraSn',
       label: 'Camera',
       options: [
-        { label: 'Tất cả Camera', value: '' }
+        { label: 'Camera', value: '' }
       ],
       defaultValue: ''
     }
+  ];
+
+  // Search field options for person events (4 keys: ID, Camera, Location, Attributes)
+  searchFieldOptions: FilterOption[] = [
+    { label: 'ID', value: 'id' },
+    { label: 'Camera', value: 'cameraSn' },
+    { label: 'Khu vực', value: 'location' },
+    { label: 'Thuộc tính', value: 'attributes' }
   ];
   
   queryFormModel: any = [];
@@ -101,7 +109,6 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     'image',        // Hình ảnh
     'eventId',      // ID/ Phân loại (event ID)
     'attributes',   // Thuộc tính (attributes object)
-    'status',       // Trạng thái
     'startTime',    // Thời gian (eventTime/startTime)
     'cameraName',   // Camera (cameraName)
     'location',     // Vị trí
@@ -296,10 +303,9 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
         // Tìm filter camera trong eventFilters và cập nhật options
         const cameraFilter = this.eventFilters.find(filter => filter.key === 'cameraSn');
         if (cameraFilter) {
-          // Filter out any "Tất cả Camera" from cameras to avoid duplicates
-          const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
+          const filteredCameras = cameras.filter(cam => cam.label !== 'Camera' && cam.value !== '');
           cameraFilter.options = [
-            { label: 'Tất cả Camera', value: '' },
+            { label: 'Camera', value: '' },
             ...filteredCameras
           ];
         }
@@ -537,10 +543,11 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
 
   // Event handlers
   handleViewClick(row: any) {
-    console.log('Open event detail popup for:', row.id);
-    // Mở popup thay vì navigate
-    this.selectedEventDetail = this.transformEventData(row);
-    this.showEventDetailPopup = true;
+    console.log('Navigate to event detail page for:', row.id);
+    // Navigate to full detail page instead of showing popup
+    this.router.navigate(['/event/detail', row.id], {
+      state: { returnUrl: '/event/person' }
+    });
   }
   
   handleRowClick(row: any) {
@@ -550,13 +557,52 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     // Only handle row click in tracking mode
     if (this.isTrackingMode) {
       console.log('📄 Row clicked in tracking mode');
-      const eventId = row.eventId || row.id;
+      const eventId = String(row.eventId || row.id);
       console.log('🆔 Event ID from row:', eventId);
-      console.log('🆔 Setting selectedEventId to:', eventId);
-      this.selectedEventId = eventId;
-      console.log('✅ selectedEventId after set:', this.selectedEventId);
+      console.log('🆔 Current selectedEventId:', this.selectedEventId);
+      
+      // Toggle selection: if clicking same row, deselect it
+      if (this.selectedEventId === eventId) {
+        console.log('🔄 Clicking same row - deselecting');
+        this.selectedEventId = '';
+      } else {
+        console.log('✅ Selecting new row:', eventId);
+        this.selectedEventId = eventId;
+      }
+      
+      console.log('🆔 Final selectedEventId:', this.selectedEventId);
+      
+      // Force change detection explicitly
+      this.cdr.markForCheck();
+      this.cdr.detectChanges();
+      
+      console.log('🔍 Force change detection completed');
     } else {
       console.log('⚠️ Row clicked but not in tracking mode');
+    }
+  }
+  
+  handleColumnClick(event: {column: string, row: any}) {
+    console.log('Column clicked:', event.column, event.row);
+    
+    // If clicking on eventId column (ID/Phân loại), show detail popup
+    if (event.column === 'eventId') {
+      // Clear selection in tracking mode when opening detail popup
+      if (this.isTrackingMode && this.selectedEventId) {
+        console.log('🔴 Clearing selection when opening detail popup');
+        this.selectedEventId = '';
+        this.cdr.detectChanges();
+        
+        // Wait for marker to restore before showing popup
+        setTimeout(() => {
+          this.selectedEventDetail = this.transformEventData(event.row);
+          this.showEventDetailPopup = true;
+        }, 100);
+      } else {
+        // Not in tracking mode or no selection, show popup immediately
+        this.selectedEventDetail = this.transformEventData(event.row);
+        this.showEventDetailPopup = true;
+      }
     }
   }
   
@@ -675,7 +721,14 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     // KHÔNG reset pageNumber ở đây - chỉ reset khi filter thay đổi
     // pageNumber đã được set trong onPageChange() hoặc trong các filter methods
     
-    const cleanedQuery = this.getCleanedQuery(this.queryFormModel);
+    // Convert queryFormModel array to params object
+    const cleanedQuery: any = {};
+    this.queryFormModel.forEach((item: any) => {
+      if (item.value !== undefined && item.value !== null && item.value !== '') {
+        cleanedQuery[item.key] = item.value;
+        console.log(`🔑 Adding to cleanedQuery: "${item.key}" = "${item.value}"`);
+      }
+    });
     
     // Force eventCategory to PERSON for this component
     cleanedQuery['eventCategory'] = 'PERSON';
@@ -690,8 +743,12 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     console.log('🔄 loadTableData() called');
     console.log('📋 queryFormModel:', this.queryFormModel);
     console.log('🧹 cleanedQuery:', cleanedQuery);
+    console.log('🧹 cleanedQuery stringified:', JSON.stringify(cleanedQuery));
+    console.log('🧹 cleanedQuery keys:', Object.keys(cleanedQuery));
     console.log('📄 pagination params:', { current: apiParams.current, size: apiParams.size });
     console.log('🚀 About to call API with params:', apiParams);
+    console.log('🚀 apiParams stringified:', JSON.stringify(apiParams));
+    console.log('🚀 apiParams keys:', Object.keys(apiParams));
     this.loading = true;
 
     // Gọi API với filter params và pagination
@@ -791,7 +848,10 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
 
   // New search bar handler
   handleSearch(searchParams: any) {
-    console.log('🔍 Search params:', searchParams);
+    console.log('🔍 Person Event - handleSearch called');
+    console.log('🔍 Search params received:', searchParams);
+    console.log('🔍 Search params keys:', Object.keys(searchParams));
+    
     // Map search params to API query format
     this.queryFormModel = [];
     
@@ -810,32 +870,18 @@ export class PersonEventComponent extends BaseErrorHandlerComponent implements O
     
     // Use mapper utility to convert UI params to API format
     const apiParams = mapSearchParamsToAPI(searchParams);
+    console.log('🔍 Mapped API params:', apiParams);
     
-    // Add mapped params
-    if (apiParams.gender) {
-      this.queryFormModel.push({ key: 'gender', value: apiParams.gender });
-    }
+    // Add ALL params from apiParams to queryFormModel
+    // This ensures all search fields (id, plateNumber, searchText, etc.) are included
+    Object.keys(apiParams).forEach(key => {
+      if (apiParams[key] !== undefined && apiParams[key] !== null && apiParams[key] !== '') {
+        this.queryFormModel.push({ key, value: apiParams[key] });
+        console.log(`✅ Added param: ${key} = ${apiParams[key]}`);
+      }
+    });
     
-    if (apiParams['topColor']) {
-      this.queryFormModel.push({ key: 'topColor', value: apiParams['topColor'] });
-    }
-    
-    if (apiParams.cameraSn) {
-      this.queryFormModel.push({ key: 'cameraSn', value: apiParams.cameraSn });
-    }
-    
-    if (apiParams.fromUtc) {
-      this.queryFormModel.push({ key: 'fromUtc', value: apiParams.fromUtc });
-    }
-    
-    if (apiParams.toUtc) {
-      this.queryFormModel.push({ key: 'toUtc', value: apiParams.toUtc });
-    }
-    
-    // Add other searchParams that aren't in mapper
-    if (searchParams.searchText) {
-      this.queryFormModel.push({ key: 'searchText', value: searchParams.searchText });
-    }
+    console.log('📋 Final queryFormModel:', this.queryFormModel);
     
     this.pageNumber = 0;
     this.loadTableData();

@@ -18,7 +18,7 @@
                 <div class="uploaded-images" *ngIf="uploadedImages.length > 0; else noImage">
                   <div *ngFor="let img of uploadedImages; let i = index" class="image-preview">
                     <img [src]="img" alt="Preview">
-                    <button type="button" mat-icon-button class="remove-btn" (click)="removeImage(i)">
+                    <button *ngIf="!isViewMode" type="button" mat-icon-button class="remove-btn" (click)="removeImage(i)">
                       <mat-icon>close</mat-icon>
                     </button>
                   </div>
@@ -31,23 +31,27 @@
                     </div>
                   </div>
                 </ng-template>
-                <button type="button" class="upload-btn" (click)="triggerImageUpload()">
+                <button *ngIf="!isViewMode" type="button" class="upload-btn" (click)="triggerImageUpload()">
                   <mat-icon>cloud_upload</mat-icon>
                   <span>Tải hình ảnh</span>
                 </button>
-                <input type="file" id="imageUpload" hidden multiple accept="image/*" (change)="onImageUpload($event)">
+                <input type="file" id="imageUpload" hidden multiple accept="image/*" (change)="onImageUpload($event)" [disabled]="isViewMode">
               </div>
             </div>
 
             <!-- Basic Info -->
             <div class="form-group">
               <label>Họ và tên</label>
-              <input type="text" formControlName="name" placeholder="Nguyễn Văn A">
+              <input type="text" formControlName="name" placeholder="">
             </div>
 
             <div class="form-group">
               <label>ID đối tượng</label>
-              <input type="text" formControlName="objectId" placeholder="4324324">
+              <input type="text" 
+                     formControlName="objectId" 
+                     placeholder="" 
+                     [readonly]="isEditMode || isViewMode"
+                     [class.input-disabled]="isEditMode || isViewMode">
             </div>
 
             <div class="form-group">
@@ -61,7 +65,7 @@
 
             <div class="form-group">
               <label>Nguồn dữ liệu</label>
-              <input type="text" formControlName="dataSource" placeholder="Đồng bộ" readonly class="input-disabled">
+              <input type="text" formControlName="dataSource" readonly class="input-disabled">
             </div>
           </div>
 
@@ -71,27 +75,78 @@
 
             <div class="form-group">
               <label>Số CCCD</label>
-              <input type="text" formControlName="cccdNumber" placeholder="43243121224">
+              <input type="text" 
+                     formControlName="cccdNumber" 
+                     placeholder="Nhập 12 số"
+                     maxlength="12"
+                     [class.input-error]="objectForm.get('cccdNumber')?.invalid && objectForm.get('cccdNumber')?.touched">
+              <div class="error-message" *ngIf="objectForm.get('cccdNumber')?.invalid && objectForm.get('cccdNumber')?.touched">
+                <span *ngIf="objectForm.get('cccdNumber')?.errors?.['invalidCccdFormat']">
+                  <mat-icon>error</mat-icon>
+                  Số CCCD phải là 12 chữ số, không chứa chữ cái hoặc ký tự đặc biệt
+                </span>
+                <span *ngIf="objectForm.get('cccdNumber')?.errors?.['duplicate']">
+                  <mat-icon>error</mat-icon>
+                  Số CCCD này đã tồn tại trong hệ thống
+                </span>
+              </div>
             </div>
 
             <div class="form-group">
               <label>Quốc tích</label>
-              <input type="text" formControlName="nationality" placeholder="Việt Nam">
+              <div class="searchable-select-wrapper">
+                <div class="select-display" 
+                     [class.disabled]="isViewMode"
+                     (click)="!isViewMode && (nationalityDropdownOpen = !nationalityDropdownOpen)">
+                  <span class="select-value" *ngIf="objectForm.get('nationality')?.value">
+                    {{ objectForm.get('nationality')?.value }}
+                  </span>
+                  <span class="select-placeholder" *ngIf="!objectForm.get('nationality')?.value">
+                    Chọn quốc tích
+                  </span>
+                  <mat-icon class="dropdown-icon" [class.open]="nationalityDropdownOpen">arrow_drop_down</mat-icon>
+                </div>
+                <div class="select-dropdown" *ngIf="nationalityDropdownOpen && !isViewMode">
+                  <div class="search-input-wrapper">
+                    <input 
+                      type="text" 
+                      class="search-input"
+                      [formControl]="nationalitySearchControl"
+                      placeholder="Tìm kiếm quốc tịch..."
+                      (click)="$event.stopPropagation()"
+                    />
+                    <mat-icon class="search-icon">search</mat-icon>
+                  </div>
+                  <div class="options-list">
+                    <div 
+                      class="option-item" 
+                      *ngFor="let nation of filteredNationalities"
+                      [class.selected]="objectForm.get('nationality')?.value === nation.value"
+                      (click)="selectNationality(nation.value); $event.stopPropagation()"
+                    >
+                      {{ nation.label }}
+                    </div>
+                    <div class="no-results" *ngIf="filteredNationalities.length === 0">
+                      Không tìm thấy kết quả
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
               <label>Ngày cấp CCCD</label>
-              <app-date-picker formControlName="cccdIssueDate" placeholder="Chọn ngày cấp"></app-date-picker>
+              <app-date-picker class="date-form-group" style="max-height: 720px;" formControlName="cccdIssueDate" placeholder=""></app-date-picker>
             </div>
 
             <div class="form-group">
               <label>Nơi cấp CCCD</label>
-              <input type="text" formControlName="cccdIssuePlace" placeholder="Bộ Công An">
+              <input type="text" formControlName="cccdIssuePlace" placeholder="">
             </div>
 
             <div class="form-group">
               <label>Ngày Sinh</label>
-              <app-date-picker formControlName="dateOfBirth" placeholder="Chọn ngày sinh"></app-date-picker>
+              <app-date-picker class="date-form-group" style="max-height: 720px;" formControlName="dateOfBirth" placeholder="Chọn ngày sinh"></app-date-picker>
             </div>
 
             <div class="form-group">
@@ -100,17 +155,18 @@
                 <option value="">Chọn giới tính</option>
                 <option value="Nam">Nam</option>
                 <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
               </select>
             </div>
 
             <div class="form-group">
               <label>Quê quán</label>
-              <input type="text" formControlName="origin" placeholder="An Khánh, Hà Nội">
+              <input type="text" formControlName="origin" placeholder="">
             </div>
 
             <div class="form-group">
               <label>Nơi thường trú</label>
-              <input type="text" formControlName="residence" placeholder="An Khánh, Hà Nội">
+              <input type="text" formControlName="residence" placeholder="">
             </div>
           </div>
         </div>

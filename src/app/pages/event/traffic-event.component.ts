@@ -60,27 +60,16 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
   
   // Event filters configuration - for Traffic/Vehicle events
   eventFilters: FilterConfig[] = [
-    {
-      key: 'eventType',
-      label: 'Loại vi phạm',
-      options: [
-        { label: 'Tất cả', value: '' },
-        { label: 'Vượt đèn đỏ', value: 'Red_Light' },
-        { label: 'Đi sai làn', value: 'Lane_Violation' },
-        { label: 'Đi ngược chiều', value: 'Wrong_Way_Driving' },
-        { label: 'Dừng đỗ sai', value: 'Wrong_Parking' },
-      ],
-      defaultValue: ''
-    },
+  
     {
       key: 'vehicleType',
       label: 'Loại phương tiện',
       options: [
-        { label: 'Tất cả', value: '' },
-        { label: 'Ô tô', value: 'Car' },
-        { label: 'Bus', value: 'Bus' },
-        { label: 'Xe máy', value: 'Motor' },
-        { label: 'Xe tải', value: 'Truck' }
+        { label: 'Loại phương tiện', value: '' },
+        { label: 'Ô tô', value: 'Ô tô' },
+        { label: 'Xe buýt', value: 'Xe buýt' },
+        { label: 'Xe 2 bánh', value: 'Xe 2 bánh' },
+        { label: 'Xe tải', value: 'Xe tải' }
       ],
       defaultValue: ''
     },
@@ -88,7 +77,20 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       key: 'cameraSn',
       label: 'Camera',
       options: [
-        { label: 'Tất cả Camera', value: '' }
+        { label: 'Camera', value: '' }
+      ],
+      defaultValue: ''
+    },
+      {
+      key: 'eventType',
+      label: 'Loại sự kiện',
+      options: [
+        { label: 'Hành vi', value: '' },
+        { label: 'Phát hiện vượt đèn đỏ', value: 'Red_Light' },
+        { label: 'Phát hiện đi ngược chiều', value: 'Wrong_Way_Driving' },
+        { label: 'Phát hiện lấn làn', value: 'Lane_Violation' },
+        { label: 'Phát hiện dừng đỗ sai', value: 'Wrong_Parking' },
+        { label: 'Lưu lượng giao thông', value: 'Traffic_Volume' }
       ],
       defaultValue: ''
     }
@@ -100,9 +102,10 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
   columnsToDisplay: string[] = [
     'image',        // Hình ảnh
     'eventId',      // ID/ Phân loại (event ID)
-    'attributes',   // Thuộc tính (attributes object)
-    'status',       // Trạng thái
+    'plateNumber',  // Biển số xe
+    'vehicleType',  // Phương tiện
     'eventTime',    // Thời gian
+    'eventType',    // Hành vi / Loại sự kiện
     'cameraName',   // Camera (cameraName)
     'location',     // Vị trí
   ];
@@ -125,6 +128,38 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       fontWeight: '400',
       headerFontSize: '11px'
     },
+    plateNumber: {
+      label: 'Biển số xe',
+      type: 'text',
+      width: '110px',
+      fontSize: '11px',
+      fontWeight: '400',
+      headerFontSize: '11px'
+    },
+    vehicleType: {
+      label: 'Phương tiện',
+      type: 'text',
+      width: '100px',
+      fontSize: '11px',
+      fontWeight: '400',
+      headerFontSize: '11px'
+    },
+    eventTime: {
+      label: 'Thời gian',
+      type: 'date',
+      width: '110px',
+      fontSize: '11px',
+      fontWeight: '400',
+      headerFontSize: '11px'
+    },
+    eventType: {
+      label: 'Hành vi',
+      type: 'text',
+      width: '150px',
+      fontSize: '11px',
+      fontWeight: '400',
+      headerFontSize: '11px'
+    },
     attributes: {
       label: 'Thuộc tính',
       type: 'attributes',
@@ -139,14 +174,6 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
       width: '90px',
       fontSize: '11px',
       fontWeight: '500',
-      headerFontSize: '11px'
-    },
-    eventTime: {
-      label: 'Thời gian',
-      type: 'date',
-      width: '110px',
-      fontSize: '11px',
-      fontWeight: '400',
       headerFontSize: '11px'
     },
     cameraName: {
@@ -328,10 +355,10 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
         // Tìm filter camera trong eventFilters và cập nhật options
         const cameraFilter = this.eventFilters.find(filter => filter.key === 'cameraSn');
         if (cameraFilter) {
-          // Filter out any "Tất cả Camera" from cameras to avoid duplicates
-          const filteredCameras = cameras.filter(cam => cam.label !== 'Tất cả Camera' && cam.value !== '');
+          // Filter out any "Camera" from cameras to avoid duplicates
+          const filteredCameras = cameras.filter(cam => cam.label !== 'Camera' && cam.value !== '');
           cameraFilter.options = [
-            { label: 'Tất cả Camera', value: '' },
+            { label: 'Camera', value: '' },
             ...filteredCameras
           ];
         }
@@ -377,6 +404,22 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
     return 'unknown'; // Không xác định
   }
 
+  // Map eventType từ backend sang tiếng Việt
+  mapEventType(eventType: string | null): string {
+    if (!eventType) return 'Không xác định';
+    
+    const eventTypeMap: { [key: string]: string } = {
+      'Traffic_Volume': 'Lưu lượng giao thông',
+      'Red_Light': 'Vượt đèn đỏ',
+      'Wrong_Way_Driving': 'Đi ngược chiều',
+      'Lane_Violation': 'Lấn làn',
+      'Wrong_Parking': 'Dừng đỗ sai',
+      'Unknown': 'Không xác định'
+    };
+    
+    return eventTypeMap[eventType] || eventType;
+  }
+
   getListEvents() {
     this.loading = true;
     
@@ -396,14 +439,19 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
             eventId: item.eventId || item.id,
             // Map image từ croppedImagePath hoặc fullImagePath
             image: this.getImagePath(item),
+            // Map eventType sang tiếng Việt
+            eventType: this.mapEventType(item.eventType),
+            // Extract plateNumber và vehicleType từ attributes hoặc root level
+            plateNumber: item.plateNumber || item.attributes?.plateNumber || '',
+            vehicleType: item.vehicleType || item.attributes?.vehicleType || '',
             // Map status từ boolean sang text
             status: this.mapEventStatus(item.status),
             // Sử dụng eventTime
             eventTime: item.eventTime,
             // Map cameraName (có thể fallback sang cameraSn nếu cần)
-            cameraName: item.cameraName || item.cameraSn || 'N/A',
+            cameraName: item.cameraName || item.cameraSn || '',
             // Map location
-            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : 'N/A'),
+            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : ''),
             // Ensure clipPath is included
             clipPath: item.clipPath || []
           }));
@@ -764,10 +812,14 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
             // Ensure eventId is included
             eventId: item.eventId || item.id,
             image: this.getImagePath(item),
+            eventType: this.mapEventType(item.eventType),
+            // Extract plateNumber và vehicleType từ attributes hoặc root level
+            plateNumber: item.plateNumber || item.attributes?.plateNumber || '',
+            vehicleType: item.vehicleType || item.attributes?.vehicleType || '',
             // Keep attributes object as is for base-table to format
             // attributes: item.attributes (already in ...item)
-            location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
-            camera: item.cameraName || item.cameraSn || 'Unknown Camera',
+            location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : ''),
+            camera: item.cameraName || item.cameraSn || '',
             status: this.mapEventStatus(item.status),
             clipPath: item.clipPath || []
           }));
@@ -1121,9 +1173,12 @@ export class TrafficEventComponent extends BaseErrorHandlerComponent implements 
               id: item.id,
               eventId: String(item.eventId || item.id), // Ensure eventId is string and in tableData
               image: this.getImagePath(item),
+              eventType: this.mapEventType(item.eventType),
+              plateNumber: item.plateNumber || item.attributes?.plateNumber || '',
+              vehicleType: item.vehicleType || item.attributes?.vehicleType || '',
               eventTime: item.eventTime,
-              location: item.location || `${item.latitude || 'N/A'}, ${item.longitude || 'N/A'}`,
-              camera: item.cameraName || item.cameraSn || 'Unknown Camera',
+              location: item.location || (item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : ''),
+              camera: item.cameraName || item.cameraSn || '',
               status: this.mapEventStatus(item.status),
               clipPath: item.clipPath || []
             }));

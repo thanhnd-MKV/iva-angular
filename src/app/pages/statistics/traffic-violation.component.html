@@ -6,22 +6,7 @@
                 (keyup.enter)="onSearch()">
         </div> -->
 
-        <div class="filter-btn-wrapper">
-            <button class="filter-btn time-btn" [class.active]="showTimeDropdown" (click)="toggleTimeDropdown()">
-                <mat-icon class="btn-icon">calendar_today</mat-icon>
-                <span>{{ getTimeRangeLabel() }}</span>
-                <mat-icon class="dropdown-icon">expand_more</mat-icon>
-            </button>
-
-            <div class="dropdown-menu time-dropdown" *ngIf="showTimeDropdown">
-                <div class="dropdown-item" *ngFor="let option of timeOptions"
-                    [class.selected]="selectedTimeRange === option.value" (click)="selectTimeRange(option.value)">
-                    {{ option.label }}
-                </div>
-            </div>
-        </div>
-
-        <app-date-range-picker *ngIf="selectedTimeRange === 'custom'" (dateRangeSelected)="onDateRangeSelected($event)"
+        <app-date-range-picker (dateRangeSelected)="onDateRangeSelected($event)"
             (dateRangeCleared)="onDateRangeCleared()">
         </app-date-range-picker>
 

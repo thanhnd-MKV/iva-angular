@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,7 +23,7 @@ import { filter } from 'rxjs/operators';
     MatIconModule,
     MatProgressSpinnerModule,
     TrafficFlowMapComponent,
-    CountUpDirective
+    CountUpDirective,
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
@@ -34,12 +34,16 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   selectedCategoryFilter = '';
   selectedStatusFilter = '';
   selectedLocationFilter = '';
+  selectedCameraFilter = '';
   cameraSearchText = '';
+  startDate: Date | null = null;
+  endDate: Date | null = null;
   
   // Dropdown states
   showCategoryFilter = false;
   showStatusFilter = false;
   showLocationFilter = false;
+  showCameraFilter = false;
   
   // Filter options
   locationOptions: LocationOption[] = [];
@@ -49,6 +53,7 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   filteredCameras: any[] = [];
   totalCameras = 0;
   loadingCameras = false;
+  selectedCameraCode: string | null = null; // Camera selected from map
   
   // Map data
   cameraLocations: any[] = [];
@@ -109,6 +114,11 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     // Mark dashboard as inactive
     this.isDashboardActive = false;
     
+    // Clear search timeout
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    
     // Unsubscribe from router events
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
@@ -119,51 +129,113 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
   }
   
   // Filter methods
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    // Check if click is outside filter buttons and dropdown menus
+    if (!target.closest('.filter-btn-wrapper')) {
+      this.showCategoryFilter = false;
+      this.showStatusFilter = false;
+      this.showLocationFilter = false;
+      this.showCameraFilter = false;
+    }
+  }
+  
   toggleCategoryFilter(): void {
     this.showCategoryFilter = !this.showCategoryFilter;
     this.showStatusFilter = false;
     this.showLocationFilter = false;
+    this.showCameraFilter = false;
   }
   
   toggleStatusFilter(): void {
     this.showStatusFilter = !this.showStatusFilter;
     this.showCategoryFilter = false;
     this.showLocationFilter = false;
+    this.showCameraFilter = false;
   }
   
   toggleLocationFilter(): void {
     this.showLocationFilter = !this.showLocationFilter;
     this.showCategoryFilter = false;
     this.showStatusFilter = false;
+    this.showCameraFilter = false;
+  }
+
+  toggleCameraFilter(): void {
+    this.showCameraFilter = !this.showCameraFilter;
+    this.showCategoryFilter = false;
+    this.showStatusFilter = false;
+    this.showLocationFilter = false;
   }
   
   selectCategoryFilter(value: string): void {
     this.selectedCategoryFilter = value;
     this.showCategoryFilter = false;
-    this.filterCameras();
+    this.loadCameraList();
   }
   
   selectStatusFilter(value: string): void {
     this.selectedStatusFilter = value;
     this.showStatusFilter = false;
-    this.filterCameras();
+    this.loadCameraList();
   }
   
   selectLocationFilter(value: string): void {
     this.selectedLocationFilter = value;
     this.showLocationFilter = false;
-    this.filterCameras();
+    this.loadCameraList();
+  }
+
+  selectCameraFilter(value: string): void {
+    this.selectedCameraFilter = value;
+    this.showCameraFilter = false;
+    this.loadCameraList();
+  }
+
+  getCameraFilterLabel(): string {
+    if (this.selectedCameraFilter) {
+      const camera = this.cameras.find(c => c.sn === this.selectedCameraFilter);
+      return camera ? (camera.cameraName || camera.sn) : 'Tất cả';
+    }
+    return 'Tất cả';
+  }
+
+  onCameraSelectedFromMap(cameraCode: string): void {
+    console.log('📍 Camera selected from map:', cameraCode);
+    this.selectedCameraCode = cameraCode;
+    
+    // Scroll to selected camera
+    setTimeout(() => {
+      const cameraElement = document.querySelector('.camera-card.camera-selected');
+      if (cameraElement) {
+        cameraElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+
+  onInfoWindowClosed(): void {
+    console.log('❌ Info window closed, clearing selection');
+    this.selectedCameraCode = null;
   }
   
   onCameraSearch(): void {
-    this.filterCameras();
+    // Debounce search - call API after user stops typing
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    this.searchTimeout = setTimeout(() => {
+      this.loadCameraList();
+    }, 500);
   }
+
+  private searchTimeout: any;
   
   getCategoryFilterLabel(): string {
-    if (this.selectedCategoryFilter === 'TRAFFIC') return 'Giao thông';
-    if (this.selectedCategoryFilter === 'PERSON') return 'Đối tượng người';
-    if (this.selectedCategoryFilter === 'FACE') return 'Nhận diện khuôn mặt';
-    return 'Tất cả loại Camera';
+    if (this.selectedCategoryFilter === 'TRAFFIC') return 'Trạng thái: Giao thông';
+    if (this.selectedCategoryFilter === 'PERSON') return 'Trạng thái: Đối tượng người';
+    if (this.selectedCategoryFilter === 'FACE') return 'Trạng thái: Nhận diện khuôn mặt';
+    return 'Trạng thái: Tất cả';
   }
   
   getStatusFilterLabel(): string {
@@ -185,15 +257,33 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     this.selectedCategoryFilter = '';
     this.selectedStatusFilter = '';
     this.selectedLocationFilter = '';
+    this.selectedCameraFilter = '';
     this.cameraSearchText = '';
+    this.startDate = null;
+    this.endDate = null;
     this.loadCameraList();
   }
   
   hasActiveFilters(): boolean {
-    return this.selectedCategoryFilter !== '' || 
-           this.selectedStatusFilter !== '' || 
-           this.selectedLocationFilter !== '' || 
-           this.cameraSearchText !== '';
+    return !!(this.selectedCategoryFilter || 
+           this.selectedStatusFilter || 
+           this.selectedLocationFilter || 
+           this.selectedCameraFilter ||
+           this.cameraSearchText ||
+           this.startDate ||
+           this.endDate);
+  }
+
+  onDateRangeSelected(event: { startDate: Date, endDate: Date }): void {
+    this.startDate = event.startDate;
+    this.endDate = event.endDate;
+    console.log('📅 Date range selected:', { startDate: this.startDate, endDate: this.endDate });
+  }
+
+  onDateRangeCleared(): void {
+    this.startDate = null;
+    this.endDate = null;
+    console.log('📅 Date range cleared');
   }
   
   // Load camera list
@@ -218,6 +308,14 @@ export class DashboardComponentShare implements OnInit, OnDestroy {
     
     if (this.cameraSearchText) {
       params.cameraSn = this.cameraSearchText;
+    }
+    
+    if (this.startDate) {
+      params.startDate = this.startDate.toISOString();
+    }
+    
+    if (this.endDate) {
+      params.endDate = this.endDate.toISOString();
     }
     
     console.log('🌐 Calling API: /api/admin/events/stats/homepage with params:', params);

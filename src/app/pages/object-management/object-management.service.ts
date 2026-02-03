@@ -1,18 +1,20 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of, delay, map } from 'rxjs';
+import { Observable, of, delay, map, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 // Service for managing object/person tracking and events
 // Tracking person data from API
 export interface TrackingPersonData {
   id: number;
+  objectId?: number; // User-defined ID for the object
   fullName: string;
   trackingType: string; // "Truy nã", "Giám sát"
   imagePath: string;
   image?: string; // Mapped from imagePath for base-table compatibility
   numberOfAppearances: number;
   updatedAt: string;
+  dataSource?: string; // 'manual' or 'sync'
 }
 
 // API Response structure
@@ -165,120 +167,11 @@ export class ObjectManagementService {
   private useFakeData = false;
 
   // Fake data matching the UI screenshot
-  private fakeEventData: EventData[] = this.generateFakeEventData();
 
   constructor(private http: HttpClient) {}
 
-  private generateFakeEventData(): EventData[] {
-    const data: EventData[] = [];
-    const names = [
-      'Nguyen Van Hoang Lam',
-      'Tran Thi Mai',
-      'Le Van Thanh',
-      'Pham Minh Duc',
-      'Hoang Thi Lan',
-      'Vu Van Nam',
-      'Do Thi Huong',
-      'Nguyen Minh Tuan',
-      'Tran Van Khanh',
-      'Le Thi Thu'
-    ];
-    const groupTypes: Array<'VIP' | 'Khach' | 'Blacklist'> = ['VIP', 'Khach', 'Blacklist'];
-    const dataSources = ['Đóng bộ', 'Thủ công'];
-
-    for (let i = 1; i <= 100; i++) {
-      const randomName = names[Math.floor(Math.random() * names.length)];
-      const randomGroup = groupTypes[Math.floor(Math.random() * groupTypes.length)];
-      const randomSource = dataSources[Math.floor(Math.random() * dataSources.length)];
-      const randomCount = Math.floor(Math.random() * 500) + 50;
-      const randomDaysAgo = Math.floor(Math.random() * 30);
-      const randomHours = Math.floor(Math.random() * 24);
-      const randomMinutes = Math.floor(Math.random() * 60);
-      const randomSeconds = Math.floor(Math.random() * 60);
-
-      const date = new Date();
-      date.setDate(date.getDate() - randomDaysAgo);
-      date.setHours(randomHours, randomMinutes, randomSeconds);
-
-      data.push({
-        id: i,
-        eventId: `FAKE-${date.getTime()}-Face_Recognition-${i}`,
-        cameraSn: '0123456789ABCDEF',
-        cameraId: Math.floor(Math.random() * 10) + 1,
-        cameraName: `Camera ${Math.floor(Math.random() * 10) + 1}`,
-        frameId: Math.random() > 0.5 ? Math.floor(Math.random() * 1000000) : null,
-        attributes: {
-          topColor: null,
-          gender: Math.random() > 0.5 ? 'Male' : 'Female',
-          topCategory: null,
-          bottomCategory: null,
-          plateNumber: null,
-          bottomColor: null
-        },
-        eventType: 'Face_Recognition',
-        eventCategory: 'PERSON',
-        startTime: date.toISOString(),
-        eventTime: date.toISOString(),
-        duration: null,
-        location: 'The Vista',
-        longitude: 105.78293616746109,
-        latitude: 21.030194980619505,
-        status: false,
-        createTime: date.toISOString(),
-        updateTime: null,
-        fullImagePath: null,
-        croppedImagePath: `https://i.pravatar.cc/150?img=${10 + (i % 60)}`,
-        clipPath: [],
-        expiredTime: new Date(date.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        topCategory: null,
-        bottomCategory: null,
-        bottomColor: null,
-        topColor: null,
-        gender: Math.random() > 0.5 ? 'Male' : 'Female',
-        plateNumber: null
-      });
-    }
-
-    return data;
-  }
-
   getObjectList(params: ObjectSearchParams): Observable<ObjectListResponse> {
     // Use fake data if backend not ready
-    if (this.useFakeData) {
-      // Convert EventData to TrackingPersonData for fake data
-      const fakeTrackingData: TrackingPersonData[] = this.fakeEventData.map((event, index) => ({
-        id: event.id,
-        fullName: event.cameraName,
-        trackingType: event.eventCategory === 'FACE' ? 'Truy nã' : 'Giám sát',
-        imagePath: event.croppedImagePath || event.fullImagePath || '',
-        numberOfAppearances: Math.floor(Math.random() * 50) + 1,
-        updatedAt: event.updateTime || event.createTime
-      }));
-
-      const pageSize = params.size || 10;
-      const page = params.page || 1;
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      
-      let filteredData = [...fakeTrackingData];
-      
-      // Apply filters
-      if (params.searchText) {
-        const searchLower = params.searchText.toLowerCase();
-        filteredData = filteredData.filter(obj => {
-          return obj.fullName.toLowerCase().includes(searchLower);
-        });
-      }
-      
-      const paginatedData = filteredData.slice(startIndex, endIndex);
-      
-      return of({
-        data: paginatedData,
-        total: filteredData.length,
-        current: page,
-        size: pageSize
-      }).pipe(delay(500)); // Simulate network delay
-    }
     
     // Real API call - Use tracking-person API
     let httpParams = new HttpParams();
@@ -343,6 +236,7 @@ export class ObjectManagementService {
       data: {
         id: number;
         fullName: string;
+        objectId?: number; // ID đối tượng - user-defined identifier
         trackingType: string;
         parentsName: string | null;
         offense: string | null;
@@ -360,6 +254,7 @@ export class ObjectManagementService {
         gender: string | null;
         hometown: string | null;
         permanentResidence: string | null;
+        dataSource: string | null; // 'manual' or 'sync'
       };
     }
     
@@ -371,12 +266,13 @@ export class ObjectManagementService {
           return {
             id: person.id,
             fullName: person.fullName,
-            objectId: person.id,
+            objectId: person.objectId || person.id, // Use objectId from BE, fallback to id if not present
             trackingType: person.trackingType,
             imagePath: person.imagePath || '',
             numberOfAppearances: person.numberOfAppearances,
             createdAt: person.createdAt,
             updatedAt: person.updatedAt,
+            dataSource: person.dataSource , // Map BE values to display text
             citizenId: person.citizenId || undefined,
             nationality: person.nationality || undefined,
             citizenIdIssuedDate: person.citizenIdIssuedDate || undefined,
@@ -385,13 +281,14 @@ export class ObjectManagementService {
             gender: person.gender || undefined,
             hometown: person.hometown || undefined,
             permanentResidence: person.permanentResidence || undefined,
-            images: person.imagePath ? [person.imagePath] : [],
+            images: person.imagePath 
+              ? person.imagePath.split(',').map((url: string) => url.trim()).filter((url: string) => url.length > 0)
+              : [],
             // Legacy fields for backward compatibility
             name: person.fullName,
             avatarUrl: person.imagePath || '',
             groupName: 'Đối tượng',
             groupType: (person.trackingType as 'VIP' | 'Khach' | 'Blacklist') || 'VIP',
-            dataSource: 'Camera AI',
             appearanceCount: person.numberOfAppearances,
             lastUpdated: person.updatedAt
           } as ObjectData;
@@ -483,10 +380,23 @@ export class ObjectManagementService {
   }
 
   /**
-   * Update existing tracking person
+   * Update existing tracking person - using formData format
    */
-  updateObject(id: string, data: any): Observable<any> {
-    return this.http.put(`${this.trackingPersonBaseUrl}/${id}`, data);
+  updateObject(id: string, data: { person: any, images: File[] }): Observable<any> {
+    const formData = new FormData();
+    
+    // Add new images if any
+    if (data.images && data.images.length > 0) {
+      data.images.forEach((file: File) => {
+        formData.append('images', file);
+      });
+    }
+    
+    // Add person JSON as blob
+    const personBlob = new Blob([JSON.stringify(data.person)], { type: 'application/json' });
+    formData.append('person', personBlob);
+    
+    return this.http.put(`${this.trackingPersonBaseUrl}/${id}`, formData);
   }
 
   /**
@@ -494,5 +404,41 @@ export class ObjectManagementService {
    */
   deleteObject(id: string): Observable<any> {
     return this.http.delete(`${this.trackingPersonBaseUrl}/${id}`);
+  }
+
+  /**
+   * Check if CCCD number already exists (for duplicate validation)
+   * @param cccdNumber - CCCD number to check
+   * @param currentObjectId - Current object ID (for edit mode, exclude self)
+   * @returns Observable<boolean> - true if duplicate exists, false otherwise
+   */
+  checkCccdDuplicate(cccdNumber: string, currentObjectId?: string): Observable<boolean> {
+    // API endpoint to check CCCD duplicate
+    // Adjust the endpoint based on your actual BE API
+    let params = new HttpParams().set('citizenId', cccdNumber);
+    
+    // Exclude current object when editing
+    if (currentObjectId) {
+      params = params.set('excludeId', currentObjectId);
+      console.log('🔍 [Service] Checking CCCD duplicate with excludeId:', currentObjectId, 'CCCD:', cccdNumber);
+    } else {
+      console.log('🔍 [Service] Checking CCCD duplicate (no excludeId) for CCCD:', cccdNumber);
+    }
+    
+    return this.http.get<TrackingPersonApiResponse>(this.trackingPersonApiUrl, { params })
+      .pipe(
+        map(response => {
+          console.log('🔍 [Service] CCCD check response:', response.data.records.length, 'records found');
+          if (response.data.records.length > 0) {
+            console.log('🔍 [Service] Found records:', response.data.records.map(r => ({ id: r.id, fullName: r.fullName })));
+          }
+          // If any record found with this CCCD, it's a duplicate
+          return response.data.records.length > 0;
+        }),
+        catchError((err) => {
+          console.error('🔍 [Service] Error checking CCCD:', err);
+          return of(false);
+        })
+      );
   }
 }

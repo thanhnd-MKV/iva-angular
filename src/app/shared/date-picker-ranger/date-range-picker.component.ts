@@ -187,6 +187,16 @@ export class DateRangePickerComponent implements OnInit {
       }
   }
 
+  confirmSelection(): void {
+    if (this.startDate && this.endDate) {
+      this.isOpen = false;
+      this.dateRangeSelected.emit({ 
+        startDate: this.startDate, 
+        endDate: this.endDate 
+      });
+    }
+  }
+
   // Calculate optimal popup position to prevent overflow
   calculatePopupPosition(): void {
     const inputRect = this.inputWrapperRef.nativeElement.getBoundingClientRect();
@@ -259,11 +269,8 @@ export class DateRangePickerComponent implements OnInit {
       } else {
           this.endDate = clickedDate;
           this.hoveredDate = null;
-          this.isOpen = false;
-
-          if (this.startDate && this.endDate) {
-            this.dateRangeSelected.emit({ startDate: this.startDate, endDate: this.endDate });
-          }
+          // Don't close popup or emit event here
+          // Wait for user to click "Xác nhận" button
       }
   }
 
